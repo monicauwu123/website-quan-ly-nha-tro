@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng điều khiển | Quản Lý Phòng Trọ</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon"><i class="fas fa-home"></i></div>
+            <span class="logo-text">TRỌ QUẢ LỌ</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-link active" onclick="showSection('overview', this); return false;">
+                <i class="fas fa-chart-line"></i> Tổng quan
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('nhatro', this); return false;">
+                <i class="fas fa-building"></i> Nhà trọ
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('phong', this); return false;">
+                <i class="fas fa-door-open"></i> Phòng trọ
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('nguoithue', this); return false;">
+                <i class="fas fa-users"></i> Khách thuê
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('hopdong', this); return false;">
+                <i class="fas fa-file-contract"></i> Hợp đồng
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('hoadon', this); return false;">
+                <i class="fas fa-file-invoice-dollar"></i> Hóa đơn
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('thanhtoan', this); return false;">
+                <i class="fas fa-credit-card"></i> Thanh toán
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('dichvu', this); return false;">
+                <i class="fas fa-concierge-bell"></i> Dịch vụ
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('loaiphong', this); return false;">
+                <i class="fas fa-tags"></i> Loại phòng
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('diennuoc', this); return false;">
+                <i class="fas fa-bolt"></i> Điện &amp; Nước
+            </a>
+            <a href="#" class="nav-link" onclick="showSection('user', this); return false;">
+                <i class="fas fa-user-shield"></i> Người dùng
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div id="userAvatar" class="user-avatar">A</div>
+                <div>
+                    <div id="userName" class="user-name">Admin</div>
+                    <div id="userRole" class="user-role">Administrator</div>
+                </div>
+            </div>
+            <a href="#" class="nav-link nav-logout" onclick="logout(); return false;">
+                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-bar">
+            <h1 id="sectionTitle">Tổng quan hệ thống</h1>
+            <div style="display:flex;gap:0.75rem;align-items:center;">
+                <button id="addBtn" class="btn btn-primary" style="width:auto;display:none;" onclick="openModal()">
+                    <i class="fas fa-plus"></i> Thêm mới
+                </button>
+                <button class="btn btn-secondary" style="width:auto;" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Overview Section -->
+        <div id="overviewSection">
+            <div class="stats-grid">
+                <div class="stat-card stat-card-indigo">
+                    <div class="stat-icon"><i class="fas fa-building"></i></div>
+                    <div class="stat-info">
+                        <h3>Tổng số nhà trọ</h3>
+                        <div id="statTotalNhaTro" class="value">—</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-blue">
+                    <div class="stat-icon"><i class="fas fa-door-open"></i></div>
+                    <div class="stat-info">
+                        <h3>Tổng số phòng</h3>
+                        <div id="statTotalRooms" class="value">—</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-red">
+                    <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+                    <div class="stat-info">
+                        <h3>Đang thuê</h3>
+                        <div id="statOccupiedRooms" class="value">—</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-green">
+                    <div class="stat-icon"><i class="fas fa-door-open"></i></div>
+                    <div class="stat-info">
+                        <h3>Phòng trống</h3>
+                        <div id="statEmptyRooms" class="value">—</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-purple">
+                    <div class="stat-icon"><i class="fas fa-coins"></i></div>
+                    <div class="stat-info">
+                        <h3>Doanh thu tháng</h3>
+                        <div id="statRevenue" class="value">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                    <h2 style="font-size:1.125rem;font-weight:700;">Danh sách phòng</h2>
+                </div>
+                <div class="table-container">
+                    <table id="recentRoomsTable">
+                        <thead>
+                            <tr>
+                                <th>Tên phòng</th>
+                                <th>Nhà trọ</th>
+                                <th>Giá thuê</th>
+                                <th>Trạng thái</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generic Section -->
+        <div id="genericSection" style="display:none;"></div>
+
+        <!-- Universal Modal -->
+        <div id="universalModal" class="modal-overlay" style="display:none;">
+            <div class="modal-card animate-fade-in">
+                <div class="modal-header">
+                    <h2 id="modalTitle">Tiêu đề</h2>
+                    <button class="close-btn" onclick="closeModal()">&times;</button>
+                </div>
+                <form id="modalForm">
+                    <div id="modalFields" class="modal-body"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" style="width:auto;" onclick="closeModal()">Hủy</button>
+                        <button type="submit" class="btn btn-primary" style="width:auto;">
+                            <i class="fas fa-save"></i> Lưu dữ liệu
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
+
+    <script src="js/api.js?v=1.1"></script>
+    <script src="js/dashboard.js?v=1.1"></script>
+</body>
+</html>
