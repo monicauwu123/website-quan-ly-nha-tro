@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập | Quản Lý Phòng Trọ</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="auth-container">
+    <div class="auth-card animate-fade-in">
+        <div class="auth-header">
+            <div class="auth-icon-wrap">
+                <i class="fas fa-home"></i>
+            </div>
+            <h1>QUẢN LÝ PHÒNG TRỌ</h1>
+            <p style="color: var(--text-light); font-size: 0.9rem;">Chào mừng bạn trở lại — hãy đăng nhập để tiếp tục.</p>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginView">
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Tên đăng nhập</label>
+                    <div style="position: relative;">
+                        <i class="fas fa-user" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-light);"></i>
+                        <input type="text" id="username" class="form-control" style="padding-left: 2.5rem;" placeholder="Nhập tên đăng nhập..." required value="Admin">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Mật khẩu</label>
+                    <div style="position: relative;">
+                        <i class="fas fa-lock" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-light);"></i>
+                        <input type="password" id="password" class="form-control" style="padding-left: 2.5rem; padding-right: 2.5rem;" placeholder="Nhập mật khẩu..." required value="Admin123">
+                        <button type="button" id="togglePwd" style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-light);">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="vaiTro">Đăng nhập với vai trò</label>
+                    <select id="vaiTro" class="form-control">
+                        <option value="Admin">Admin</option>
+                        <option value="ChuTro">Chủ trọ</option>
+                        <option value="NguoiDung">Người dùng</option>
+                    </select>
+                </div>
+
+                <div id="errorMessage" style="color: var(--error); font-size: 0.875rem; margin-bottom: 1rem; display: none; text-align: center; background:#fee2e2; padding:.65rem 1rem; border-radius:.5rem;">
+                    <i class="fas fa-exclamation-circle"></i> <span id="errText">Tên đăng nhập hoặc mật khẩu không chính xác.</span>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <span id="btnText">Đăng nhập</span>
+                    <i id="btnLoader" class="fas fa-spinner fa-spin" style="display: none;"></i>
+                </button>
+            </form>
+
+            <div style="margin-top: 1.25rem; text-align: center; display:flex; flex-direction:column; gap:.75rem;">
+
+                <a href="#" id="toForgotLink"
+                   style="font-size: 0.875rem; color: var(--primary); text-decoration: none; font-weight: 600;">
+                    <i class="fas fa-key"></i> Quên mật khẩu?
+                </a>
+
+                <a href="/register.html"
+                   style="font-size: 0.875rem; color: var(--text); text-decoration: none; font-weight: 600;">
+                    <i class="fas fa-user-plus"></i> Chưa có tài khoản? Đăng ký
+                </a>
+
+            </div>
+        </div>
+
+        <!-- Forgot Password: Step 1 — Nhập email -->
+        <div id="forgotView" style="display:none;">
+            <div style="margin-bottom:1.5rem; text-align:center;">
+                <div style="width:52px;height:52px;background:var(--primary-light);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto .75rem;font-size:1.4rem;color:var(--primary);">
+                    <i class="fas fa-envelope-open-text"></i>
+                </div>
+                <h2 style="font-size:1.25rem;font-weight:800;color:var(--text);margin-bottom:.35rem;">Quên mật khẩu</h2>
+                <p style="font-size:0.875rem;color:var(--text-light);">Nhập email tài khoản, chúng tôi sẽ gửi mã OTP.</p>
+            </div>
+
+            <form id="forgotForm">
+                <div class="form-group">
+                    <label>Email</label>
+                    <div style="position:relative;">
+                        <i class="fas fa-envelope" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);"></i>
+                        <input type="email" id="forgotEmail" class="form-control" style="padding-left:2.5rem;" placeholder="email@example.com" required>
+                    </div>
+                </div>
+                <div id="forgotMsg" style="display:none;font-size:.875rem;padding:.65rem 1rem;border-radius:.5rem;margin-bottom:1rem;"></div>
+                <button type="submit" class="btn btn-primary">
+                    <span id="forgotBtnText"><i class="fas fa-paper-plane"></i> Gửi mã OTP</span>
+                    <i id="forgotLoader" class="fas fa-spinner fa-spin" style="display:none;"></i>
+                </button>
+            </form>
+
+            <div style="margin-top:1rem;text-align:center;">
+                <a href="#" id="backToLoginLink" style="font-size:.875rem;color:var(--primary);text-decoration:none;font-weight:600;">
+                    <i class="fas fa-arrow-left"></i> Quay lại đăng nhập
+                </a>
+            </div>
+        </div>
+
+        <!-- Forgot Password: Step 2 — Nhập OTP + mật khẩu mới -->
+        <div id="resetView" style="display:none;">
+            <div style="margin-bottom:1.5rem;text-align:center;">
+                <div style="width:52px;height:52px;background:#fef3c7;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto .75rem;font-size:1.4rem;color:#92400e;">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h2 style="font-size:1.25rem;font-weight:800;color:var(--text);margin-bottom:.35rem;">Đặt lại mật khẩu</h2>
+                <p style="font-size:0.875rem;color:var(--text-light);">Nhập mã OTP đã nhận qua email và mật khẩu mới.</p>
+            </div>
+
+            <div class="otp-hint">
+                <i class="fas fa-info-circle" style="margin-top:2px;flex-shrink:0;"></i>
+                <span>Mã OTP gồm 6 chữ số, có hiệu lực trong <strong>15 phút</strong>.</span>
+            </div>
+
+            <form id="resetForm">
+                <div class="form-group">
+                    <label>Mã OTP</label>
+                    <input type="text" id="resetToken" class="form-control" placeholder="Nhập 6 chữ số..." maxlength="6" pattern="[0-9]{6}" required style="letter-spacing:6px;font-size:1.1rem;text-align:center;font-weight:700;">
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu mới</label>
+                    <input type="password" id="resetPassword" class="form-control" placeholder="Tối thiểu 6 ký tự" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Nhập lại mật khẩu mới</label>
+                    <input type="password" id="resetConfirm" class="form-control" placeholder="Nhập lại mật khẩu..." required>
+                </div>
+                <div id="resetMsg" style="display:none;font-size:.875rem;padding:.65rem 1rem;border-radius:.5rem;margin-bottom:1rem;"></div>
+                <button type="submit" class="btn btn-primary">
+                    <span id="resetBtnText"><i class="fas fa-lock"></i> Đặt lại mật khẩu</span>
+                    <i id="resetLoader" class="fas fa-spinner fa-spin" style="display:none;"></i>
+                </button>
+            </form>
+
+            <div style="margin-top:1rem;text-align:center;">
+                <a href="#" id="backToForgotLink" style="font-size:.875rem;color:var(--primary);text-decoration:none;font-weight:600;">
+                    <i class="fas fa-arrow-left"></i> Gửi lại OTP
+                </a>
+            </div>
+        </div>
+
+        <div style="margin-top: 1.75rem; text-align: center; font-size: 0.8rem; color: var(--text-light); border-top: 1px solid #d1fae5; padding-top: 1rem;">
+            Hệ thống quản lý phòng trọ chuyên nghiệp v2.0
+        </div>
+    </div>
+
+    <script>
+    // ─── Toggle password visibility ───────────────────────────────────────────
+    document.getElementById('togglePwd').addEventListener('click', function() {
+        const pwd = document.getElementById('password');
+        const icon = this.querySelector('i');
+        if (pwd.type === 'password') {
+            pwd.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            pwd.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    });
+
+    // ─── View switchers ───────────────────────────────────────────────────────
+    let forgotEmail = '';
+
+    function showView(view) {
+        document.getElementById('loginView').style.display = view === 'login' ? 'block' : 'none';
+        document.getElementById('forgotView').style.display = view === 'forgot' ? 'block' : 'none';
+        document.getElementById('resetView').style.display  = view === 'reset'  ? 'block' : 'none';
+    }
+
+    document.getElementById('toForgotLink').addEventListener('click', e => { e.preventDefault(); showView('forgot'); });
+    document.getElementById('backToLoginLink').addEventListener('click', e => { e.preventDefault(); showView('login'); });
+    document.getElementById('backToForgotLink').addEventListener('click', e => { e.preventDefault(); showView('forgot'); });
+
+    // ─── Check URL params (redirect from email link) ──────────────────────────
+    (function() {
+        const params = new URLSearchParams(location.search);
+        if (params.get('email') && params.get('token')) {
+            forgotEmail = params.get('email');
+            document.getElementById('resetToken').value = params.get('token');
+            showView('reset');
+        }
+    })();
+
+    // ─── Đăng nhập ───────────────────────────────────────────────────────────
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const vaiTro   = document.getElementById('vaiTro').value;
+        const btnText  = document.getElementById('btnText');
+        const loader   = document.getElementById('btnLoader');
+        const errBox   = document.getElementById('errorMessage');
+        const errText  = document.getElementById('errText');
+
+        errBox.style.display = 'none';
+        btnText.style.display = 'none';
+        loader.style.display  = 'inline-block';
+
+        try {
+            const res  = await fetch('/api/Auth/dang-nhap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tenDangNhap: username, matKhau: password, vaiTro })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.thanhCong) {
+                localStorage.setItem('token', data.duLieu.token);
+                localStorage.setItem('user',  JSON.stringify(data.duLieu));
+                window.location.href = '/dashboard.html';
+            } else {
+                errText.textContent = data.thongBao || 'Đăng nhập thất bại. Vui lòng thử lại.';
+                errBox.style.display = 'block';
+            }
+        } catch {
+            errText.textContent = 'Có lỗi kết nối đến hệ thống.';
+            errBox.style.display = 'block';
+        } finally {
+            btnText.style.display = 'inline-block';
+            loader.style.display  = 'none';
+        }
+    });
+
+    // ─── Quên mật khẩu ───────────────────────────────────────────────────────
+    document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email   = document.getElementById('forgotEmail').value.trim();
+        const msgBox  = document.getElementById('forgotMsg');
+        const btnText = document.getElementById('forgotBtnText');
+        const loader  = document.getElementById('forgotLoader');
+
+        btnText.style.display = 'none';
+        loader.style.display  = 'inline-block';
+        msgBox.style.display  = 'none';
+
+        try {
+            const res  = await fetch('/api/Account/quen-mat-khau', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+
+            msgBox.style.display     = 'block';
+            msgBox.style.background  = res.ok ? '#d1fae5' : '#fee2e2';
+            msgBox.style.color       = res.ok ? '#065f46' : '#991b1b';
+            msgBox.innerHTML         = `<i class="fas fa-${res.ok ? 'check-circle' : 'exclamation-circle'}"></i> ${data.thongBao}`;
+
+            if (res.ok) {
+                forgotEmail = email;
+                setTimeout(() => showView('reset'), 1600);
+            }
+        } catch {
+            msgBox.style.display    = 'block';
+            msgBox.style.background = '#fee2e2';
+            msgBox.style.color      = '#991b1b';
+            msgBox.innerHTML        = '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối hệ thống.';
+        } finally {
+            btnText.style.display = 'inline-block';
+            loader.style.display  = 'none';
+        }
+    });
+
+    // ─── Reset mật khẩu ──────────────────────────────────────────────────────
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const token    = document.getElementById('resetToken').value.trim();
+        const matKhauMoi     = document.getElementById('resetPassword').value;
+        const nhapLaiMatKhau = document.getElementById('resetConfirm').value;
+        const msgBox   = document.getElementById('resetMsg');
+        const btnText  = document.getElementById('resetBtnText');
+        const loader   = document.getElementById('resetLoader');
+
+        if (matKhauMoi !== nhapLaiMatKhau) {
+            msgBox.style.display    = 'block';
+            msgBox.style.background = '#fee2e2';
+            msgBox.style.color      = '#991b1b';
+            msgBox.innerHTML        = '<i class="fas fa-exclamation-circle"></i> Mật khẩu nhập lại không khớp.';
+            return;
+        }
+
+        btnText.style.display = 'none';
+        loader.style.display  = 'inline-block';
+        msgBox.style.display  = 'none';
+
+        try {
+            const email = forgotEmail || new URLSearchParams(location.search).get('email') || '';
+            const res   = await fetch('/api/Account/reset-mat-khau', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, email, matKhauMoi, nhapLaiMatKhau })
+            });
+            const data  = await res.json();
+
+            msgBox.style.display    = 'block';
+            msgBox.style.background = res.ok ? '#d1fae5' : '#fee2e2';
+            msgBox.style.color      = res.ok ? '#065f46' : '#991b1b';
+            msgBox.innerHTML        = `<i class="fas fa-${res.ok ? 'check-circle' : 'exclamation-circle'}"></i> ${data.thongBao}`;
+
+            if (res.ok) {
+                setTimeout(() => showView('login'), 2000);
+            }
+        } catch {
+            msgBox.style.display    = 'block';
+            msgBox.style.background = '#fee2e2';
+            msgBox.style.color      = '#991b1b';
+            msgBox.innerHTML        = '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối hệ thống.';
+        } finally {
+            btnText.style.display = 'inline-block';
+            loader.style.display  = 'none';
+        }
+    });
+    </script>
+</body>
+</html>

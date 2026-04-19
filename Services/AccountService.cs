@@ -1,0 +1,155 @@
+using System.Security.Cryptography;
+using BCrypt.Net;
+using DoAnSE104.Data;
+using DoAnSE104.Models;
+using DoAnSE104.Models.Dtos;
+using Microsoft.EntityFrameworkCore;
+
+namespace DoAnSE104.Services
+{
+    public interface IAccountService
+    {
+        Task<ThongTinTaiKhoanDto> LayThongTin(int maNguoiDung);
+        Task<ThongTinTaiKhoanDto> CapNhatThongTin(int maNguoiDung, CapNhatThongTinDto dto);
+        Task DoiMatKhau(int maNguoiDung, DoiMatKhauDto dto);
+        Task QuenMatKhau(string email, string baseUrl);
+        Task ResetMatKhau(ResetMatKhauDto dto);
+    }
+
+    public class AccountService : IAccountService
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly IEmailService _emailService;
+
+        public AccountService(ApplicationDbContext context, IEmailService emailService)
+        {
+            _context = context;
+            _emailService = emailService;
+        }
+
+        // ─── Lấy thông tin tài khoản ─────────────────────────────────────────
+
+        public async Task<ThongTinTaiKhoanDto> LayThongTin(int maNguoiDung)
+        {
+            var user = await _context.Users.FindAsync(maNguoiDung)
+                ?? throw new Exception("Không tìm thấy tài khoản");
+
+            return MapToThongTinDto(user);
+        }
+
+        // ─── Cập nhật thông tin (chỉ HoTen, Email, SoDienThoai) ──────────────
+
+        public async Task<ThongTinTaiKhoanDto> CapNhatThongTin(int maNguoiDung, CapNhatThongTinDto dto)
+        {
+            var user = await _context.Users.FindAsync(maNguoiDung)
+                ?? throw new Exception("Không tìm thấy tài khoản");
+
+            // Kiểm tra email trùng với người khác
+            if (user.Email != dto.Email)
+            {
+                bool emailTonTai = await _context.Users
+                    .AnyAsync(u => u.Email == dto.Email && u.MaNguoiDung != maNguoiDung);
+                if (emailTonTai)
+                    throw new Exception("Email này đã được sử dụng bởi tài khoản khác");
+            }
+
+            user.HoTen = dto.HoTen;
+            user.Email = dto.Email;
+            user.SoDienThoai = dto.SoDienThoai ?? string.Empty;
+
+            await _context.SaveChangesAsync();
+
+            return MapToThongTinDto(user);
+        }
+
+        // ─── Đổi mật khẩu ────────────────────────────────────────────────────
+
+        public async Task DoiMatKhau(int maNguoiDung, DoiMatKhauDto dto)
+        {
+            var user = await _context.Users.FindAsync(maNguoiDung)
+                ?? throw new Exception("Không tìm thấy tài khoản");
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.MatKhauCu, user.MatKhau))
+                throw new Exception("Mật khẩu cũ không đúng");
+
+            if (dto.MatKhauMoi != dto.NhapLaiMatKhau)
+                throw new Exception("Mật khẩu nhập lại không khớp");
+
+            user.MatKhau = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
+
+            await _context.SaveChangesAsync();
+        }
+
+        // ─── Quên mật khẩu — sinh OTP 6 số, gửi email ───────────────────────
+
+        public async Task QuenMatKhau(string email, string baseUrl)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            // Không tiết lộ email có tồn tại hay không (bảo mật)
+            if (user == null) return;
+
+            if (!user.TrangThai)
+                throw new Exception("Tài khoản đã bị khóa, không thể đặt lại mật khẩu");
+
+            // Sinh OTP 6 số
+            var otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+
+            user.PasswordResetToken = BCrypt.Net.BCrypt.HashPassword(otp);
+            user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(15);
+
+            await _context.SaveChangesAsync();
+
+            // URL có email & raw otp để client tự điền vào form reset
+            var resetUrl = $"{baseUrl}/reset-mat-khau?email={Uri.EscapeDataString(email)}&token={otp}";
+
+            await _emailService.GuiEmailResetMatKhau(
+                toEmail: email,
+                hoTen: user.HoTen ?? user.TenDangNhap,
+                token: otp,
+                resetUrl: resetUrl
+            );
+        }
+
+        // ─── Reset mật khẩu bằng OTP ─────────────────────────────────────────
+
+        public async Task ResetMatKhau(ResetMatKhauDto dto)
+        {
+            if (dto.MatKhauMoi != dto.NhapLaiMatKhau)
+                throw new Exception("Mật khẩu nhập lại không khớp");
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email)
+                ?? throw new Exception("Không tìm thấy tài khoản với email này");
+
+            if (string.IsNullOrEmpty(user.PasswordResetToken))
+                throw new Exception("Chưa có yêu cầu đặt lại mật khẩu cho tài khoản này");
+
+            if (user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTime.UtcNow)
+                throw new Exception("Mã OTP đã hết hạn. Vui lòng yêu cầu lại");
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.Token, user.PasswordResetToken))
+                throw new Exception("Mã OTP không hợp lệ");
+
+            // Đặt mật khẩu mới
+            user.MatKhau = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
+            user.PasswordResetToken = null;
+            user.PasswordResetTokenExpiry = null;
+
+            await _context.SaveChangesAsync();
+        }
+
+        // ─── Helpers ─────────────────────────────────────────────────────────
+
+        private static ThongTinTaiKhoanDto MapToThongTinDto(User u) => new()
+        {
+            MaNguoiDung = u.MaNguoiDung,
+            TenDangNhap = u.TenDangNhap,
+            HoTen = u.HoTen,
+            Email = u.Email,
+            SoDienThoai = u.SoDienThoai,
+            VaiTro = u.VaiTro,
+            NgayTao = u.NgayTao,
+            TrangThai = u.TrangThai
+        };
+    }
+}
