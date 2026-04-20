@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
+using DoAnSE104.Helpers;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +13,7 @@ namespace DoAnSE104.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ChiSoDienController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

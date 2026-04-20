@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using DoAnSE104.Helpers;
 using Microsoft.EntityFrameworkCore;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
@@ -7,6 +9,7 @@ namespace DoAnSE104.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class LoaiPhongController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

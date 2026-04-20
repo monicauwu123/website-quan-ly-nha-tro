@@ -8,10 +8,32 @@ if (!token) window.location.href = '/index.html';
 
 const user = JSON.parse(localStorage.getItem('user') || '{}');
 if (user.hoTen) {
-    document.getElementById('userName').textContent = user.hoTen;
-    document.getElementById('userRole').textContent = user.vaiTro || '';
+    document.getElementById('userName').textContent  = user.hoTen;
+    document.getElementById('userRole').textContent  = user.vaiTro || '';
     document.getElementById('userAvatar').textContent = (user.hoTen || 'A').charAt(0).toUpperCase();
 }
+
+// ==========================================
+// ROLE-BASED UI  – ẩn/hiện menu theo role
+// ==========================================
+const CURRENT_ROLE = (user.vaiTro || '').trim(); // 'Admin' | 'ChuTro' | 'NguoiDung'
+
+function applyRoleUI() {
+    // Ẩn mọi nav-link không thuộc role hiện tại
+    document.querySelectorAll('.sidebar-nav .nav-link[data-role]').forEach(link => {
+        const allowed = link.getAttribute('data-role').split(',').map(r => r.trim());
+        link.style.display = (CURRENT_ROLE && allowed.includes(CURRENT_ROLE)) ? '' : 'none';
+    });
+
+    // Ẩn nút "Thêm mới" với NguoiDung (chỉ xem)
+    if (CURRENT_ROLE === 'NguoiDung') {
+        const addBtn = document.getElementById('addBtn');
+        if (addBtn) addBtn.style.display = 'none';
+    }
+}
+
+// Chạy ngay khi DOM sẵn sàng
+applyRoleUI();
 
 // --- STATE ---
 let currentSection = 'overview';
@@ -344,15 +366,20 @@ function showSection(section, el) {
     const addBtn = document.getElementById('addBtn');
     const sectionTitle = document.getElementById('sectionTitle');
 
+    // NguoiDung chỉ xem, không được tạo/sửa/xóa
+    const canCreate = (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')
+    || (CURRENT_ROLE === 'NguoiDung' && section === 'hopdong');
+    const canWrite = canCreate;
+
     if (section === 'overview') {
         addBtn.style.display = 'none';
         sectionTitle.textContent = 'Tổng quan hệ thống';
     } else if (section === 'diennuoc') {
-        addBtn.style.display = 'inline-flex';
+        addBtn.style.display = canWrite ? 'inline-flex' : 'none';
         sectionTitle.textContent = 'Điện & Nước';
         addBtn.onclick = () => openDienNuocModal();
     } else {
-        addBtn.style.display = 'inline-flex';
+        addBtn.style.display = canWrite ? 'inline-flex' : 'none';
         sectionTitle.textContent = modules[section]?.title || section;
         addBtn.onclick = () => openModal();
     }
@@ -409,8 +436,10 @@ async function loadOverview() {
                 <td>${fmtCurrency(r.giaPhong)}</td>
                 <td><span class="badge ${cls}">${tt?.tenTrangThai || '---'}</span></td>
                 <td>
+                    ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
                     <button class="btn-action btn-edit" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Sửa</button>
                     <button class="btn-action btn-delete" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i> Xóa</button>
+                    ` : ''}
                 </td>
             </tr>`;
         }).join('');
@@ -424,7 +453,13 @@ async function loadOverview() {
 // ROOM GRID
 // ==========================================
 async function renderRoomGrid() {
-    document.getElementById('addBtn').onclick = () => openModal();
+    const _addBtn = document.getElementById('addBtn');
+    if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
+        _addBtn.style.display = 'inline-flex';
+        _addBtn.onclick = () => openModal();
+    } else {
+        _addBtn.style.display = 'none';
+    }
     const container = document.getElementById('genericSection');
     container.innerHTML = `
         <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center;">
@@ -472,10 +507,12 @@ function renderRooms(rooms) {
                 <p><i class="fas fa-money-bill-wave" style="width:1.25rem;color:var(--primary);"></i> <strong style="color:var(--text);">${fmtCurrency(r.giaPhong)}</strong>/tháng</p>
                 <p><i class="fas fa-users" style="width:1.25rem;color:var(--primary);"></i> ${r.soNguoiHienTai}/${r.sucChua} người</p>
             </div>
+            ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
             <div style="display:flex;gap:0.5rem;">
                 <button class="btn btn-primary" style="flex:1;padding:0.5rem;font-size:0.875rem;" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Chỉnh sửa</button>
                 <button class="btn btn-danger" style="padding:0.5rem;" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i></button>
             </div>
+            ` : ''}
         </div>`;
     }).join('');
 }
@@ -535,6 +572,8 @@ function renderTable(cfg, data, section) {
         tbody.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;color:var(--text-light);">Không có dữ liệu</td></tr>`;
         return;
     }
+    const canWrite = (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro');
+
     tbody.innerHTML = data.map(item => `<tr>
         ${cfg.headers.map(h => {
         const val = h.key ? item[h.key] : null;
@@ -542,8 +581,10 @@ function renderTable(cfg, data, section) {
         return `<td>${rendered}</td>`;
     }).join('')}
         <td style="white-space:nowrap;">
+            ${canWrite ? `
             <button class="btn-action btn-edit" onclick="editItem('${section}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
             <button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>
+            ` : ''}
         </td>
     </tr>`).join('');
 }
@@ -619,8 +660,10 @@ async function loadDienNuocData(tab) {
             return `<td>${rendered}</td>`;
         }).join('')}
             <td style="white-space:nowrap;">
+                ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
                 <button class="btn-action btn-edit" onclick="editDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
                 <button class="btn-action btn-delete" onclick="deleteDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>
+                ` : ''}
             </td>
         </tr>`).join('');
     } catch (e) {

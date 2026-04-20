@@ -1,8 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
+using DoAnSE104.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +15,7 @@ namespace DoAnSE104.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class HoaDonController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -21,14 +25,48 @@ namespace DoAnSE104.Controllers
             _context = context;
         }
 
+        private int GetCurrentUserId()
+            => int.Parse(User.FindFirstValue("MaNguoiDung")!);
+
+        private string GetCurrentRole()
+            => User.FindFirstValue(ClaimTypes.Role)!;
+
         // Láº¥y danh sÃ¡ch hÃ³a Ä‘Æ¡n vá»›i thÃ´ng tin phÃ²ng vÃ  ngÆ°á»i thuÃª
-        [HttpGet]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<HoaDonDto>>> GetAllHoaDon()
         {
-            var hoaDons = await _context.HoaDon
+            var role   = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            IQueryable<HoaDon> query = _context.HoaDon
                 .Include(h => h.Phong)
-                .Include(h => h.NguoiThue)
+                .Include(h => h.NguoiThue);
+
+            if (role == VaiTroConst.ChuTro)
+            {
+                // ChuTro chỉ thấy hóa đơn của phòng thuộc nhà trọ mình
+                var maNhaTroList = await _context.NhaTro
+                    .Where(n => n.MaChuTro == userId)
+                    .Select(n => n.MaNhaTro)
+                    .ToListAsync();
+                var maPhongList = await _context.Phong
+                    .Where(p => maNhaTroList.Contains(p.MaNhaTro))
+                    .Select(p => p.MaPhong)
+                    .ToListAsync();
+                query = query.Where(h => maPhongList.Contains(h.MaPhong));
+            }
+            else if (role == VaiTroConst.NguoiDung)
+            {
+                // NguoiDung chỉ thấy hóa đơn của mình
+                var maPhongCuaUser = await _context.NguoiThue
+                    .Where(nt => nt.MaNguoiDung == userId)
+                    .Select(nt => nt.MaPhong)
+                    .ToListAsync();
+                query = query.Where(h => maPhongCuaUser.Contains(h.MaPhong));
+            }
+            // Admin: không filter
+
+            var hoaDons = await query
                 .Select(h => new HoaDonDto
                 {
                     MaHoaDon = h.MaHoaDon,
@@ -121,7 +159,9 @@ namespace DoAnSE104.Controllers
         }
 
         // Táº¡o hÃ³a Ä‘Æ¡n má»›i
+        // Tạo hóa đơn mới – Admin & ChuTro
         [HttpPost]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> CreateHoaDon([FromBody] HoaDonCreateDto request)
         {
             try
@@ -214,7 +254,9 @@ namespace DoAnSE104.Controllers
         }
 
         // Cáº­p nháº­t hÃ³a Ä‘Æ¡n
+        // Cập nhật hóa đơn – Admin & ChuTro
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> UpdateHoaDon(int id, [FromBody] HoaDonUpdateDto dto)
         {
             if (id != dto.MaHoaDon)
@@ -244,7 +286,9 @@ namespace DoAnSE104.Controllers
         }
 
         // XoÃ¡ hÃ³a Ä‘Æ¡n
+        // Xoá hóa đơn – chỉ Admin
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteHoaDon(int id)
         {
             var hoaDon = await _context.HoaDon.FindAsync(id);

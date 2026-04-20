@@ -1,12 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
+using DoAnSE104.Helpers;
 
 namespace DoAnSE104.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class DichVuController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -73,6 +76,7 @@ public async Task<ActionResult<float>> GetTongTienDichVuTheoPhong()
 
         // POST: api/DichVu
         [HttpPost]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<ActionResult<DichVu>> PostDichVu(DichVu dichVu)
         {
             _context.DichVu.Add(dichVu);
@@ -83,6 +87,7 @@ public async Task<ActionResult<float>> GetTongTienDichVuTheoPhong()
 
         // PUT: api/DichVu/5
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> PutDichVu(int id, DichVu dichVu)
         {
             if (id != dichVu.MaDichVu)
@@ -113,6 +118,7 @@ public async Task<ActionResult<float>> GetTongTienDichVuTheoPhong()
 
         // DELETE: api/DichVu/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteDichVu(int id)
         {
             var dichVu = await _context.DichVu.FindAsync(id);

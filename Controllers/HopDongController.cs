@@ -1,14 +1,18 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.DTOs;
 using DoAnSE104.Models.Dtos;
+using DoAnSE104.Helpers;
 
 namespace DoAnSE104.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class HopDongController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -17,6 +21,12 @@ namespace DoAnSE104.Controllers
         {
             _context = context;
         }
+
+        private int GetCurrentUserId()
+            => int.Parse(User.FindFirstValue("MaNguoiDung")!);
+
+        private string GetCurrentRole()
+            => User.FindFirstValue(ClaimTypes.Role)!;
 
         private string GetTrangThaiText(DateTime? ngayKetThuc)
         {
@@ -33,10 +43,30 @@ namespace DoAnSE104.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetHopDong()
         {
-            var hopDongs = await _context.HopDong
+            var role   = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            IQueryable<HopDong> query = _context.HopDong
                 .Include(h => h.NguoiThue)
-                .Include(h => h.Phong)
-                .ToListAsync();
+                .Include(h => h.Phong);
+
+            if (role == VaiTroConst.ChuTro)
+            {
+                var maNhaTroList = await _context.NhaTro
+                    .Where(n => n.MaChuTro == userId).Select(n => n.MaNhaTro).ToListAsync();
+                var maPhongList = await _context.Phong
+                    .Where(p => maNhaTroList.Contains(p.MaNhaTro)).Select(p => p.MaPhong).ToListAsync();
+                query = query.Where(h => maPhongList.Contains(h.MaPhong));
+            }
+            else if (role == VaiTroConst.NguoiDung)
+            {
+                // NguoiDung chỉ thấy hợp đồng của chính mình
+                var maPhongCuaUser = await _context.NguoiThue
+                    .Where(nt => nt.MaNguoiDung == userId).Select(nt => nt.MaPhong).ToListAsync();
+                query = query.Where(h => maPhongCuaUser.Contains(h.MaPhong));
+            }
+
+            var hopDongs = await query.ToListAsync();
 
             var result = hopDongs.Select(h => new
             {
@@ -166,6 +196,7 @@ namespace DoAnSE104.Controllers
 
         // POST: api/HopDong
         [HttpPost]
+        [Authorize(Roles = "Admin,ChuTro,NguoiDung")]
         public async Task<ActionResult<HopDong>> PostHopDong(CreateHopDongDto dto)
         {
             var phongConflict = await _context.HopDong
@@ -179,7 +210,14 @@ namespace DoAnSE104.Controllers
 
             if (nguoiThueConflict != null)
                 return BadRequest("NgÆ°á»i thuÃª nÃ y Ä‘Ã£ cÃ³ há»£p Ä‘á»“ng Ä‘ang hoáº¡t Ä‘á»™ng.");
-
+            // NguoiDung chỉ được tạo hợp đồng cho chính mình
+            if (GetCurrentRole() == VaiTroConst.NguoiDung)
+            {
+                var userId = GetCurrentUserId();
+                var nguoiThue = await _context.NguoiThue.FindAsync(dto.MaNguoiThue);
+                if (nguoiThue == null || nguoiThue.MaNguoiDung != userId)
+                    return Forbid();  
+            }
             var hopDong = new HopDong
             {
                 MaNguoiThue = dto.MaNguoiThue,
@@ -198,6 +236,7 @@ namespace DoAnSE104.Controllers
 
         // PUT: api/HopDong/5
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> PutHopDong(int id, HopDongUpdateDto hopDongDto)
         {
             if (id != hopDongDto.MaHopDong)
@@ -233,6 +272,7 @@ namespace DoAnSE104.Controllers
 
         // DELETE: api/HopDong/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteHopDong(int id)
         {
             var hopDong = await _context.HopDong.FindAsync(id);

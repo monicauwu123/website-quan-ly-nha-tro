@@ -20,44 +20,60 @@
         </div>
 
         <nav class="sidebar-nav">
-            <a href="#" class="nav-link active" onclick="showSection('overview', this); return false;">
+            <!-- data-role="Admin,ChuTro,NguoiDung" = tất cả role thấy -->
+            <!-- data-role="Admin,ChuTro"            = chỉ Admin & ChuTro thấy -->
+            <!-- data-role="Admin"                   = chỉ Admin thấy -->
+
+            <a href="#" class="nav-link active" data-role="Admin,ChuTro,NguoiDung"
+               onclick="showSection('overview', this); return false;">
                 <i class="fas fa-chart-line"></i> Tổng quan
             </a>
-            <a href="#" class="nav-link" onclick="showSection('nhatro', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro"
+               onclick="showSection('nhatro', this); return false;">
                 <i class="fas fa-building"></i> Nhà trọ
             </a>
-            <a href="#" class="nav-link" onclick="showSection('phong', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+               onclick="showSection('phong', this); return false;">
                 <i class="fas fa-door-open"></i> Phòng trọ
             </a>
-            <a href="#" class="nav-link" onclick="showSection('nguoithue', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro"
+               onclick="showSection('nguoithue', this); return false;">
                 <i class="fas fa-users"></i> Khách thuê
             </a>
-            <a href="#" class="nav-link" onclick="showSection('hopdong', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+               onclick="showSection('hopdong', this); return false;">
                 <i class="fas fa-file-contract"></i> Hợp đồng
             </a>
-            <a href="#" class="nav-link" onclick="showSection('hoadon', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+               onclick="showSection('hoadon', this); return false;">
                 <i class="fas fa-file-invoice-dollar"></i> Hóa đơn
             </a>
-            <a href="#" class="nav-link" onclick="showSection('thanhtoan', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+               onclick="showSection('thanhtoan', this); return false;">
                 <i class="fas fa-credit-card"></i> Thanh toán
             </a>
-            <a href="#" class="nav-link" onclick="showSection('dichvu', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro"
+               onclick="showSection('dichvu', this); return false;">
                 <i class="fas fa-concierge-bell"></i> Dịch vụ
             </a>
-            <a href="#" class="nav-link" onclick="showSection('loaiphong', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro"
+               onclick="showSection('loaiphong', this); return false;">
                 <i class="fas fa-tags"></i> Loại phòng
             </a>
-            <a href="#" class="nav-link" onclick="showSection('diennuoc', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin,ChuTro"
+               onclick="showSection('diennuoc', this); return false;">
                 <i class="fas fa-bolt"></i> Điện &amp; Nước
             </a>
-            <a href="#" class="nav-link" onclick="showSection('user', this); return false;">
+            <a href="#" class="nav-link" data-role="Admin"
+               onclick="showSection('user', this); return false;">
                 <i class="fas fa-user-shield"></i> Người dùng
             </a>
 
             <!-- divider -->
             <div style="margin: 0.75rem 0.5rem; border-top: 1px dashed #d1fae5;"></div>
 
-            <a href="#" class="nav-link" id="navTaiKhoan" onclick="showSection('taikhoan', this); return false;">
+            <a href="#" class="nav-link" id="navTaiKhoan" data-role="Admin,ChuTro,NguoiDung"
+               onclick="showSection('taikhoan', this); return false;">
                 <i class="fas fa-id-card"></i> Tài khoản của tôi
             </a>
         </nav>
