@@ -66,6 +66,11 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
             const msg = typeof json === 'string' ? json : (json?.message || json?.title || JSON.stringify(json));
             throw new Error(msg || `Lỗi HTTP ${res.status}`);
         }
+        // Chuẩn hoá response kiểu ApiResponse<T>: { thanhCong, thongBao, duLieu }
+        // để frontend luôn nhận trực tiếp mảng/object dữ liệu.
+        if (json && typeof json === 'object' && Object.prototype.hasOwnProperty.call(json, 'duLieu')) {
+            return json.duLieu;
+        }
         return json;
     } catch (e) {
         throw e;
@@ -398,56 +403,132 @@ function showSection(section, el) {
 // ==========================================
 async function loadOverview() {
     try {
-        const [rooms, payments, houses] = await Promise.all([
-            apiFetch('/api/Phong'),
-            apiFetch('/api/ThanhToan'),
-            apiFetch('/api/NhaTro')
-        ]);
+        const data = await apiFetch('/api/Dashboard/overview');
 
-        const total = rooms?.length || 0;
-        const totalHouses = houses?.length || 0;
-        // status 2 = occupied (Đang thuê), status 1 = empty (Còn trống)
-        const occupied = rooms?.filter(r => r.maTrangThai === 2).length || 0;
-        const empty = rooms?.filter(r => r.maTrangThai === 1).length || 0;
-
-        const now = new Date();
-        const monthRev = (payments || [])
-            .filter(p => { const d = new Date(p.ngayThanhToan); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
-            .reduce((s, p) => s + (p.tongTien || 0), 0);
-
-        document.getElementById('statTotalNhaTro').textContent = totalHouses;
-        document.getElementById('statTotalRooms').textContent = total;
-        document.getElementById('statOccupiedRooms').textContent = occupied;
-        document.getElementById('statEmptyRooms').textContent = empty;
-        document.getElementById('statRevenue').textContent = fmtCurrency(monthRev);
-
-        const tbody = document.querySelector('#recentRoomsTable tbody');
-        if (!rooms?.length) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-light);">Chưa có phòng nào</td></tr>';
-            return;
+        if (CURRENT_ROLE === 'NguoiDung') {
+            renderNguoiDungOverview(data);
+        } else {
+            renderChuTroAdminOverview(data);
         }
-        tbody.innerHTML = rooms.slice(0, 10).map(r => {
-            const nhaTro = lookups.nhatro.find(n => n.maNhaTro === r.maNhaTro);
-            const tt = lookups.trangthai.find(t => t.maTrangThai === r.maTrangThai);
-            const cls = r.maTrangThai === 1 ? 'badge-success' : r.maTrangThai === 2 ? 'badge-danger' : 'badge-warning';
-            return `<tr>
-                <td><strong>${r.tenPhong}</strong></td>
-                <td>${nhaTro?.tenNhaTro || '---'}</td>
-                <td>${fmtCurrency(r.giaPhong)}</td>
-                <td><span class="badge ${cls}">${tt?.tenTrangThai || '---'}</span></td>
-                <td>
-                    ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
-                    <button class="btn-action btn-edit" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Sửa</button>
-                    <button class="btn-action btn-delete" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i> Xóa</button>
-                    ` : ''}
-                </td>
-            </tr>`;
-        }).join('');
     } catch (e) {
         console.error('Overview error:', e);
         showToast('Lỗi tải dữ liệu tổng quan', 'error');
     }
 }
+
+function renderChuTroAdminOverview(data) {
+    document.getElementById('sectionTitle').textContent = CURRENT_ROLE === 'ChuTro' ? 'Tổng quan nhà trọ của tôi' : 'Tổng quan hệ thống';
+
+    const statsGrid = document.querySelector('#overviewSection .stats-grid');
+    statsGrid.innerHTML = `
+        <div class="stat-card stat-card-indigo">
+            <div class="stat-icon"><i class="fas fa-building"></i></div>
+            <div class="stat-info"><h3>Tổng số nhà trọ</h3><div id="statTotalNhaTro" class="value">${data?.tongNhaTro ?? 0}</div></div>
+        </div>
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="fas fa-door-open"></i></div>
+            <div class="stat-info"><h3>Tổng số phòng</h3><div id="statTotalRooms" class="value">${data?.tongPhong ?? 0}</div></div>
+        </div>
+        <div class="stat-card stat-card-red">
+            <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+            <div class="stat-info"><h3>Đang thuê</h3><div id="statOccupiedRooms" class="value">${data?.phongDangThue ?? 0}</div></div>
+        </div>
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="fas fa-door-open"></i></div>
+            <div class="stat-info"><h3>Phòng trống</h3><div id="statEmptyRooms" class="value">${data?.phongTrong ?? 0}</div></div>
+        </div>
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+            <div class="stat-info"><h3>Khách thuê</h3><div id="statTotalTenants" class="value">${data?.tongKhachThue ?? 0}</div></div>
+        </div>
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="fas fa-coins"></i></div>
+            <div class="stat-info"><h3>Doanh thu tháng</h3><div id="statRevenue" class="value">${fmtCurrency(data?.doanhThuThang ?? 0)}</div></div>
+        </div>
+    `;
+
+    const rooms = data?.danhSachPhongGanDay || [];
+    const tbody = document.querySelector('#recentRoomsTable tbody');
+    const title = document.querySelector('#overviewSection .data-card h2');
+    if (title) title.textContent = 'Danh sách phòng gần đây';
+
+    if (!rooms.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-light);">Chưa có phòng nào</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = rooms.map(r => {
+        const cls = r.maTrangThai === 1 ? 'badge-success' : r.maTrangThai === 2 ? 'badge-danger' : 'badge-warning';
+        return `<tr>
+            <td><strong>${r.tenPhong || '---'}</strong></td>
+            <td>${r.tenNhaTro || '---'}</td>
+            <td>${fmtCurrency(r.giaPhong)}</td>
+            <td><span class="badge ${cls}">${r.trangThai || '---'}</span></td>
+            <td>
+                ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
+                <button class="btn-action btn-edit" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Sửa</button>
+                <button class="btn-action btn-delete" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i> Xóa</button>
+                ` : ''}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function renderNguoiDungOverview(data) {
+    document.getElementById('sectionTitle').textContent = 'Tổng quan của tôi';
+
+    const tk = data?.taiKhoan || {};
+    const phong = data?.phongDangThue;
+    const hd = data?.hopDongHienTai;
+    const hoaDon = data?.hoaDonThangNay;
+    const daThanhToan = hoaDon?.daThanhToan ?? 0;
+    const tongTien = hoaDon?.tongTien ?? 0;
+    const conLai = Math.max(tongTien - daThanhToan, 0);
+    const trangThai = !hoaDon ? 'Chưa có hóa đơn tháng này' : (conLai <= 0 ? 'Đã trả' : 'Chưa trả');
+    const badgeClass = !hoaDon ? 'badge-warning' : (conLai <= 0 ? 'badge-success' : 'badge-danger');
+
+    const statsGrid = document.querySelector('#overviewSection .stats-grid');
+    statsGrid.innerHTML = `
+        <div class="stat-card stat-card-indigo">
+            <div class="stat-icon"><i class="fas fa-user"></i></div>
+            <div class="stat-info"><h3>Thông tin tài khoản</h3><div class="value" style="font-size:1rem;line-height:1.45">${tk.hoTen || '---'}<br><small>${tk.email || '---'}</small><br><small>${tk.soDienThoai || '---'}</small></div></div>
+        </div>
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="fas fa-home"></i></div>
+            <div class="stat-info"><h3>Phòng đang thuê</h3><div class="value" style="font-size:1.25rem">${phong?.tenPhong || 'Chưa có phòng'}</div><small>${phong?.tenNhaTro || ''}</small></div>
+        </div>
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="fas fa-file-contract"></i></div>
+            <div class="stat-info"><h3>Hợp đồng hiện tại</h3><div class="value" style="font-size:1rem;line-height:1.45">${hd ? `${fmtDate(hd.ngayBatDau)}<br>đến ${fmtDate(hd.ngayKetThuc)}` : 'Chưa có hợp đồng'}</div></div>
+        </div>
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="fas fa-coins"></i></div>
+            <div class="stat-info"><h3>Tổng tiền tháng này</h3><div class="value">${hoaDon ? fmtCurrency(tongTien) : '---'}</div></div>
+        </div>
+        <div class="stat-card stat-card-red">
+            <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="stat-info"><h3>Trạng thái thanh toán</h3><div class="value" style="font-size:1.1rem"><span class="badge ${badgeClass}">${trangThai}</span></div>${hoaDon ? `<small>Còn lại: ${fmtCurrency(conLai)}</small>` : ''}</div>
+        </div>
+    `;
+
+    const title = document.querySelector('#overviewSection .data-card h2');
+    if (title) title.textContent = 'Chi tiết hóa đơn tháng này';
+
+    const tbody = document.querySelector('#recentRoomsTable tbody');
+    if (!hoaDon) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-light);">Chưa có hóa đơn tháng này</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = `<tr>
+        <td><strong>${hoaDon.kyHoaDon || '---'}</strong></td>
+        <td>${phong?.tenPhong || '---'}</td>
+        <td>${fmtCurrency(hoaDon.tongTien)}</td>
+        <td><span class="badge ${badgeClass}">${trangThai}</span></td>
+        <td>Đã trả: ${fmtCurrency(daThanhToan)}</td>
+    </tr>`;
+}
+
 
 // ==========================================
 // ROOM GRID

@@ -31,6 +31,43 @@ namespace DoAnSE104.Controllers
         private string GetCurrentRole()
             => User.FindFirstValue(ClaimTypes.Role)!;
 
+        private bool TryParseKyHoaDon(string kyHoaDon, out int nam, out int thang)
+        {
+            nam = 0;
+            thang = 0;
+
+            if (string.IsNullOrWhiteSpace(kyHoaDon))
+                return false;
+
+            var parts = kyHoaDon.Split('-');
+            if (parts.Length != 2)
+                return false;
+
+            if (!int.TryParse(parts[0], out nam) || !int.TryParse(parts[1], out thang))
+                return false;
+
+            return nam >= 1900 && nam <= 9999 && thang >= 1 && thang <= 12;
+        }
+
+        private async Task<string?> ValidateHoaDon(int maHoaDon, int maPhong, string kyHoaDon, decimal tongTien)
+        {
+            if (!TryParseKyHoaDon(kyHoaDon, out _, out _))
+                return "Kỳ hóa đơn không hợp lệ. Vui lòng nhập theo định dạng yyyy-MM, ví dụ: 2026-05";
+
+            if (tongTien < 0)
+                return "Tổng tiền hóa đơn phải lớn hơn hoặc bằng 0";
+
+            var trungHoaDon = await _context.HoaDon.AnyAsync(hd =>
+                hd.MaPhong == maPhong &&
+                hd.KyHoaDon == kyHoaDon &&
+                hd.MaHoaDon != maHoaDon);
+
+            if (trungHoaDon)
+                return $"Đã tồn tại hóa đơn cho phòng này trong kỳ {kyHoaDon}";
+
+            return null;
+        }
+
         // Láº¥y danh sÃ¡ch hÃ³a Ä‘Æ¡n vá»›i thÃ´ng tin phÃ²ng vÃ  ngÆ°á»i thuÃª
         [HttpGet]
         public async Task<ActionResult<IEnumerable<HoaDonDto>>> GetAllHoaDon()
@@ -146,6 +183,9 @@ namespace DoAnSE104.Controllers
         [HttpGet("GetPhongChuaCoHoaDonTrongThang")]
         public async Task<IActionResult> GetPhongChuaCoHoaDonTrongThang([FromQuery] int thang, [FromQuery] int nam)
         {
+            if (thang < 1 || thang > 12 || nam < 1900 || nam > 9999)
+                return BadRequest("Tháng năm không hợp lệ");
+
             var phongDaCoHoaDon = await _context.HoaDon
                 .Where(hd => hd.NgayLap.Month == thang && hd.NgayLap.Year == nam)
                 .Select(hd => hd.MaPhong)
@@ -189,13 +229,9 @@ namespace DoAnSE104.Controllers
                 if (hopDong == null)
                     return BadRequest("KhÃ´ng tÃ¬m tháº¥y há»£p Ä‘á»“ng thuÃª há»£p lá»‡ cho phÃ²ng nÃ y");
 
-                // Kiá»ƒm tra hÃ³a Ä‘Æ¡n Ä‘Ã£ tá»“n táº¡i trong ká»³ nÃ y chÆ°a
-                var hoaDonTonTai = await _context.HoaDon
-                    .AnyAsync(hd => hd.MaPhong == request.MaPhong
-                              && hd.KyHoaDon == request.KyHoaDon);
-
-                if (hoaDonTonTai)
-                    return BadRequest($"ÄÃ£ tá»“n táº¡i hÃ³a Ä‘Æ¡n cho phÃ²ng nÃ y trong ká»³ {request.KyHoaDon}");
+                var loiValidationBanDau = await ValidateHoaDon(0, request.MaPhong, request.KyHoaDon, request.TongTien);
+                if (loiValidationBanDau != null)
+                    return BadRequest(loiValidationBanDau);
 
                 // Láº¥y chá»‰ sá»‘ Ä‘iá»‡n vÃ  nÆ°á»›c má»›i nháº¥t cho phÃ²ng
                 var chiSoDien = await _context.ChiSoDien
@@ -221,6 +257,10 @@ namespace DoAnSE104.Controllers
                 // TÃ­nh tá»•ng tiá»n hÃ³a Ä‘Æ¡n
                 decimal tongTien = request.TienPhong + request.TienDien + request.TienNuoc +
                                  tongTienDichVuChung + request.TienPhatSinhKhac;
+
+                var loiValidationTongTien = await ValidateHoaDon(0, request.MaPhong, request.KyHoaDon, tongTien);
+                if (loiValidationTongTien != null)
+                    return BadRequest(loiValidationTongTien);
 
                 // Táº¡o hÃ³a Ä‘Æ¡n má»›i - QUAN TRá»ŒNG: ThÃªm MaDien vÃ  MaNuoc
                 var hoaDon = new HoaDon
@@ -270,14 +310,23 @@ namespace DoAnSE104.Controllers
             if (phong == null)
                 return BadRequest("PhÃ²ng khÃ´ng tá»“n táº¡i.");
 
+            var nguoiThue = await _context.NguoiThue.FindAsync(dto.MaNguoiThue);
+            if (nguoiThue == null)
+                return BadRequest("Người thuê không tồn tại.");
+
             // Dá»‹ch vá»¥ Ã¡p dá»¥ng chung
             decimal tongTienDichVuChung = await _context.DichVu.SumAsync(dv => (decimal?)dv.Tiendichvu) ?? 0m;
+
+            var tongTien = phong.GiaPhong + dto.TienDien + dto.TienNuoc + tongTienDichVuChung + dto.TienPhatSinhKhac;
+            var loiValidation = await ValidateHoaDon(id, dto.MaPhong, dto.KyHoaDon, tongTien);
+            if (loiValidation != null)
+                return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
             hoaDon.MaNguoiThue = dto.MaNguoiThue;
             hoaDon.MaPhong = dto.MaPhong;
             hoaDon.NgayLap = dto.NgayLap;
             hoaDon.KyHoaDon = dto.KyHoaDon;
-            hoaDon.TongTien = phong.GiaPhong + dto.TienDien + dto.TienNuoc + tongTienDichVuChung + dto.TienPhatSinhKhac;
+            hoaDon.TongTien = tongTien;
 
             _context.Entry(hoaDon).State = EntityState.Modified;
             await _context.SaveChangesAsync();
@@ -293,7 +342,7 @@ namespace DoAnSE104.Controllers
         {
             var hoaDon = await _context.HoaDon.FindAsync(id);
             if (hoaDon == null)
-                return NotFound();
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
 
             _context.HoaDon.Remove(hoaDon);
             await _context.SaveChangesAsync();

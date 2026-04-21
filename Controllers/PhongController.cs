@@ -43,6 +43,26 @@ namespace DoAnSE104.Controllers
                 .ToListAsync();
         }
 
+        private async Task<string?> ValidatePhong(Phong phong)
+        {
+            if (phong.GiaPhong < 0)
+                return "Giá phòng phải lớn hơn hoặc bằng 0";
+
+            if (phong.DienTich.HasValue && phong.DienTich.Value < 0)
+                return "Diện tích phải lớn hơn hoặc bằng 0";
+
+            if (!await _context.NhaTro.AnyAsync(n => n.MaNhaTro == phong.MaNhaTro))
+                return "Nhà trọ không tồn tại";
+
+            if (!await _context.LoaiPhong.AnyAsync(l => l.MaLoaiPhong == phong.MaLoaiPhong))
+                return "Loại phòng không tồn tại";
+
+            if (!await _context.TrangThai.AnyAsync(t => t.MaTrangThai == phong.MaTrangThai))
+                return "Trạng thái không tồn tại";
+
+            return null;
+        }
+
         // GET: api/Phong
         [HttpGet]
         public async Task<IActionResult> GetPhong()
@@ -206,14 +226,9 @@ namespace DoAnSE104.Controllers
                         return Forbid();
                 }
 
-                if (!await _context.NhaTro.AnyAsync(n => n.MaNhaTro == phong.MaNhaTro))
-                    return BadRequest(ApiResponse<object>.Loi("Nhà trọ không tồn tại"));
-
-                if (!await _context.LoaiPhong.AnyAsync(l => l.MaLoaiPhong == phong.MaLoaiPhong))
-                    return BadRequest(ApiResponse<object>.Loi("Loại phòng không tồn tại"));
-
-                if (!await _context.TrangThai.AnyAsync(t => t.MaTrangThai == phong.MaTrangThai))
-                    return BadRequest(ApiResponse<object>.Loi("Trạng thái không tồn tại"));
+                var loiValidation = await ValidatePhong(phong);
+                if (loiValidation != null)
+                    return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
                 var phongMoi = new Phong
                 {
@@ -300,7 +315,15 @@ namespace DoAnSE104.Controllers
                     var userId = GetCurrentUserId();
                     var maPhongList = await GetMaPhongCuaChuTro(userId);
                     if (!maPhongList.Contains(id)) return Forbid();
+
+                    var nhaTro = await _context.NhaTro.FindAsync(phong.MaNhaTro);
+                    if (nhaTro == null || nhaTro.MaChuTro != userId)
+                        return Forbid();
                 }
+
+                var loiValidation = await ValidatePhong(phong);
+                if (loiValidation != null)
+                    return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
                 _context.Entry(phong).State = EntityState.Modified;
                 await _context.SaveChangesAsync();

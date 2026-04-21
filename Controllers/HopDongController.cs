@@ -28,6 +28,36 @@ namespace DoAnSE104.Controllers
         private string GetCurrentRole()
             => User.FindFirstValue(ClaimTypes.Role)!;
 
+        private async Task<string?> ValidateHopDong(int maHopDong, int maNguoiThue, int maPhong, DateTime ngayBatDau, DateTime? ngayKetThuc, decimal tienCoc)
+        {
+            if (ngayKetThuc.HasValue && ngayKetThuc.Value <= ngayBatDau)
+                return "Ngày kết thúc phải lớn hơn ngày bắt đầu";
+
+            if (tienCoc < 0)
+                return "Tiền cọc phải lớn hơn hoặc bằng 0";
+
+            var nguoiThue = await _context.NguoiThue.FindAsync(maNguoiThue);
+            if (nguoiThue == null)
+                return "Người thuê không tồn tại";
+
+            var phong = await _context.Phong.FindAsync(maPhong);
+            if (phong == null)
+                return "Phòng không tồn tại";
+
+            if (phong.GiaPhong <= 0)
+                return "Giá thuê phải lớn hơn 0";
+
+            var phongDangCoHopDongHieuLuc = await _context.HopDong.AnyAsync(h =>
+                h.MaPhong == maPhong &&
+                h.MaHopDong != maHopDong &&
+                (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
+
+            if (phongDangCoHopDongHieuLuc)
+                return "Phòng này đã có hợp đồng còn hiệu lực";
+
+            return null;
+        }
+
         private string GetTrangThaiText(DateTime? ngayKetThuc)
         {
             if (ngayKetThuc == null) return "Äang cÃ²n hiá»‡u lá»±c";
@@ -95,7 +125,7 @@ namespace DoAnSE104.Controllers
                 .FirstOrDefaultAsync(h => h.MaHopDong == id);
 
             if (h == null)
-                return NotFound();
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
 
             return Ok(new
             {
@@ -199,17 +229,15 @@ namespace DoAnSE104.Controllers
         [Authorize(Roles = "Admin,ChuTro,NguoiDung")]
         public async Task<ActionResult<HopDong>> PostHopDong(CreateHopDongDto dto)
         {
-            var phongConflict = await _context.HopDong
-                .FirstOrDefaultAsync(h => h.MaPhong == dto.MaPhong && (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
-
-            if (phongConflict != null)
-                return BadRequest("PhÃ²ng nÃ y Ä‘Ã£ cÃ³ há»£p Ä‘á»“ng Ä‘ang hoáº¡t Ä‘á»™ng.");
+            var loiValidation = await ValidateHopDong(0, dto.MaNguoiThue, dto.MaPhong, dto.NgayBatDau, dto.NgayKetThuc, dto.TienCoc);
+            if (loiValidation != null)
+                return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
             var nguoiThueConflict = await _context.HopDong
                 .FirstOrDefaultAsync(h => h.MaNguoiThue == dto.MaNguoiThue && (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
 
             if (nguoiThueConflict != null)
-                return BadRequest("NgÆ°á»i thuÃª nÃ y Ä‘Ã£ cÃ³ há»£p Ä‘á»“ng Ä‘ang hoáº¡t Ä‘á»™ng.");
+                return BadRequest("Người thuê này đã có hợp đồng đang hoạt động.");
             // NguoiDung chỉ được tạo hợp đồng cho chính mình
             if (GetCurrentRole() == VaiTroConst.NguoiDung)
             {
@@ -244,7 +272,11 @@ namespace DoAnSE104.Controllers
 
             var hopDong = await _context.HopDong.FindAsync(id);
             if (hopDong == null)
-                return NotFound();
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
+
+            var loiValidation = await ValidateHopDong(id, hopDongDto.MaNguoiThue, hopDongDto.MaPhong, hopDongDto.NgayBatDau, hopDongDto.NgayKetThuc, hopDongDto.TienCoc);
+            if (loiValidation != null)
+                return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
             // Map cÃ¡c thuá»™c tÃ­nh tá»« DTO sang entity
             hopDong.MaPhong = hopDongDto.MaPhong;
@@ -261,7 +293,7 @@ namespace DoAnSE104.Controllers
             catch (DbUpdateConcurrencyException)
             {
                 if (!HopDongExists(id))
-                    return NotFound();
+                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
                 else
                     throw;
             }
@@ -277,7 +309,7 @@ namespace DoAnSE104.Controllers
         {
             var hopDong = await _context.HopDong.FindAsync(id);
             if (hopDong == null)
-                return NotFound();
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
 
             _context.HopDong.Remove(hopDong);
             await _context.SaveChangesAsync();

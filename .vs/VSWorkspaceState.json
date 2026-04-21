@@ -1,6 +1,9 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\Controllers",
+    "\\wwwroot"
   ],
+  "SelectedNode": "\\wwwroot\\register.html",
   "PreviewInSolutionExplorer": false
 }

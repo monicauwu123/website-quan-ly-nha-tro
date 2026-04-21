@@ -6,9 +6,11 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using DoAnSE104.Services;
 using DoAnSE104.Models;
+using DoAnSE104.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,7 +55,36 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+})
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(x => x.Value != null && x.Value.Errors.Count > 0)
+                .SelectMany(x => x.Value!.Errors.Select(error =>
+                {
+                    var fieldName = x.Key;
+                    var errorMessage = string.IsNullOrWhiteSpace(error.ErrorMessage)
+                        ? "Dữ liệu không hợp lệ"
+                        : error.ErrorMessage;
+
+                    return string.IsNullOrWhiteSpace(fieldName)
+                        ? errorMessage
+                        : $"{fieldName}: {errorMessage}";
+                }))
+                .ToList();
+
+            var message = errors.Any()
+                ? string.Join("; ", errors)
+                : "Dữ liệu gửi lên không hợp lệ";
+
+            return new BadRequestObjectResult(ApiResponse<object>.Loi(message));
+        };
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // ─── Swagger với JWT ──────────────────────────────────────────────────────────

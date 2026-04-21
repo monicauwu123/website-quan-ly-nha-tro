@@ -23,6 +23,36 @@ namespace DoAnSE104.Controllers
             _context = context;
         }
 
+        private async Task<string?> ValidateChiSoDien(int maPhong, int soDienCu, int soDienMoi, decimal giaDien, DateTime ngayThangDien, int? maDienBoQua = null)
+        {
+            if (soDienCu < 0)
+                return "Chỉ số điện cũ không được âm";
+
+            if (soDienMoi < 0)
+                return "Chỉ số điện mới không được âm";
+
+            if (giaDien < 0)
+                return "Giá điện không được âm";
+
+            if (soDienMoi < soDienCu)
+                return "Chỉ số điện mới phải lớn hơn hoặc bằng chỉ số điện cũ";
+
+            var phongTonTai = await _context.Phong.AnyAsync(p => p.MaPhong == maPhong);
+            if (!phongTonTai)
+                return "Phòng không tồn tại";
+
+            var trungThang = await _context.ChiSoDien.AnyAsync(c =>
+                c.MaPhong == maPhong &&
+                c.NgayThangDien.Month == ngayThangDien.Month &&
+                c.NgayThangDien.Year == ngayThangDien.Year &&
+                (!maDienBoQua.HasValue || c.MaDien != maDienBoQua.Value));
+
+            if (trungThang)
+                return "Đã tồn tại chỉ số điện của phòng này trong tháng đã chọn";
+
+            return null;
+        }
+
         // GET: api/ChiSoDien
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ChiSoDien>>> GetChiSoDien()
@@ -42,7 +72,7 @@ namespace DoAnSE104.Controllers
 
             if (chiSoDien == null)
             {
-                return NotFound();
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
             }
 
             return chiSoDien;
@@ -62,6 +92,10 @@ namespace DoAnSE104.Controllers
         [HttpPost]
         public async Task<ActionResult<ChiSoDien>> PostChiSoDien(ChiSoDienDtoCreate dto)
         {
+            var loiValidation = await ValidateChiSoDien(dto.MaPhong, dto.SoDienCu, dto.SoDienMoi, dto.GiaDien, dto.NgayThangDien);
+            if (loiValidation != null)
+                return BadRequest(ApiResponse<object>.Loi(loiValidation));
+
             var chiSoDien = new ChiSoDien
             {
                 MaPhong = dto.MaPhong,
@@ -84,14 +118,18 @@ namespace DoAnSE104.Controllers
         {
             if (id != dto.MaDien)
             {
-                return BadRequest();
+                return BadRequest(ApiResponse<object>.Loi("Mã trên đường dẫn không khớp với mã trong dữ liệu gửi lên"));
             }
 
             var chiSoDien = await _context.ChiSoDien.FindAsync(id);
             if (chiSoDien == null)
             {
-                return NotFound();
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
             }
+
+            var loiValidation = await ValidateChiSoDien(dto.MaPhong, dto.SoDienCu, dto.SoDienMoi, dto.GiaDien, dto.NgayThangDien, id);
+            if (loiValidation != null)
+                return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
             chiSoDien.MaPhong = dto.MaPhong;
             chiSoDien.SoDienCu = dto.SoDienCu;
@@ -112,7 +150,7 @@ namespace DoAnSE104.Controllers
             var chiSoDien = await _context.ChiSoDien.FindAsync(id);
             if (chiSoDien == null)
             {
-                return NotFound();
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
             }
 
             _context.ChiSoDien.Remove(chiSoDien);
@@ -127,4 +165,3 @@ namespace DoAnSE104.Controllers
         }
     }
 }
-
