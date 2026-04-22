@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
@@ -24,7 +24,12 @@ namespace DoAnSE104.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TrangThai>>> GetAll()
         {
-            var list = await _context.TrangThai.ToListAsync();
+            await TaoTrangThaiMacDinhNeuChuaCo();
+
+            var list = await _context.TrangThai
+                .OrderBy(t => t.MaTrangThai)
+                .ToListAsync();
+
             return Ok(list);
         }
 
@@ -113,6 +118,23 @@ namespace DoAnSE104.Controllers
         // ================================
         // HELPER
         // ================================
+
+
+        private async Task TaoTrangThaiMacDinhNeuChuaCo()
+        {
+            if (await _context.TrangThai.AnyAsync())
+            {
+                return;
+            }
+
+            _context.TrangThai.AddRange(
+                new TrangThai { TenTrangThai = "Còn trống" },
+                new TrangThai { TenTrangThai = "Đã thuê" },
+                new TrangThai { TenTrangThai = "Đang sửa chữa" }
+            );
+
+            await _context.SaveChangesAsync();
+        }
 
         private bool TrangThaiExists(int id) =>
             _context.TrangThai.Any(e => e.MaTrangThai == id);

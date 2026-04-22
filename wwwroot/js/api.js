@@ -20,13 +20,22 @@ const API = {
         uploadImage: async (file) => {
             const formData = new FormData();
             formData.append('file', file);
+
             const res = await fetch('/api/Phong/upload-image', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: formData
             });
-            if (!res.ok) throw new Error('Upload thất bại');
-            return await res.json();
+
+            const text = await res.text();
+            let json = {};
+            try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+
+            if (!res.ok || json.thanhCong === false) {
+                throw new Error(extractApiErrorMessage(json) || 'Upload thất bại');
+            }
+
+            return json.duLieu || json;
         }
     },
 
@@ -80,7 +89,32 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
         return;
     }
     if (method === 'DELETE' || res.status === 204) return true;
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Lỗi hệ thống');
+
+    const text = await res.text();
+    let json = {};
+    try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+
+    if (!res.ok || json.thanhCong === false) {
+        throw new Error(extractApiErrorMessage(json) || 'Lỗi hệ thống');
+    }
+
     return json;
+}
+
+function extractApiErrorMessage(json) {
+    if (!json) return '';
+    if (typeof json === 'string') return json;
+    if (json.thongBao) return json.thongBao;
+    if (json.message) return json.message;
+
+    if (json.errors) {
+        const errors = Object.values(json.errors).flat().filter(Boolean);
+        if (errors.length > 0) return errors.join('; ');
+    }
+
+    if (json.title && json.title !== 'One or more validation errors occurred.') {
+        return json.title;
+    }
+
+    return '';
 }

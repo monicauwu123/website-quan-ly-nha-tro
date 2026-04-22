@@ -63,8 +63,8 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
         let json;
         try { json = JSON.parse(text); } catch { return true; }
         if (!res.ok) {
-            const msg = typeof json === 'string' ? json : (json?.message || json?.title || JSON.stringify(json));
-            throw new Error(msg || `Lỗi HTTP ${res.status}`);
+            const msg = extractApiErrorMessage(json) || `Lỗi HTTP ${res.status}`;
+            throw new Error(msg);
         }
         // Chuẩn hoá response kiểu ApiResponse<T>: { thanhCong, thongBao, duLieu }
         // để frontend luôn nhận trực tiếp mảng/object dữ liệu.
@@ -75,6 +75,25 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
     } catch (e) {
         throw e;
     }
+}
+
+
+function extractApiErrorMessage(json) {
+    if (!json) return '';
+    if (typeof json === 'string') return json;
+    if (json.thongBao) return json.thongBao;
+    if (json.message) return json.message;
+
+    if (json.errors) {
+        const errors = Object.values(json.errors).flat().filter(Boolean);
+        if (errors.length > 0) return errors.join('; ');
+    }
+
+    if (json.title && json.title !== 'One or more validation errors occurred.') {
+        return json.title;
+    }
+
+    return '';
 }
 
 // ==========================================
@@ -105,11 +124,7 @@ async function loadLookups() {
     lookups.loaiphong = results[1].value || [];
     lookups.trangthai = results[2].value || [];
     if (lookups.trangthai.length === 0) {
-        lookups.trangthai = [
-            { maTrangThai: 1, tenTrangThai: 'Còn trống' },
-            { maTrangThai: 2, tenTrangThai: 'Đã thuê' },
-            { maTrangThai: 3, tenTrangThai: 'Đang sửa chữa' }
-        ];
+        console.warn('Không tải được danh sách trạng thái từ API /api/TrangThai');
     }
     lookups.phong = results[3].value || [];
     lookups.nguoithue = results[4].value || [];
@@ -807,7 +822,9 @@ function buildModal(title, fields, item, onSubmit) {
                 <label for="f_${f.id}">${f.label}${f.required ? ' <span style="color:var(--error)">*</span>' : ''}</label>
                 <select id="f_${f.id}" class="form-control" ${f.required ? 'required' : ''}>
                     <option value="">-- Chọn ${f.label} --</option>
-                    ${opts.map(o => `<option value="${o[f.valField]}" ${val == o[f.valField] ? 'selected' : ''}>${o[f.txtField]}</option>`).join('')}
+                    ${opts.length === 0
+                        ? `<option value="" disabled>Chưa có dữ liệu ${f.label.toLowerCase()}</option>`
+                        : opts.map(o => `<option value="${o[f.valField]}" ${val == o[f.valField] ? 'selected' : ''}>${o[f.txtField]}</option>`).join('')}
                 </select>
             </div>`;
         }
@@ -848,11 +865,17 @@ function buildModal(title, fields, item, onSubmit) {
             try {
                 showToast('Đang tải ảnh lên...', 'info');
                 const uploadRes = await API.phong.uploadImage(fileEl.files[0]);
-                if (uploadRes.url) {
-                    payload.hinhAnh = uploadRes.url;
+                const imageUrl = uploadRes?.url || uploadRes?.duLieu?.url;
+
+                if (!imageUrl) {
+                    showToast('Upload ảnh thất bại: Backend không trả về đường dẫn ảnh', 'error');
+                    return;
                 }
+
+                payload.hinhAnh = imageUrl;
             } catch (e) {
-                showToast('Lỗi upload ảnh: ' + e.message, 'error');
+                showToast('Lỗi upload ảnh: ' + (e.message || 'Không tải được ảnh'), 'error');
+                return;
             }
         }
 

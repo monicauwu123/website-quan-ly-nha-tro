@@ -258,9 +258,11 @@ namespace DoAnSE104.Controllers
         }
 
         // POST: api/Phong/UploadImage
+        // POST: api/Phong/upload-image
         [HttpPost("UploadImage")]
+        [HttpPost("upload-image")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
-        public async Task<IActionResult> UploadImage(IFormFile file)
+        public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
         {
             try
             {
@@ -285,13 +287,17 @@ namespace DoAnSE104.Controllers
 
                 var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-                if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK)
+                if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK && uploadResult.SecureUrl != null)
                 {
-                    var data = new { url = uploadResult.SecureUrl?.AbsoluteUri, publicId = uploadResult.PublicId };
+                    var data = new { url = uploadResult.SecureUrl.AbsoluteUri, publicId = uploadResult.PublicId };
                     return Ok(ApiResponse<object>.Ok(data, "Upload ảnh thành công"));
                 }
 
-                return StatusCode(500, ApiResponse<object>.Loi("Lỗi upload ảnh lên Cloudinary"));
+                var cloudinaryError = uploadResult.Error?.Message;
+                return StatusCode(500, ApiResponse<object>.Loi(
+                    string.IsNullOrWhiteSpace(cloudinaryError)
+                        ? "Lỗi upload ảnh lên Cloudinary"
+                        : $"Lỗi upload ảnh lên Cloudinary: {cloudinaryError}"));
             }
             catch (Exception ex)
             {
