@@ -26,6 +26,27 @@ namespace DoAnSE104.Controllers
         private string GetCurrentRole()
             => User.FindFirstValue(ClaimTypes.Role)!;
 
+        private async Task<bool> PhongThuocChuTro(int maPhong, int maChuTro)
+        {
+            return await _context.Phong
+                .Include(p => p.NhaTro)
+                .AnyAsync(p => p.MaPhong == maPhong && p.NhaTro.MaChuTro == maChuTro);
+        }
+
+        private async Task<string?> ValidateNguoiThue(NguoiThue nguoiThue)
+        {
+            if (string.IsNullOrWhiteSpace(nguoiThue.HoTen))
+                return "Họ tên người thuê không được để trống";
+
+            if (!await _context.Phong.AnyAsync(p => p.MaPhong == nguoiThue.MaPhong))
+                return "Phòng không tồn tại";
+
+            if (nguoiThue.MaNguoiDung.HasValue && !await _context.Users.AnyAsync(u => u.MaNguoiDung == nguoiThue.MaNguoiDung.Value))
+                return "Tài khoản người dùng liên kết không tồn tại";
+
+            return null;
+        }
+
         // GET: api/NguoiThue
         [HttpGet]
         public async Task<IActionResult> GetNguoiThue()
@@ -155,6 +176,26 @@ namespace DoAnSE104.Controllers
         {
             try
             {
+                var loiValidation = await ValidateNguoiThue(nguoiThue);
+                if (loiValidation != null)
+                    return BadRequest(ApiResponse<object>.Loi(loiValidation));
+
+                var role = GetCurrentRole();
+                var userId = GetCurrentUserId();
+
+                if (role == VaiTroConst.ChuTro && !await PhongThuocChuTro(nguoiThue.MaPhong, userId))
+                    return Forbid();
+
+                if (!nguoiThue.MaNguoiDung.HasValue)
+                {
+                    var linkedUser = await _context.Users.FirstOrDefaultAsync(u =>
+                        (!string.IsNullOrWhiteSpace(nguoiThue.Email) && u.Email == nguoiThue.Email) ||
+                        (!string.IsNullOrWhiteSpace(nguoiThue.SDT) && u.SoDienThoai == nguoiThue.SDT));
+
+                    if (linkedUser != null)
+                        nguoiThue.MaNguoiDung = linkedUser.MaNguoiDung;
+                }
+
                 _context.NguoiThue.Add(nguoiThue);
                 await _context.SaveChangesAsync();
 
@@ -176,6 +217,23 @@ namespace DoAnSE104.Controllers
             {
                 if (id != nguoiThue.MaNguoiThue)
                     return BadRequest(ApiResponse<object>.Loi("Mã người thuê không khớp"));
+
+                var existing = await _context.NguoiThue.AsNoTracking().FirstOrDefaultAsync(nt => nt.MaNguoiThue == id);
+                if (existing == null)
+                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy người thuê"));
+
+                var loiValidation = await ValidateNguoiThue(nguoiThue);
+                if (loiValidation != null)
+                    return BadRequest(ApiResponse<object>.Loi(loiValidation));
+
+                var role = GetCurrentRole();
+                var userId = GetCurrentUserId();
+
+                if (role == VaiTroConst.ChuTro)
+                {
+                    if (!await PhongThuocChuTro(existing.MaPhong, userId) || !await PhongThuocChuTro(nguoiThue.MaPhong, userId))
+                        return Forbid();
+                }
 
                 _context.Entry(nguoiThue).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
@@ -204,6 +262,11 @@ namespace DoAnSE104.Controllers
                 var nguoiThue = await _context.NguoiThue.FindAsync(id);
                 if (nguoiThue == null)
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy người thuê"));
+
+                var role = GetCurrentRole();
+                var userId = GetCurrentUserId();
+                if (role == VaiTroConst.ChuTro && !await PhongThuocChuTro(nguoiThue.MaPhong, userId))
+                    return Forbid();
 
                 _context.NguoiThue.Remove(nguoiThue);
                 await _context.SaveChangesAsync();

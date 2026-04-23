@@ -24,12 +24,12 @@ namespace DoAnSE104.Data
         public DbSet<HoaDon> HoaDon { get; set; }
         public DbSet<ChiTietHoaDon> ChiTietHoaDon { get; set; }
         public DbSet<ThanhToan> ThanhToan { get; set; }
+        public DbSet<YeuCauThue> YeuCauThue { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // User indexes
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.TenDangNhap)
                 .IsUnique();
@@ -38,7 +38,6 @@ namespace DoAnSE104.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
-            // NhaTro -> ChuTro (User)
             modelBuilder.Entity<NhaTro>()
                 .HasOne(n => n.ChuTro)
                 .WithMany(u => u.DanhSachNhaTro)
@@ -46,7 +45,6 @@ namespace DoAnSE104.Data
                 .OnDelete(DeleteBehavior.NoAction)
                 .IsRequired(false);
 
-            // NguoiThue -> NguoiDungTK (User)
             modelBuilder.Entity<NguoiThue>()
                 .HasOne(nt => nt.NguoiDungTK)
                 .WithMany(u => u.DanhSachNguoiThue)
@@ -54,7 +52,6 @@ namespace DoAnSE104.Data
                 .OnDelete(DeleteBehavior.NoAction)
                 .IsRequired(false);
 
-            // Phong relationships
             modelBuilder.Entity<Phong>()
                 .HasOne(p => p.NhaTro)
                 .WithMany()
@@ -73,7 +70,6 @@ namespace DoAnSE104.Data
                 .HasForeignKey(p => p.MaTrangThai)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // HopDong relationships
             modelBuilder.Entity<HopDong>()
                 .HasOne(h => h.NguoiThue)
                 .WithMany()
@@ -86,7 +82,6 @@ namespace DoAnSE104.Data
                 .HasForeignKey(h => h.MaPhong)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // ChiSo relationships
             modelBuilder.Entity<ChiSoDien>()
                 .HasOne(c => c.Phong)
                 .WithMany()
@@ -99,7 +94,6 @@ namespace DoAnSE104.Data
                 .HasForeignKey(c => c.MaPhong)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // HoaDon relationships
             modelBuilder.Entity<HoaDon>()
                 .HasOne(h => h.NguoiThue)
                 .WithMany()
@@ -124,14 +118,12 @@ namespace DoAnSE104.Data
                 .HasForeignKey(h => h.MaNuoc)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // ChiTietHoaDon
             modelBuilder.Entity<ChiTietHoaDon>()
                 .HasOne(ct => ct.HoaDon)
                 .WithMany()
                 .HasForeignKey(ct => ct.MaHoaDon)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // ThanhToan
             modelBuilder.Entity<ThanhToan>()
                 .HasOne(t => t.HoaDon)
                 .WithMany()
@@ -143,6 +135,35 @@ namespace DoAnSE104.Data
                 .WithMany()
                 .HasForeignKey(t => t.MaNguoiThue)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<YeuCauThue>()
+                .HasOne(y => y.NguoiDung)
+                .WithMany()
+                .HasForeignKey(y => y.MaNguoiDung)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<YeuCauThue>()
+                .HasOne(y => y.Phong)
+                .WithMany()
+                .HasForeignKey(y => y.MaPhong)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<YeuCauThue>()
+                .HasOne(y => y.NguoiThue)
+                .WithMany()
+                .HasForeignKey(y => y.MaNguoiThue)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<YeuCauThue>()
+                .HasOne(y => y.HopDong)
+                .WithMany()
+                .HasForeignKey(y => y.MaHopDong)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<YeuCauThue>()
+                .HasIndex(y => new { y.MaNguoiDung, y.MaPhong, y.TrangThai });
         }
     }
 }

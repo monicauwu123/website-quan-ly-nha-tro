@@ -59,7 +59,16 @@ const API = {
         search: (keyword) => apiFetch(`/api/NguoiThue/Search?keyword=${encodeURIComponent(keyword)}`),
     },
 
-    // 6. ĐIỆN & NƯỚC
+    // 6. YÊU CẦU THUÊ
+    yeucauthue: {
+        getAll: () => apiFetch('/api/YeuCauThue'),
+        create: (data) => apiFetch('/api/YeuCauThue', 'POST', data),
+        accept: (id, data) => apiFetch(`/api/YeuCauThue/${id}/chap-nhan`, 'POST', data),
+        reject: (id, data) => apiFetch(`/api/YeuCauThue/${id}/tu-choi`, 'POST', data),
+        delete: (id) => apiFetch(`/api/YeuCauThue/${id}`, 'DELETE'),
+    },
+
+    // 7. ĐIỆN & NƯỚC
     dien: {
         getAll: () => apiFetch('/api/ChiSoDien'),
     },

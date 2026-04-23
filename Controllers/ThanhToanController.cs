@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Helpers;
@@ -19,13 +20,101 @@ namespace DoAnSE104.Controllers
             _context = context;
         }
 
+        private int GetCurrentUserId()
+            => int.Parse(User.FindFirstValue("MaNguoiDung")!);
+
+        private string GetCurrentRole()
+            => User.FindFirstValue(ClaimTypes.Role)!;
+
+        private async Task<List<int>> GetMaPhongCuaChuTro(int userId)
+        {
+            var maNhaTroList = await _context.NhaTro
+                .Where(n => n.MaChuTro == userId)
+                .Select(n => n.MaNhaTro)
+                .ToListAsync();
+
+            return await _context.Phong
+                .Where(p => maNhaTroList.Contains(p.MaNhaTro))
+                .Select(p => p.MaPhong)
+                .ToListAsync();
+        }
+
+        private async Task<bool> CoQuyenThanhToan(ThanhToan thanhToan)
+        {
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            if (role == VaiTroConst.Admin)
+                return true;
+
+            if (role == VaiTroConst.ChuTro)
+            {
+                var maPhongList = await GetMaPhongCuaChuTro(userId);
+                var maPhong = await _context.HoaDon
+                    .Where(h => h.MaHoaDon == thanhToan.MaHoaDon)
+                    .Select(h => h.MaPhong)
+                    .FirstOrDefaultAsync();
+
+                return maPhongList.Contains(maPhong);
+            }
+
+            return await _context.NguoiThue
+                .AnyAsync(nt => nt.MaNguoiThue == thanhToan.MaNguoiThue && nt.MaNguoiDung == userId);
+        }
+
+        private async Task<string?> ValidateThanhToan(ThanhToan thanhToan)
+        {
+            if (thanhToan.TongTien < 0)
+                return "Số tiền thanh toán phải lớn hơn hoặc bằng 0";
+
+            var hoaDon = await _context.HoaDon.FindAsync(thanhToan.MaHoaDon);
+            if (hoaDon == null)
+                return "Không tìm thấy hóa đơn";
+
+            var nguoiThue = await _context.NguoiThue.FindAsync(thanhToan.MaNguoiThue);
+            if (nguoiThue == null)
+                return "Không tìm thấy người thuê";
+
+            if (hoaDon.MaNguoiThue != thanhToan.MaNguoiThue)
+                return "Người thuê không khớp với hóa đơn";
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro)
+            {
+                var maPhongList = await GetMaPhongCuaChuTro(GetCurrentUserId());
+                if (!maPhongList.Contains(hoaDon.MaPhong))
+                    return "Bạn chỉ được thao tác thanh toán thuộc nhà trọ của mình";
+            }
+
+            var tongDaThanhToan = await _context.ThanhToan
+                .Where(t => t.MaHoaDon == thanhToan.MaHoaDon && t.MaThanhToan != thanhToan.MaThanhToan)
+                .SumAsync(t => t.TongTien);
+
+            if (tongDaThanhToan + thanhToan.TongTien > hoaDon.TongTien)
+                return "Số tiền thanh toán vượt quá tổng tiền hóa đơn";
+
+            return null;
+        }
+
         // GET: api/ThanhToan
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ThanhToan>>> GetThanhToan()
         {
-            return await _context.ThanhToan
-                .Include(t => t.HoaDon)
-                .ToListAsync();
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            IQueryable<ThanhToan> query = _context.ThanhToan.Include(t => t.HoaDon);
+
+            if (role == VaiTroConst.ChuTro)
+            {
+                var maPhongList = await GetMaPhongCuaChuTro(userId);
+                query = query.Where(t => maPhongList.Contains(t.HoaDon.MaPhong));
+            }
+            else if (role == VaiTroConst.NguoiDung)
+            {
+                query = query.Where(t => t.NguoiThue.MaNguoiDung == userId);
+            }
+
+            return await query.ToListAsync();
         }
 
         // GET: api/ThanhToan/5
@@ -37,9 +126,10 @@ namespace DoAnSE104.Controllers
                 .FirstOrDefaultAsync(t => t.MaThanhToan == id);
 
             if (thanhToan == null)
-            {
-                return NotFound();
-            }
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy thanh toán"));
+
+            if (!await CoQuyenThanhToan(thanhToan))
+                return Forbid();
 
             return thanhToan;
         }
@@ -48,6 +138,26 @@ namespace DoAnSE104.Controllers
         [HttpGet("HoaDon/{hoaDonId}")]
         public async Task<ActionResult<IEnumerable<ThanhToan>>> GetThanhToanByHoaDon(int hoaDonId)
         {
+            var hoaDon = await _context.HoaDon.FindAsync(hoaDonId);
+            if (hoaDon == null)
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy hóa đơn"));
+
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            if (role == VaiTroConst.ChuTro)
+            {
+                var maPhongList = await GetMaPhongCuaChuTro(userId);
+                if (!maPhongList.Contains(hoaDon.MaPhong))
+                    return Forbid();
+            }
+            else if (role == VaiTroConst.NguoiDung)
+            {
+                var coQuyen = await _context.NguoiThue
+                    .AnyAsync(nt => nt.MaNguoiThue == hoaDon.MaNguoiThue && nt.MaNguoiDung == userId);
+                if (!coQuyen) return Forbid();
+            }
+
             return await _context.ThanhToan
                 .Include(t => t.HoaDon)
                 .Where(t => t.MaHoaDon == hoaDonId)
@@ -56,52 +166,39 @@ namespace DoAnSE104.Controllers
 
         // POST: api/ThanhToan
         [HttpPost]
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<ActionResult<ThanhToan>> PostThanhToan(ThanhToan thanhToan)
         {
-            // Kiá»ƒm tra hÃ³a Ä‘Æ¡n tá»“n táº¡i
-            var hoaDon = await _context.HoaDon.FindAsync(thanhToan.MaHoaDon);
-            if (hoaDon == null)
-            {
-                return BadRequest("KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n");
-            }
-
-            // Kiá»ƒm tra sá»‘ tiá»n thanh toÃ¡n
-            var tongDaThanhToan = await _context.ThanhToan
-                .Where(t => t.MaHoaDon == thanhToan.MaHoaDon)
-                .SumAsync(t => t.TongTien);
-
-            if (tongDaThanhToan + thanhToan.TongTien > hoaDon.TongTien)
-            {
-                return BadRequest("Sá»‘ tiá»n thanh toÃ¡n vÆ°á»£t quÃ¡ tá»•ng tiá»n hÃ³a Ä‘Æ¡n");
-            }
+            var loiValidation = await ValidateThanhToan(thanhToan);
+            if (loiValidation != null)
+                return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
             thanhToan.NgayThanhToan = DateTime.Now;
             _context.ThanhToan.Add(thanhToan);
-
-            // Cáº­p nháº­t tráº¡ng thÃ¡i hÃ³a Ä‘Æ¡n
-            if (tongDaThanhToan + thanhToan.TongTien >= hoaDon.TongTien)
-            {
-                var trangThaiDaThanhToan = await _context.TrangThai.FirstOrDefaultAsync(t => t.TenTrangThai == "ÄÃ£ thanh toÃ¡n");
-                if (trangThaiDaThanhToan != null)
-                {
-                    
-                    _context.Entry(hoaDon).State = EntityState.Modified;
-                }
-            }
-
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetThanhToan), new { id = thanhToan.MaThanhToan }, thanhToan);
+            return CreatedAtAction(nameof(GetThanhToan), new { id = thanhToan.MaThanhToan },
+                ApiResponse<ThanhToan>.Ok(thanhToan, "Thêm thanh toán thành công"));
         }
 
         // PUT: api/ThanhToan/5
         [HttpPut("{id}")]
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PutThanhToan(int id, ThanhToan thanhToan)
         {
             if (id != thanhToan.MaThanhToan)
-            {
-                return BadRequest();
-            }
+                return BadRequest(ApiResponse<object>.Loi("Mã thanh toán không khớp"));
+
+            var existing = await _context.ThanhToan.AsNoTracking().FirstOrDefaultAsync(t => t.MaThanhToan == id);
+            if (existing == null)
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy thanh toán"));
+
+            if (!await CoQuyenThanhToan(existing))
+                return Forbid();
+
+            var loiValidation = await ValidateThanhToan(thanhToan);
+            if (loiValidation != null)
+                return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
             _context.Entry(thanhToan).State = EntityState.Modified;
 
@@ -112,51 +209,29 @@ namespace DoAnSE104.Controllers
             catch (DbUpdateConcurrencyException)
             {
                 if (!ThanhToanExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy thanh toán"));
+                throw;
             }
 
-            return NoContent();
+            return Ok(ApiResponse<ThanhToan>.Ok(thanhToan, "Cập nhật thanh toán thành công"));
         }
 
         // DELETE: api/ThanhToan/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeleteThanhToan(int id)
         {
             var thanhToan = await _context.ThanhToan.FindAsync(id);
             if (thanhToan == null)
-            {
-                return NotFound();
-            }
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy thanh toán"));
 
-            // Cáº­p nháº­t láº¡i tráº¡ng thÃ¡i hÃ³a Ä‘Æ¡n
-            var hoaDon = await _context.HoaDon.FindAsync(thanhToan.MaHoaDon);
-            if (hoaDon != null)
-            {
-                var tongDaThanhToan = await _context.ThanhToan
-                    .Where(t => t.MaHoaDon == thanhToan.MaHoaDon && t.MaThanhToan != id)
-                    .SumAsync(t => t.TongTien);
-
-                if (tongDaThanhToan < hoaDon.TongTien)
-                {
-                    var trangThaiChuaThanhToan = await _context.TrangThai.FirstOrDefaultAsync(t => t.TenTrangThai == "ChÆ°a thanh toÃ¡n");
-                    if (trangThaiChuaThanhToan != null)
-                    {
-                      
-                        _context.Entry(hoaDon).State = EntityState.Modified;
-                    }
-                }
-            }
+            if (!await CoQuyenThanhToan(thanhToan))
+                return Forbid();
 
             _context.ThanhToan.Remove(thanhToan);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(ApiResponse<object>.Ok(null!, "Xóa thanh toán thành công"));
         }
 
         private bool ThanhToanExists(int id)
@@ -164,4 +239,4 @@ namespace DoAnSE104.Controllers
             return _context.ThanhToan.Any(e => e.MaThanhToan == id);
         }
     }
-} 
+}

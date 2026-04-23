@@ -226,7 +226,7 @@ namespace DoAnSE104.Controllers
 
         // POST: api/HopDong
         [HttpPost]
-        [Authorize(Roles = "Admin,ChuTro,NguoiDung")]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<ActionResult<HopDong>> PostHopDong(CreateHopDongDto dto)
         {
             var loiValidation = await ValidateHopDong(0, dto.MaNguoiThue, dto.MaPhong, dto.NgayBatDau, dto.NgayKetThuc, dto.TienCoc);
@@ -237,15 +237,39 @@ namespace DoAnSE104.Controllers
                 .FirstOrDefaultAsync(h => h.MaNguoiThue == dto.MaNguoiThue && (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
 
             if (nguoiThueConflict != null)
-                return BadRequest("Người thuê này đã có hợp đồng đang hoạt động.");
-            // NguoiDung chỉ được tạo hợp đồng cho chính mình
-            if (GetCurrentRole() == VaiTroConst.NguoiDung)
+                return BadRequest(ApiResponse<object>.Loi("Người thuê này đã có hợp đồng đang hoạt động."));
+
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+            var nguoiThueCanDongBo = await _context.NguoiThue.FindAsync(dto.MaNguoiThue);
+
+            if (role == VaiTroConst.ChuTro)
             {
-                var userId = GetCurrentUserId();
-                var nguoiThue = await _context.NguoiThue.FindAsync(dto.MaNguoiThue);
-                if (nguoiThue == null || nguoiThue.MaNguoiDung != userId)
-                    return Forbid();  
+                var phongThuocChuTro = await _context.Phong
+                    .Include(p => p.NhaTro)
+                    .AnyAsync(p => p.MaPhong == dto.MaPhong && p.NhaTro.MaChuTro == userId);
+
+                if (!phongThuocChuTro)
+                    return Forbid();
             }
+
+            if (nguoiThueCanDongBo == null)
+                return BadRequest(ApiResponse<object>.Loi("Người thuê không tồn tại"));
+
+            // Đồng bộ hồ sơ khách thuê với phòng trong hợp đồng.
+            // Nếu khách thuê đã liên kết tài khoản người dùng thì dashboard người dùng sẽ thấy hợp đồng này.
+            nguoiThueCanDongBo.MaPhong = dto.MaPhong;
+
+            if (!nguoiThueCanDongBo.MaNguoiDung.HasValue)
+            {
+                var linkedUser = await _context.Users.FirstOrDefaultAsync(u =>
+                    (!string.IsNullOrWhiteSpace(nguoiThueCanDongBo.Email) && u.Email == nguoiThueCanDongBo.Email) ||
+                    (!string.IsNullOrWhiteSpace(nguoiThueCanDongBo.SDT) && u.SoDienThoai == nguoiThueCanDongBo.SDT));
+
+                if (linkedUser != null)
+                    nguoiThueCanDongBo.MaNguoiDung = linkedUser.MaNguoiDung;
+            }
+
             var hopDong = new HopDong
             {
                 MaNguoiThue = dto.MaNguoiThue,
@@ -257,9 +281,21 @@ namespace DoAnSE104.Controllers
             };
 
             _context.HopDong.Add(hopDong);
+
+            var phongCanCapNhat = await _context.Phong.FindAsync(dto.MaPhong);
+            if (phongCanCapNhat != null)
+            {
+                phongCanCapNhat.SoNguoiHienTai = Math.Min(phongCanCapNhat.SoNguoiHienTai + 1, phongCanCapNhat.SucChua);
+
+                var trangThaiDaThue = await _context.TrangThai
+                    .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("Đã thuê") || t.TenTrangThai.Contains("Da thue") || t.TenTrangThai.Contains("thuê"));
+                if (trangThaiDaThue != null)
+                    phongCanCapNhat.MaTrangThai = trangThaiDaThue.MaTrangThai;
+            }
+
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetHopDong), new { id = hopDong.MaHopDong }, hopDong);
+            return CreatedAtAction(nameof(GetHopDong), new { id = hopDong.MaHopDong }, ApiResponse<HopDong>.Ok(hopDong, "Tạo hợp đồng thành công"));
         }
 
         // PUT: api/HopDong/5
@@ -274,6 +310,21 @@ namespace DoAnSE104.Controllers
             if (hopDong == null)
                 return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
 
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+            if (role == VaiTroConst.ChuTro)
+            {
+                var phongCuThuocChuTro = await _context.Phong
+                    .Include(p => p.NhaTro)
+                    .AnyAsync(p => p.MaPhong == hopDong.MaPhong && p.NhaTro.MaChuTro == userId);
+                var phongMoiThuocChuTro = await _context.Phong
+                    .Include(p => p.NhaTro)
+                    .AnyAsync(p => p.MaPhong == hopDongDto.MaPhong && p.NhaTro.MaChuTro == userId);
+
+                if (!phongCuThuocChuTro || !phongMoiThuocChuTro)
+                    return Forbid();
+            }
+
             var loiValidation = await ValidateHopDong(id, hopDongDto.MaNguoiThue, hopDongDto.MaPhong, hopDongDto.NgayBatDau, hopDongDto.NgayKetThuc, hopDongDto.TienCoc);
             if (loiValidation != null)
                 return BadRequest(ApiResponse<object>.Loi(loiValidation));
@@ -285,6 +336,10 @@ namespace DoAnSE104.Controllers
             hopDong.NgayKetThuc = hopDongDto.NgayKetThuc;
             hopDong.TienCoc = hopDongDto.TienCoc;
             hopDong.NoiDung = hopDongDto.NoiDung;
+
+            var nguoiThueCanDongBo = await _context.NguoiThue.FindAsync(hopDongDto.MaNguoiThue);
+            if (nguoiThueCanDongBo != null)
+                nguoiThueCanDongBo.MaPhong = hopDongDto.MaPhong;
 
             try
             {
@@ -326,6 +381,9 @@ namespace DoAnSE104.Controllers
         [HttpGet("TaoMoi")]
         public async Task<ActionResult> GetNguoiThueVaPhongConTrong()
         {
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
             var nguoiThueDaCoHopDong = await _context.HopDong
                 .Where(h => h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now)
                 .Select(h => h.MaNguoiThue)
@@ -336,13 +394,21 @@ namespace DoAnSE104.Controllers
                 .Select(h => h.MaPhong)
                 .ToListAsync();
 
-            var nguoiThue = await _context.NguoiThue
-                .Where(nt => !nguoiThueDaCoHopDong.Contains(nt.MaNguoiThue))
-                .ToListAsync();
+            IQueryable<NguoiThue> nguoiThueQuery = _context.NguoiThue
+                .Where(nt => !nguoiThueDaCoHopDong.Contains(nt.MaNguoiThue));
 
-            var phong = await _context.Phong
-                .Where(p => !phongDaCoHopDong.Contains(p.MaPhong))
-                .ToListAsync();
+            IQueryable<Phong> phongQuery = _context.Phong
+                .Include(p => p.NhaTro)
+                .Where(p => !phongDaCoHopDong.Contains(p.MaPhong));
+
+            if (role == VaiTroConst.ChuTro)
+            {
+                nguoiThueQuery = nguoiThueQuery.Where(nt => _context.Phong.Any(p => p.MaPhong == nt.MaPhong && p.NhaTro.MaChuTro == userId));
+                phongQuery = phongQuery.Where(p => p.NhaTro.MaChuTro == userId);
+            }
+
+            var nguoiThue = await nguoiThueQuery.ToListAsync();
+            var phong = await phongQuery.ToListAsync();
 
             return Ok(new { NguoiThue = nguoiThue, Phong = phong });
         }

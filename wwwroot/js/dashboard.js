@@ -219,11 +219,13 @@ const modules = {
             { label: 'CCCD', key: 'cccd' },
             { label: 'Số điện thoại', key: 'sdt' },
             { label: 'Email', key: 'email' },
+            { label: 'Phòng', key: 'maPhong', render: v => lookups.phong.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
             { label: 'Giới tính', key: 'gioiTinh' },
             { label: 'Ngày sinh', key: 'ngaySinh', render: fmtDate }
         ],
         fields: [
             { id: 'hoTen', label: 'Họ tên', type: 'text', required: true },
+            { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },
             { id: 'cccd', label: 'CCCD/CMND', type: 'text' },
             { id: 'sdt', label: 'Số điện thoại', type: 'text' },
             { id: 'email', label: 'Email', type: 'email' },
@@ -252,6 +254,24 @@ const modules = {
                     return `<span class="badge ${cls}">${v || '---'}</span>`;
                 }
             }
+        ]
+    },
+
+    yeucauthue: {
+        title: 'Yêu Cầu Thuê',
+        endpoint: '/api/YeuCauThue',
+        pk: 'maYeuCau',
+        customModal: true,
+        headers: [
+            { label: 'Người gửi', key: 'nguoiDung', render: v => v?.hoTen || v?.email || '---' },
+            { label: 'Phòng', key: 'phong', render: v => v?.tenPhong || '---' },
+            { label: 'Nhà trọ', key: 'phong', render: v => v?.nhaTro?.tenNhaTro || '---' },
+            { label: 'Ngày gửi', key: 'ngayGui', render: fmtDate },
+            { label: 'Trạng thái', key: 'trangThaiText', render: (v, row) => {
+                const cls = row.trangThai === 'ChoDuyet' ? 'badge-warning' : row.trangThai === 'DaLapHopDong' ? 'badge-success' : row.trangThai === 'TuChoi' ? 'badge-danger' : 'badge-info';
+                return `<span class="badge ${cls}">${v || row.trangThai || '---'}</span>`;
+            }},
+            { label: 'Ghi chú', key: 'ghiChuNguoiDung' }
         ]
     },
 
@@ -387,8 +407,8 @@ function showSection(section, el) {
     const sectionTitle = document.getElementById('sectionTitle');
 
     // NguoiDung chỉ xem, không được tạo/sửa/xóa
-    const canCreate = (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')
-    || (CURRENT_ROLE === 'NguoiDung' && section === 'hopdong');
+    const canCreate = ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && section !== 'yeucauthue')
+        || (CURRENT_ROLE === 'NguoiDung' && section === 'yeucauthue');
     const canWrite = canCreate;
 
     if (section === 'overview') {
@@ -608,6 +628,10 @@ function renderRooms(rooms) {
                 <button class="btn btn-primary" style="flex:1;padding:0.5rem;font-size:0.875rem;" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Chỉnh sửa</button>
                 <button class="btn btn-danger" style="padding:0.5rem;" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i></button>
             </div>
+            ` : CURRENT_ROLE === 'NguoiDung' ? `
+            <div style="display:flex;gap:0.5rem;">
+                <button class="btn btn-primary" style="flex:1;padding:0.5rem;font-size:0.875rem;" onclick="openYeuCauThueModal(null, ${r.maPhong})"><i class="fas fa-paper-plane"></i> Gửi yêu cầu thuê</button>
+            </div>
             ` : ''}
         </div>`;
     }).join('');
@@ -670,19 +694,32 @@ function renderTable(cfg, data, section) {
     }
     const canWrite = (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro');
 
-    tbody.innerHTML = data.map(item => `<tr>
-        ${cfg.headers.map(h => {
-        const val = h.key ? item[h.key] : null;
-        const rendered = h.render ? h.render(val, item) : (val != null && val !== '' ? val : '---');
-        return `<td>${rendered}</td>`;
-    }).join('')}
-        <td style="white-space:nowrap;">
-            ${canWrite ? `
-            <button class="btn-action btn-edit" onclick="editItem('${section}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
-            <button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>
-            ` : ''}
-        </td>
-    </tr>`).join('');
+    tbody.innerHTML = data.map(item => {
+        let actionHtml = '';
+
+        if (section === 'yeucauthue') {
+            if ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && item.trangThai === 'ChoDuyet') {
+                actionHtml = `
+                    <button class="btn-action btn-edit" onclick="openYeuCauThueDuyetModal(${item.maYeuCau})"><i class="fas fa-check"></i> Duyệt</button>
+                    <button class="btn-action btn-delete" onclick="rejectYeuCauThue(${item.maYeuCau})"><i class="fas fa-times"></i> Từ chối</button>`;
+            } else if (CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'ChoDuyet') {
+                actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('yeucauthue',${item.maYeuCau})"><i class="fas fa-trash"></i> Hủy</button>`;
+            }
+        } else if (canWrite) {
+            actionHtml = `
+                <button class="btn-action btn-edit" onclick="editItem('${section}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
+                <button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>`;
+        }
+
+        return `<tr>
+            ${cfg.headers.map(h => {
+                const val = h.key ? item[h.key] : null;
+                const rendered = h.render ? h.render(val, item) : (val != null && val !== '' ? val : '---');
+                return `<td>${rendered}</td>`;
+            }).join('')}
+            <td style="white-space:nowrap;">${actionHtml}</td>
+        </tr>`;
+    }).join('');
 }
 
 async function searchNguoiThue(q) {
@@ -915,6 +952,7 @@ function openModal(id = null) {
 
     if (cfg.customModal) {
         if (section === 'hopdong') return openHopDongModal(id);
+        if (section === 'yeucauthue') return openYeuCauThueModal(id);
         if (section === 'hoadon') return openHoaDonModal(id);
         if (section === 'user') return openUserModal(id);
         return;
@@ -944,6 +982,128 @@ function openModal(id = null) {
 
 function closeModal() {
     document.getElementById('universalModal').style.display = 'none';
+}
+
+// ==========================================
+// YÊU CẦU THUÊ CUSTOM MODAL
+// ==========================================
+async function openYeuCauThueModal(id = null, maPhongChon = null) {
+    if (CURRENT_ROLE !== 'NguoiDung') {
+        showToast('Chỉ người dùng mới được gửi yêu cầu thuê', 'error');
+        return;
+    }
+
+    document.getElementById('modalTitle').textContent = 'Gửi yêu cầu thuê phòng';
+
+    document.getElementById('modalFields').innerHTML = `
+        <div class="form-group">
+            <label>Phòng muốn thuê <span style="color:var(--error)">*</span></label>
+            <select id="f_maPhong" class="form-control" required>
+                <option value="">-- Chọn phòng --</option>
+                ${lookups.phong.map(p => {
+                    const house = lookups.nhatro.find(n => n.maNhaTro === p.maNhaTro);
+                    return `<option value="${p.maPhong}" ${maPhongChon == p.maPhong ? 'selected' : ''}>${p.tenPhong}${house ? ' – ' + house.tenNhaTro : ''} – ${fmtCurrency(p.giaPhong)}</option>`;
+                }).join('')}
+            </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Ghi chú gửi chủ trọ</label>
+            <textarea id="f_ghiChuNguoiDung" class="form-control" placeholder="Ví dụ: Em muốn xem phòng vào cuối tuần..."></textarea>
+        </div>`;
+
+    document.getElementById('modalForm').onsubmit = async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            maPhong: Number(document.getElementById('f_maPhong').value),
+            ghiChuNguoiDung: document.getElementById('f_ghiChuNguoiDung').value
+        };
+
+        try {
+            await apiFetch('/api/YeuCauThue', 'POST', payload);
+            showToast('Gửi yêu cầu thuê thành công!');
+            closeModal();
+            if (currentSection === 'yeucauthue') refreshData();
+        } catch (e) {
+            showToast(e.message || 'Lỗi gửi yêu cầu thuê', 'error');
+        }
+    };
+
+    document.getElementById('universalModal').style.display = 'flex';
+}
+
+async function openYeuCauThueDuyetModal(maYeuCau) {
+    const yc = currentData.find(x => x.maYeuCau == maYeuCau);
+    if (!yc) {
+        showToast('Không tìm thấy yêu cầu thuê', 'error');
+        return;
+    }
+
+    const today = new Date().toISOString().substring(0, 10);
+
+    document.getElementById('modalTitle').textContent = 'Duyệt yêu cầu và lập hợp đồng';
+    document.getElementById('modalFields').innerHTML = `
+        <div style="grid-column:1/-1;background:#f8fafc;border-radius:.75rem;padding:1rem;margin-bottom:.5rem;">
+            <strong>${yc.nguoiDung?.hoTen || 'Người dùng'}</strong> muốn thuê <strong>${yc.phong?.tenPhong || 'phòng'}</strong><br>
+            <small>${yc.phong?.nhaTro?.tenNhaTro || ''}</small>
+        </div>
+        <div class="form-group">
+            <label>Ngày bắt đầu <span style="color:var(--error)">*</span></label>
+            <input type="date" id="f_ngayBatDau" class="form-control" value="${today}" required>
+        </div>
+        <div class="form-group">
+            <label>Ngày kết thúc</label>
+            <input type="date" id="f_ngayKetThuc" class="form-control">
+        </div>
+        <div class="form-group">
+            <label>Tiền cọc (đ) <span style="color:var(--error)">*</span></label>
+            <input type="number" id="f_tienCoc" class="form-control" value="0" min="0" required>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Nội dung hợp đồng</label>
+            <textarea id="f_noiDung" class="form-control">Hợp đồng thuê phòng ${yc.phong?.tenPhong || ''}</textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Ghi chú phản hồi</label>
+            <textarea id="f_ghiChuChuTro" class="form-control"></textarea>
+        </div>`;
+
+    document.getElementById('modalForm').onsubmit = async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            ngayBatDau: document.getElementById('f_ngayBatDau').value,
+            tienCoc: Number(document.getElementById('f_tienCoc').value),
+            noiDung: document.getElementById('f_noiDung').value,
+            ghiChuChuTro: document.getElementById('f_ghiChuChuTro').value
+        };
+
+        const ngayKetThuc = document.getElementById('f_ngayKetThuc').value;
+        if (ngayKetThuc) payload.ngayKetThuc = ngayKetThuc;
+
+        try {
+            await apiFetch(`/api/YeuCauThue/${maYeuCau}/chap-nhan`, 'POST', payload);
+            showToast('Đã duyệt yêu cầu và lập hợp đồng!');
+            closeModal();
+            await loadLookups();
+            refreshData();
+        } catch (e) {
+            showToast(e.message || 'Lỗi duyệt yêu cầu thuê', 'error');
+        }
+    };
+
+    document.getElementById('universalModal').style.display = 'flex';
+}
+
+async function rejectYeuCauThue(maYeuCau) {
+    const ghiChu = prompt('Lý do từ chối yêu cầu thuê:') || '';
+    try {
+        await apiFetch(`/api/YeuCauThue/${maYeuCau}/tu-choi`, 'POST', { ghiChuChuTro: ghiChu });
+        showToast('Đã từ chối yêu cầu thuê');
+        refreshData();
+    } catch (e) {
+        showToast(e.message || 'Lỗi từ chối yêu cầu thuê', 'error');
+    }
 }
 
 // ==========================================

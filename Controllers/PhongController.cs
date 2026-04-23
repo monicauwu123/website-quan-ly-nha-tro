@@ -51,6 +51,15 @@ namespace DoAnSE104.Controllers
             if (phong.DienTich.HasValue && phong.DienTich.Value < 0)
                 return "Diện tích phải lớn hơn hoặc bằng 0";
 
+            if (phong.SucChua < 0)
+                return "Sức chứa phải lớn hơn hoặc bằng 0";
+
+            if (phong.SoNguoiHienTai < 0)
+                return "Số người hiện tại phải lớn hơn hoặc bằng 0";
+
+            if (phong.SucChua < phong.SoNguoiHienTai)
+                return "Sức chứa phải lớn hơn hoặc bằng số người hiện tại";
+
             if (!await _context.NhaTro.AnyAsync(n => n.MaNhaTro == phong.MaNhaTro))
                 return "Nhà trọ không tồn tại";
 
@@ -82,14 +91,7 @@ namespace DoAnSE104.Controllers
                     var maPhongList = await GetMaPhongCuaChuTro(userId);
                     query = query.Where(p => maPhongList.Contains(p.MaPhong));
                 }
-                else if (role == VaiTroConst.NguoiDung)
-                {
-                    var maPhongList = await _context.NguoiThue
-                        .Where(nt => nt.MaNguoiDung == userId)
-                        .Select(nt => nt.MaPhong)
-                        .ToListAsync();
-                    query = query.Where(p => maPhongList.Contains(p.MaPhong));
-                }
+                // NguoiDung được xem tất cả phòng để lựa chọn thuê.
 
                 var data = await query.ToListAsync();
                 return Ok(ApiResponse<List<Phong>>.Ok(data));
@@ -123,12 +125,7 @@ namespace DoAnSE104.Controllers
                     var maPhongList = await GetMaPhongCuaChuTro(userId);
                     if (!maPhongList.Contains(id)) return Forbid();
                 }
-                else if (role == VaiTroConst.NguoiDung)
-                {
-                    var coQuyen = await _context.NguoiThue
-                        .AnyAsync(nt => nt.MaNguoiDung == userId && nt.MaPhong == id);
-                    if (!coQuyen) return Forbid();
-                }
+                // NguoiDung được xem chi tiết phòng để lựa chọn thuê.
 
                 return Ok(ApiResponse<Phong>.Ok(phong));
             }
@@ -190,14 +187,7 @@ namespace DoAnSE104.Controllers
                     var maPhongList = await GetMaPhongCuaChuTro(userId);
                     query = query.Where(p => maPhongList.Contains(p.MaPhong));
                 }
-                else if (role == VaiTroConst.NguoiDung)
-                {
-                    var maPhongList = await _context.NguoiThue
-                        .Where(nt => nt.MaNguoiDung == userId)
-                        .Select(nt => nt.MaPhong)
-                        .ToListAsync();
-                    query = query.Where(p => maPhongList.Contains(p.MaPhong));
-                }
+                // NguoiDung được xem phòng theo trạng thái để lựa chọn thuê.
 
                 var data = await query.ToListAsync();
                 return Ok(ApiResponse<List<Phong>>.Ok(data));

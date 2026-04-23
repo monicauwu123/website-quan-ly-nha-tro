@@ -40,17 +40,7 @@ namespace DoAnSE104.Controllers
                     var userId = GetCurrentUserId();
                     query = query.Where(n => n.MaChuTro == userId);
                 }
-                else if (role == VaiTroConst.NguoiDung)
-                {
-                    // NguoiDung chỉ thấy nhà trọ của phòng mình đang thuê
-                    var userId = GetCurrentUserId();
-                    var maNhaTroList = await _context.NguoiThue
-                        .Where(nt => nt.MaNguoiDung == userId)
-                        .Join(_context.Phong, nt => nt.MaPhong, p => p.MaPhong, (nt, p) => p.MaNhaTro)
-                        .Distinct()
-                        .ToListAsync();
-                    query = query.Where(n => maNhaTroList.Contains(n.MaNhaTro));
-                }
+                // NguoiDung được xem danh sách nhà trọ để lựa chọn thuê.
                 // Admin: không filter
 
                 var data = await query.ToListAsync();
@@ -78,14 +68,7 @@ namespace DoAnSE104.Controllers
                 if (role == VaiTroConst.ChuTro && nhaTro.MaChuTro != userId)
                     return Forbid();
 
-                if (role == VaiTroConst.NguoiDung)
-                {
-                    var coQuyen = await _context.NguoiThue
-                        .Where(nt => nt.MaNguoiDung == userId)
-                        .Join(_context.Phong, nt => nt.MaPhong, p => p.MaPhong, (nt, p) => p.MaNhaTro)
-                        .AnyAsync(maNhaTro => maNhaTro == id);
-                    if (!coQuyen) return Forbid();
-                }
+                // NguoiDung được xem chi tiết nhà trọ để lựa chọn thuê.
 
                 return Ok(ApiResponse<NhaTro>.Ok(nhaTro));
             }

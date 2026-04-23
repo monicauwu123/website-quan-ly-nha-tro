@@ -31,6 +31,23 @@ namespace DoAnSE104.Controllers
         private string GetCurrentRole()
             => User.FindFirstValue(ClaimTypes.Role)!;
 
+        private async Task<bool> ChuTroCoQuyenPhong(int maPhong)
+        {
+            var userId = GetCurrentUserId();
+            return await _context.Phong
+                .Include(p => p.NhaTro)
+                .AnyAsync(p => p.MaPhong == maPhong && p.NhaTro.MaChuTro == userId);
+        }
+
+        private async Task<bool> ChuTroCoQuyenHoaDon(int maHoaDon)
+        {
+            var userId = GetCurrentUserId();
+            return await _context.HoaDon
+                .Join(_context.Phong, h => h.MaPhong, p => p.MaPhong, (h, p) => new { h, p })
+                .Join(_context.NhaTro, x => x.p.MaNhaTro, n => n.MaNhaTro, (x, n) => new { x.h, n })
+                .AnyAsync(x => x.h.MaHoaDon == maHoaDon && x.n.MaChuTro == userId);
+        }
+
         private bool TryParseKyHoaDon(string kyHoaDon, out int nam, out int thang)
         {
             nam = 0;
@@ -127,11 +144,15 @@ namespace DoAnSE104.Controllers
 
         // Láº¥y thÃ´ng tin phÃ²ng Ä‘á»ƒ táº¡o hÃ³a Ä‘Æ¡n
         [HttpGet("GetThongTinPhong/{phongId}")]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> GetThongTinPhong(int phongId)
         {
             var phong = await _context.Phong.FindAsync(phongId);
             if (phong == null)
-                return NotFound("PhÃ²ng khÃ´ng tá»“n táº¡i");
+                return NotFound(ApiResponse<object>.Loi("Phòng không tồn tại"));
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenPhong(phongId))
+                return Forbid();
 
             var hopDong = await _context.HopDong
                 .Where(hd => hd.MaPhong == phongId
@@ -181,6 +202,7 @@ namespace DoAnSE104.Controllers
 
         // Láº¥y danh sÃ¡ch phÃ²ng chÆ°a cÃ³ hÃ³a Ä‘Æ¡n trong thÃ¡ng/nÄƒm cá»¥ thá»ƒ
         [HttpGet("GetPhongChuaCoHoaDonTrongThang")]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> GetPhongChuaCoHoaDonTrongThang([FromQuery] int thang, [FromQuery] int nam)
         {
             if (thang < 1 || thang > 12 || nam < 1900 || nam > 9999)
@@ -191,9 +213,16 @@ namespace DoAnSE104.Controllers
                 .Select(hd => hd.MaPhong)
                 .ToListAsync();
 
-            var phongChuaCoHoaDon = await _context.Phong
-                .Where(p => !phongDaCoHoaDon.Contains(p.MaPhong))
-                .ToListAsync();
+            IQueryable<Phong> phongQuery = _context.Phong
+                .Where(p => !phongDaCoHoaDon.Contains(p.MaPhong));
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro)
+            {
+                var userId = GetCurrentUserId();
+                phongQuery = phongQuery.Where(p => p.NhaTro.MaChuTro == userId);
+            }
+
+            var phongChuaCoHoaDon = await phongQuery.ToListAsync();
 
             return Ok(phongChuaCoHoaDon);
         }
@@ -212,7 +241,10 @@ namespace DoAnSE104.Controllers
                 // Kiá»ƒm tra phÃ²ng tá»“n táº¡i
                 var phong = await _context.Phong.FindAsync(request.MaPhong);
                 if (phong == null)
-                    return BadRequest("PhÃ²ng khÃ´ng tá»“n táº¡i");
+                    return BadRequest(ApiResponse<object>.Loi("Phòng không tồn tại"));
+
+                if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenPhong(request.MaPhong))
+                    return Forbid();
 
                 // Kiá»ƒm tra ngÆ°á»i thuÃª tá»“n táº¡i
                 var nguoiThue = await _context.NguoiThue.FindAsync(request.MaNguoiThue);
@@ -231,7 +263,7 @@ namespace DoAnSE104.Controllers
 
                 var loiValidationBanDau = await ValidateHoaDon(0, request.MaPhong, request.KyHoaDon, request.TongTien);
                 if (loiValidationBanDau != null)
-                    return BadRequest(loiValidationBanDau);
+                    return BadRequest(ApiResponse<object>.Loi(loiValidationBanDau));
 
                 // Láº¥y chá»‰ sá»‘ Ä‘iá»‡n vÃ  nÆ°á»›c má»›i nháº¥t cho phÃ²ng
                 var chiSoDien = await _context.ChiSoDien
@@ -260,7 +292,7 @@ namespace DoAnSE104.Controllers
 
                 var loiValidationTongTien = await ValidateHoaDon(0, request.MaPhong, request.KyHoaDon, tongTien);
                 if (loiValidationTongTien != null)
-                    return BadRequest(loiValidationTongTien);
+                    return BadRequest(ApiResponse<object>.Loi(loiValidationTongTien));
 
                 // Táº¡o hÃ³a Ä‘Æ¡n má»›i - QUAN TRá»ŒNG: ThÃªm MaDien vÃ  MaNuoc
                 var hoaDon = new HoaDon
@@ -304,11 +336,17 @@ namespace DoAnSE104.Controllers
 
             var hoaDon = await _context.HoaDon.FindAsync(id);
             if (hoaDon == null)
-                return NotFound("KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n.");
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy hóa đơn"));
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenHoaDon(id))
+                return Forbid();
 
             var phong = await _context.Phong.FindAsync(dto.MaPhong);
             if (phong == null)
-                return BadRequest("PhÃ²ng khÃ´ng tá»“n táº¡i.");
+                return BadRequest(ApiResponse<object>.Loi("Phòng không tồn tại"));
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenPhong(dto.MaPhong))
+                return Forbid();
 
             var nguoiThue = await _context.NguoiThue.FindAsync(dto.MaNguoiThue);
             if (nguoiThue == null)
@@ -334,15 +372,17 @@ namespace DoAnSE104.Controllers
             return NoContent();
         }
 
-        // XoÃ¡ hÃ³a Ä‘Æ¡n
-        // Xoá hóa đơn – chỉ Admin
+        // Xoá hóa đơn – Admin & ChuTro
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> DeleteHoaDon(int id)
         {
             var hoaDon = await _context.HoaDon.FindAsync(id);
             if (hoaDon == null)
                 return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenHoaDon(id))
+                return Forbid();
 
             _context.HoaDon.Remove(hoaDon);
             await _context.SaveChangesAsync();
