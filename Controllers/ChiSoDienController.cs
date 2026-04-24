@@ -1,13 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Helpers;
-
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace DoAnSE104.Controllers
 {
@@ -21,6 +18,37 @@ namespace DoAnSE104.Controllers
         public ChiSoDienController(ApplicationDbContext context)
         {
             _context = context;
+        }
+
+        private int GetCurrentUserId()
+            => int.Parse(User.FindFirstValue("MaNguoiDung")!);
+
+        private string GetCurrentRole()
+            => User.FindFirstValue(ClaimTypes.Role)!;
+
+        private async Task<bool> ChuTroCoQuyenPhong(int maPhong)
+        {
+            var userId = GetCurrentUserId();
+            return await _context.Phong.AnyAsync(p => p.MaPhong == maPhong && p.NhaTro.MaChuTro == userId);
+        }
+
+        private async Task<bool> NguoiDungCoQuyenPhong(int maPhong)
+        {
+            var userId = GetCurrentUserId();
+            return await _context.NguoiThue.AnyAsync(nt => nt.MaNguoiDung == userId && nt.MaPhong == maPhong);
+        }
+
+        private IQueryable<ChiSoDien> ApplyRoleFilter(IQueryable<ChiSoDien> query)
+        {
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            if (role == VaiTroConst.ChuTro)
+                query = query.Where(c => c.Phong.NhaTro.MaChuTro == userId);
+            else if (role == VaiTroConst.NguoiDung)
+                query = query.Where(c => _context.NguoiThue.Any(nt => nt.MaNguoiDung == userId && nt.MaPhong == c.MaPhong));
+
+            return query;
         }
 
         private async Task<string?> ValidateChiSoDien(int maPhong, int soDienCu, int soDienMoi, decimal giaDien, DateTime ngayThangDien, int? maDienBoQua = null)
@@ -41,6 +69,9 @@ namespace DoAnSE104.Controllers
             if (!phongTonTai)
                 return "Phòng không tồn tại";
 
+            if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenPhong(maPhong))
+                return "Bạn không có quyền ghi chỉ số điện cho phòng này";
+
             var trungThang = await _context.ChiSoDien.AnyAsync(c =>
                 c.MaPhong == maPhong &&
                 c.NgayThangDien.Month == ngayThangDien.Month &&
@@ -53,43 +84,43 @@ namespace DoAnSE104.Controllers
             return null;
         }
 
-        // GET: api/ChiSoDien
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ChiSoDien>>> GetChiSoDien()
         {
-            return await _context.ChiSoDien
-                .Include(c => c.Phong)
+            return await ApplyRoleFilter(_context.ChiSoDien.Include(c => c.Phong).AsQueryable())
+                .OrderByDescending(c => c.NgayThangDien)
                 .ToListAsync();
         }
 
-        // GET: api/ChiSoDien/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ChiSoDien>> GetChiSoDien(int id)
         {
-            var chiSoDien = await _context.ChiSoDien
-                .Include(c => c.Phong)
+            var chiSoDien = await ApplyRoleFilter(_context.ChiSoDien.Include(c => c.Phong).AsQueryable())
                 .FirstOrDefaultAsync(c => c.MaDien == id);
 
             if (chiSoDien == null)
-            {
                 return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
-            }
 
             return chiSoDien;
         }
 
-        // GET: api/ChiSoDien/phong/5
         [HttpGet("phong/{maPhong}")]
         public async Task<ActionResult<IEnumerable<ChiSoDien>>> GetChiSoDienByPhong(int maPhong)
         {
+            if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenPhong(maPhong))
+                return Forbid();
+
+            if (GetCurrentRole() == VaiTroConst.NguoiDung && !await NguoiDungCoQuyenPhong(maPhong))
+                return Forbid();
+
             return await _context.ChiSoDien
                 .Where(c => c.MaPhong == maPhong)
                 .OrderByDescending(c => c.NgayThangDien)
                 .ToListAsync();
         }
 
-        // POST: api/ChiSoDien
         [HttpPost]
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<ActionResult<ChiSoDien>> PostChiSoDien(ChiSoDienDtoCreate dto)
         {
             var loiValidation = await ValidateChiSoDien(dto.MaPhong, dto.SoDienCu, dto.SoDienMoi, dto.GiaDien, dto.NgayThangDien);
@@ -112,20 +143,19 @@ namespace DoAnSE104.Controllers
             return CreatedAtAction(nameof(GetChiSoDien), new { id = chiSoDien.MaDien }, chiSoDien);
         }
 
-        // PUT: api/ChiSoDien/5
         [HttpPut("{id}")]
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PutChiSoDien(int id, ChiSoDienDtoUpdate dto)
         {
             if (id != dto.MaDien)
-            {
                 return BadRequest(ApiResponse<object>.Loi("Mã trên đường dẫn không khớp với mã trong dữ liệu gửi lên"));
-            }
 
             var chiSoDien = await _context.ChiSoDien.FindAsync(id);
             if (chiSoDien == null)
-            {
                 return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
-            }
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenPhong(chiSoDien.MaPhong))
+                return Forbid();
 
             var loiValidation = await ValidateChiSoDien(dto.MaPhong, dto.SoDienCu, dto.SoDienMoi, dto.GiaDien, dto.NgayThangDien, id);
             if (loiValidation != null)
@@ -143,25 +173,21 @@ namespace DoAnSE104.Controllers
             return NoContent();
         }
 
-        // DELETE: api/ChiSoDien/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeleteChiSoDien(int id)
         {
             var chiSoDien = await _context.ChiSoDien.FindAsync(id);
             if (chiSoDien == null)
-            {
                 return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
-            }
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenPhong(chiSoDien.MaPhong))
+                return Forbid();
 
             _context.ChiSoDien.Remove(chiSoDien);
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        private bool ChiSoDienExists(int id)
-        {
-            return _context.ChiSoDien.Any(e => e.MaDien == id);
         }
     }
 }

@@ -48,6 +48,21 @@ namespace DoAnSE104.Controllers
                 .AnyAsync(x => x.h.MaHoaDon == maHoaDon && x.n.MaChuTro == userId);
         }
 
+        private async Task<decimal> TongTienDichVuTheoPhongAsync(int maPhong)
+        {
+            var maChuTro = await _context.Phong
+                .Where(p => p.MaPhong == maPhong)
+                .Select(p => p.NhaTro.MaChuTro)
+                .FirstOrDefaultAsync();
+
+            if (maChuTro == null)
+                return 0m;
+
+            return await _context.DichVu
+                .Where(dv => dv.MaChuTro == maChuTro.Value)
+                .SumAsync(dv => (decimal?)dv.Tiendichvu) ?? 0m;
+        }
+
         private bool TryParseKyHoaDon(string kyHoaDon, out int nam, out int thang)
         {
             nam = 0;
@@ -132,7 +147,7 @@ namespace DoAnSE104.Controllers
                     TienPhong = h.Phong.GiaPhong, // hoáº·c h.TienPhong náº¿u cÃ³
                     TienDien = h.ChiSoDien.TienDien, // náº¿u cÃ³ liÃªn káº¿t ChiSoDien
                     TienNuoc = h.ChiSoNuoc.TienNuoc, // náº¿u cÃ³ liÃªn káº¿t ChiSoNuoc
-                    TienDichVu = _context.DichVu.Sum(dv => (decimal?)dv.Tiendichvu) ?? 0, // cáº§n tinh chá»‰nh
+                    TienDichVu = _context.DichVu.Where(dv => dv.MaChuTro == h.Phong.NhaTro.MaChuTro).Sum(dv => (decimal?)dv.Tiendichvu) ?? 0,
                     TienPhatSinhKhac = h.TienPhatSinhKhac,
                     TongTien = h.TongTien,
                 })
@@ -181,7 +196,7 @@ namespace DoAnSE104.Controllers
                 return BadRequest("ChÆ°a cÃ³ chá»‰ sá»‘ nÆ°á»›c cho phÃ²ng nÃ y");
 
             // Tá»•ng tiá»n dá»‹ch vá»¥ Ã¡p dá»¥ng cho táº¥t cáº£ cÃ¡c phÃ²ng (dá»‹ch vá»¥ cá»‘ Ä‘á»‹nh)
-            decimal tongTienDichVuChung = await _context.DichVu.SumAsync(dv => (decimal?)dv.Tiendichvu) ?? 0m;
+            decimal tongTienDichVuChung = await TongTienDichVuTheoPhongAsync(phongId);
 
             // TÃ­nh tá»•ng tiá»n hÃ³a Ä‘Æ¡n
             decimal tongTienHoaDon = phong.GiaPhong + chiSoDien.TienDien + chiSoNuoc.TienNuoc + tongTienDichVuChung;
@@ -283,8 +298,7 @@ namespace DoAnSE104.Controllers
                     return BadRequest("ChÆ°a cÃ³ chá»‰ sá»‘ nÆ°á»›c cho phÃ²ng nÃ y");
 
                 // Láº¥y tá»•ng tiá»n dá»‹ch vá»¥ chung
-                decimal tongTienDichVuChung = await _context.DichVu
-                    .SumAsync(dv => (decimal?)dv.Tiendichvu) ?? 0m;
+                decimal tongTienDichVuChung = await TongTienDichVuTheoPhongAsync(request.MaPhong);
 
                 // TÃ­nh tá»•ng tiá»n hÃ³a Ä‘Æ¡n
                 decimal tongTien = request.TienPhong + request.TienDien + request.TienNuoc +
@@ -353,7 +367,7 @@ namespace DoAnSE104.Controllers
                 return BadRequest("Người thuê không tồn tại.");
 
             // Dá»‹ch vá»¥ Ã¡p dá»¥ng chung
-            decimal tongTienDichVuChung = await _context.DichVu.SumAsync(dv => (decimal?)dv.Tiendichvu) ?? 0m;
+            decimal tongTienDichVuChung = await TongTienDichVuTheoPhongAsync(dto.MaPhong);
 
             var tongTien = phong.GiaPhong + dto.TienDien + dto.TienNuoc + tongTienDichVuChung + dto.TienPhatSinhKhac;
             var loiValidation = await ValidateHoaDon(id, dto.MaPhong, dto.KyHoaDon, tongTien);

@@ -211,116 +211,173 @@ namespace DoAnSE104.Controllers
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> ChapNhanYeuCauThue(int id, [FromBody] ChapNhanYeuCauThueDto dto)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-
             try
             {
                 var role = GetCurrentRole();
                 var userId = GetCurrentUserId();
 
-                var yeuCau = await _context.YeuCauThue
-                    .Include(y => y.NguoiDung)
-                    .Include(y => y.Phong).ThenInclude(p => p.NhaTro)
-                    .FirstOrDefaultAsync(y => y.MaYeuCau == id);
+                var strategy = _context.Database.CreateExecutionStrategy();
+                IActionResult? ketQua = null;
 
-                if (yeuCau == null)
-                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy yêu cầu thuê"));
-
-                if (role == VaiTroConst.ChuTro && yeuCau.Phong.NhaTro.MaChuTro != userId)
-                    return Forbid();
-
-                if (yeuCau.TrangThai != ChoDuyet && yeuCau.TrangThai != DaChapNhan)
-                    return BadRequest(ApiResponse<object>.Loi("Yêu cầu này đã được xử lý"));
-
-                if (dto.NgayKetThuc.HasValue && dto.NgayKetThuc.Value <= dto.NgayBatDau)
-                    return BadRequest(ApiResponse<object>.Loi("Ngày kết thúc phải lớn hơn ngày bắt đầu"));
-
-                if (dto.TienCoc < 0)
-                    return BadRequest(ApiResponse<object>.Loi("Tiền cọc phải lớn hơn hoặc bằng 0"));
-
-                if (yeuCau.Phong.GiaPhong <= 0)
-                    return BadRequest(ApiResponse<object>.Loi("Giá thuê phải lớn hơn 0"));
-
-                if (yeuCau.Phong.SucChua > 0 && yeuCau.Phong.SoNguoiHienTai >= yeuCau.Phong.SucChua)
-                    return BadRequest(ApiResponse<object>.Loi("Phòng đã đủ số người, không thể lập hợp đồng"));
-
-                var phongDangCoHopDongHieuLuc = await _context.HopDong.AnyAsync(h =>
-                    h.MaPhong == yeuCau.MaPhong &&
-                    (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
-
-                if (phongDangCoHopDongHieuLuc)
-                    return BadRequest(ApiResponse<object>.Loi("Phòng này đã có hợp đồng còn hiệu lực"));
-
-                var nguoiThueDangCoHopDong = await _context.HopDong.AnyAsync(h =>
-                    h.NguoiThue.MaNguoiDung == yeuCau.MaNguoiDung &&
-                    (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
-
-                if (nguoiThueDangCoHopDong)
-                    return BadRequest(ApiResponse<object>.Loi("Người dùng này đã có hợp đồng đang hiệu lực"));
-
-                var nguoiThue = await _context.NguoiThue
-                    .FirstOrDefaultAsync(nt => nt.MaNguoiDung == yeuCau.MaNguoiDung && nt.MaPhong == yeuCau.MaPhong);
-
-                if (nguoiThue == null)
+                await strategy.ExecuteAsync(async () =>
                 {
-                    nguoiThue = new NguoiThue
+                    await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                    try
                     {
-                        HoTen = string.IsNullOrWhiteSpace(yeuCau.NguoiDung.HoTen) ? yeuCau.NguoiDung.TenDangNhap : yeuCau.NguoiDung.HoTen,
-                        Email = yeuCau.NguoiDung.Email,
-                        SDT = yeuCau.NguoiDung.SoDienThoai,
-                        MaPhong = yeuCau.MaPhong,
-                        MaNguoiDung = yeuCau.MaNguoiDung,
-                        QuocTich = "Việt Nam"
-                    };
-                    _context.NguoiThue.Add(nguoiThue);
-                    await _context.SaveChangesAsync();
-                }
-                else
-                {
-                    nguoiThue.MaPhong = yeuCau.MaPhong;
-                    nguoiThue.MaNguoiDung = yeuCau.MaNguoiDung;
-                }
+                        var yeuCau = await _context.YeuCauThue
+                            .Include(y => y.NguoiDung)
+                            .Include(y => y.Phong).ThenInclude(p => p.NhaTro)
+                            .FirstOrDefaultAsync(y => y.MaYeuCau == id);
 
-                var hopDong = new HopDong
-                {
-                    MaNguoiThue = nguoiThue.MaNguoiThue,
-                    MaPhong = yeuCau.MaPhong,
-                    NgayBatDau = dto.NgayBatDau,
-                    NgayKetThuc = dto.NgayKetThuc,
-                    TienCoc = dto.TienCoc,
-                    NoiDung = dto.NoiDung
-                };
+                        if (yeuCau == null)
+                        {
+                            ketQua = NotFound(ApiResponse<object>.Loi("Không tìm thấy yêu cầu thuê"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
 
-                _context.HopDong.Add(hopDong);
-                await _context.SaveChangesAsync();
+                        if (role == VaiTroConst.ChuTro && yeuCau.Phong.NhaTro.MaChuTro != userId)
+                        {
+                            ketQua = Forbid();
+                            await transaction.RollbackAsync();
+                            return;
+                        }
 
-                yeuCau.MaNguoiThue = nguoiThue.MaNguoiThue;
-                yeuCau.MaHopDong = hopDong.MaHopDong;
-                yeuCau.TrangThai = DaLapHopDong;
-                yeuCau.GhiChuChuTro = dto.GhiChuChuTro;
-                yeuCau.NgayXuLy = DateTime.Now;
+                        if (yeuCau.TrangThai != ChoDuyet && yeuCau.TrangThai != DaChapNhan)
+                        {
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Yêu cầu này đã được xử lý"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
 
-                yeuCau.Phong.SoNguoiHienTai = Math.Min(yeuCau.Phong.SoNguoiHienTai + 1, yeuCau.Phong.SucChua);
+                        if (dto.NgayKetThuc.HasValue && dto.NgayKetThuc.Value <= dto.NgayBatDau)
+                        {
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Ngày kết thúc phải lớn hơn ngày bắt đầu"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
 
-                var trangThaiDaThue = await _context.TrangThai
-                    .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("Đã thuê") || t.TenTrangThai.Contains("Da thue") || t.TenTrangThai.Contains("thuê"));
-                if (trangThaiDaThue != null)
-                    yeuCau.Phong.MaTrangThai = trangThaiDaThue.MaTrangThai;
+                        if (dto.TienCoc < 0)
+                        {
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Tiền cọc phải lớn hơn hoặc bằng 0"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                        if (yeuCau.Phong.GiaPhong <= 0)
+                        {
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Giá thuê phải lớn hơn 0"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
 
-                return Ok(ApiResponse<object>.Ok(new
-                {
-                    yeuCau.MaYeuCau,
-                    nguoiThue.MaNguoiThue,
-                    hopDong.MaHopDong,
-                    yeuCau.MaPhong
-                }, "Đã chấp nhận yêu cầu và lập hợp đồng thành công"));
+                        if (yeuCau.Phong.SucChua > 0 && yeuCau.Phong.SoNguoiHienTai >= yeuCau.Phong.SucChua)
+                        {
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Phòng đã đủ số người, không thể lập hợp đồng"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
+
+                        var phongDangCoHopDongHieuLuc = await _context.HopDong.AnyAsync(h =>
+                            h.MaPhong == yeuCau.MaPhong &&
+                            (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
+
+                        if (phongDangCoHopDongHieuLuc)
+                        {
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Phòng này đã có hợp đồng còn hiệu lực"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
+
+                        var nguoiThueDangCoHopDong = await _context.HopDong.AnyAsync(h =>
+                            h.NguoiThue.MaNguoiDung == yeuCau.MaNguoiDung &&
+                            (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
+
+                        if (nguoiThueDangCoHopDong)
+                        {
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Người dùng này đã có hợp đồng đang hiệu lực"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
+
+                        var nguoiThue = await _context.NguoiThue
+                            .FirstOrDefaultAsync(nt => nt.MaNguoiDung == yeuCau.MaNguoiDung && nt.MaPhong == yeuCau.MaPhong);
+
+                        if (nguoiThue == null)
+                        {
+                            nguoiThue = new NguoiThue
+                            {
+                                HoTen = string.IsNullOrWhiteSpace(yeuCau.NguoiDung.HoTen) ? yeuCau.NguoiDung.TenDangNhap : yeuCau.NguoiDung.HoTen,
+                                Email = yeuCau.NguoiDung.Email,
+                                SDT = yeuCau.NguoiDung.SoDienThoai,
+                                MaPhong = yeuCau.MaPhong,
+                                MaNguoiDung = yeuCau.MaNguoiDung,
+                                QuocTich = "Việt Nam"
+                            };
+
+                            _context.NguoiThue.Add(nguoiThue);
+                            await _context.SaveChangesAsync();
+                        }
+                        else
+                        {
+                            nguoiThue.MaPhong = yeuCau.MaPhong;
+                            nguoiThue.MaNguoiDung = yeuCau.MaNguoiDung;
+                            await _context.SaveChangesAsync();
+                        }
+
+                        var hopDong = new HopDong
+                        {
+                            MaNguoiThue = nguoiThue.MaNguoiThue,
+                            MaPhong = yeuCau.MaPhong,
+                            NgayBatDau = dto.NgayBatDau,
+                            NgayKetThuc = dto.NgayKetThuc,
+                            TienCoc = dto.TienCoc,
+                            NoiDung = dto.NoiDung
+                        };
+
+                        _context.HopDong.Add(hopDong);
+                        await _context.SaveChangesAsync();
+
+                        yeuCau.MaNguoiThue = nguoiThue.MaNguoiThue;
+                        yeuCau.MaHopDong = hopDong.MaHopDong;
+                        yeuCau.TrangThai = DaLapHopDong;
+                        yeuCau.GhiChuChuTro = dto.GhiChuChuTro;
+                        yeuCau.NgayXuLy = DateTime.Now;
+
+                        if (yeuCau.Phong.SucChua > 0)
+                            yeuCau.Phong.SoNguoiHienTai = Math.Min(yeuCau.Phong.SoNguoiHienTai + 1, yeuCau.Phong.SucChua);
+                        else
+                            yeuCau.Phong.SoNguoiHienTai += 1;
+
+                        var trangThaiDaThue = await _context.TrangThai
+                            .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("Đã thuê") || t.TenTrangThai.Contains("Da thue") || t.TenTrangThai.Contains("thuê"));
+
+                        if (trangThaiDaThue != null)
+                            yeuCau.Phong.MaTrangThai = trangThaiDaThue.MaTrangThai;
+
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        ketQua = Ok(ApiResponse<object>.Ok(new
+                        {
+                            yeuCau.MaYeuCau,
+                            nguoiThue.MaNguoiThue,
+                            hopDong.MaHopDong,
+                            yeuCau.MaPhong
+                        }, "Đã chấp nhận yêu cầu và lập hợp đồng thành công"));
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
+
+                return ketQua ?? StatusCode(500, ApiResponse<object>.Loi("Không thể xử lý yêu cầu thuê"));
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 return StatusCode(500, ApiResponse<object>.Loi(ex.Message));
             }
         }

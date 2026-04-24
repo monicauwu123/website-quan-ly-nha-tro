@@ -60,11 +60,22 @@ namespace DoAnSE104.Controllers
             if (phong.SucChua < phong.SoNguoiHienTai)
                 return "Sức chứa phải lớn hơn hoặc bằng số người hiện tại";
 
-            if (!await _context.NhaTro.AnyAsync(n => n.MaNhaTro == phong.MaNhaTro))
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            var nhaTro = await _context.NhaTro.FirstOrDefaultAsync(n => n.MaNhaTro == phong.MaNhaTro);
+            if (nhaTro == null)
                 return "Nhà trọ không tồn tại";
 
-            if (!await _context.LoaiPhong.AnyAsync(l => l.MaLoaiPhong == phong.MaLoaiPhong))
+            if (role == VaiTroConst.ChuTro && nhaTro.MaChuTro != userId)
+                return "Bạn không có quyền dùng nhà trọ này";
+
+            var loaiPhong = await _context.LoaiPhong.FirstOrDefaultAsync(l => l.MaLoaiPhong == phong.MaLoaiPhong);
+            if (loaiPhong == null)
                 return "Loại phòng không tồn tại";
+
+            if (role == VaiTroConst.ChuTro && loaiPhong.MaChuTro != userId)
+                return "Bạn không có quyền dùng loại phòng này";
 
             if (!await _context.TrangThai.AnyAsync(t => t.MaTrangThai == phong.MaTrangThai))
                 return "Trạng thái không tồn tại";

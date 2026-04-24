@@ -60,13 +60,13 @@ namespace DoAnSE104.Controllers
 
         private string GetTrangThaiText(DateTime? ngayKetThuc)
         {
-            if (ngayKetThuc == null) return "Äang cÃ²n hiá»‡u lá»±c";
+            if (ngayKetThuc == null) return "Đang còn hiệu lực";
 
             var days = (ngayKetThuc.Value - DateTime.Today).TotalDays;
 
-            if (days < 0) return "Káº¿t thÃºc há»£p Ä‘á»“ng";
-            if (days <= 7) return "Sáº¯p háº¿t há»£p Ä‘á»“ng";
-            return "Äang cÃ²n hiá»‡u lá»±c";
+            if (days < 0) return "Kết thúc hợp đồng";
+            if (days <= 7) return "Sắp hết hợp đồng";
+            return "Đang còn hiệu lực";
         }
 
         // GET: api/HopDong
