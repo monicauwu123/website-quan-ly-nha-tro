@@ -1,8 +1,10 @@
-﻿namespace DoAnSE104.Models.Dtos
+using System;
+using System.Collections.Generic;
+
+namespace DoAnSE104.Models.Dtos
 {
     public class HoaDonDto
     {
-    
         public int MaHoaDon { get; set; }
         public string TenPhong { get; set; }
         public string TenNguoiThue { get; set; }
@@ -14,8 +16,6 @@
         public DateTime NgayLap { get; set; }
         public string KyHoaDon { get; set; }
         public decimal TongTien { get; set; }
-        
+        public List<string> DichVuSuDung { get; set; } = new();
     }
-
 }
-

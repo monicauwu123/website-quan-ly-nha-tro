@@ -134,7 +134,7 @@ namespace DoAnSE104.Data
 
             modelBuilder.Entity<ChiTietHoaDon>()
                 .HasOne(ct => ct.HoaDon)
-                .WithMany()
+                .WithMany(h => h.ChiTietHoaDon)
                 .HasForeignKey(ct => ct.MaHoaDon)
                 .OnDelete(DeleteBehavior.NoAction);
 

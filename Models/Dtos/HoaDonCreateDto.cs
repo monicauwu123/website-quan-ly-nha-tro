@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -11,10 +11,10 @@ namespace DoAnSE104.Models.Dtos
 
         [Required]
         public int MaPhong { get; set; }
+
         [Required]
         [Range(0, double.MaxValue)]
         public decimal TienPhong { get; set; }
-
 
         [Required]
         [Range(0, double.MaxValue)]
@@ -26,12 +26,16 @@ namespace DoAnSE104.Models.Dtos
 
         [Range(0, double.MaxValue)]
         public decimal TienPhatSinhKhac { get; set; } = 0;
+
         [Range(0, double.MaxValue)]
         public decimal TienDichVu { get; set; } = 0;
 
+        // Danh sách dịch vụ thực tế đã sử dụng để tính hóa đơn.
+        // Frontend gửi các MaDichVu được chọn trong form lập hóa đơn.
+        public List<int> MaDichVuSuDung { get; set; } = new();
 
         [Required]
-        public decimal TongTien {get;set;}
+        public decimal TongTien { get; set; }
 
         [Required]
         public DateTime NgayLap { get; set; }
@@ -40,7 +44,4 @@ namespace DoAnSE104.Models.Dtos
         [MaxLength(7)]
         public string KyHoaDon { get; set; }
     }
-
-    
 }
-

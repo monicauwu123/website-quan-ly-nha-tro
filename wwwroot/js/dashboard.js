@@ -287,6 +287,8 @@ const modules = {
             { label: 'Tiền phòng', key: 'tienPhong', render: fmtCurrency },
             { label: 'Tiền điện', key: 'tienDien', render: fmtCurrency },
             { label: 'Tiền nước', key: 'tienNuoc', render: fmtCurrency },
+            { label: 'Dịch vụ', key: 'tienDichVu', render: fmtCurrency },
+            { label: 'Dịch vụ dùng', key: 'dichVuSuDung', render: v => Array.isArray(v) && v.length ? v.join(', ') : '---' },
             { label: 'Phát sinh khác', key: 'tienPhatSinhKhac', render: fmtCurrency },
             { label: 'Tổng tiền', key: 'tongTien', render: v => `<strong style="color:var(--primary)">${fmtCurrency(v)}</strong>` },
             { label: 'Ngày lập', key: 'ngayLap', render: fmtDate },
@@ -730,9 +732,13 @@ function renderTable(cfg, data, section) {
                 actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('yeucauthue',${item.maYeuCau})"><i class="fas fa-trash"></i> Hủy</button>`;
             }
         } else if (canWrite) {
-            actionHtml = `
-                <button class="btn-action btn-edit" onclick="editItem('${section}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
-                <button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>`;
+            if (section === 'nguoithue' && CURRENT_ROLE === 'ChuTro') {
+                actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>`;
+            } else {
+                actionHtml = `
+                    <button class="btn-action btn-edit" onclick="editItem('${section}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
+                    <button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>`;
+            }
         }
 
         return `<tr>
@@ -1216,7 +1222,12 @@ async function openHopDongModal(id = null) {
 // HÓA ĐƠN CUSTOM MODAL
 // ==========================================
 async function openHoaDonModal(id = null) {
-    document.getElementById('modalTitle').textContent = id ? 'Cập nhật Hóa Đơn' : 'Lập Hóa Đơn Mới';
+    if (id) {
+        showToast('Hóa đơn đã lập không nên sửa lại. Hãy xóa và lập hóa đơn mới nếu nhập sai.', 'error');
+        return;
+    }
+
+    document.getElementById('modalTitle').textContent = 'Lập Hóa Đơn Mới';
     window._hoaDonInfo = null;
 
     const now = new Date();
@@ -1241,8 +1252,14 @@ async function openHoaDonModal(id = null) {
                 <div class="info-item"><label>Tiền phòng</label><span id="infoTienPhong">---</span></div>
                 <div class="info-item"><label>Tiền điện</label><span id="infoTienDien">---</span></div>
                 <div class="info-item"><label>Tiền nước</label><span id="infoTienNuoc">---</span></div>
-                <div class="info-item"><label>Tiền dịch vụ</label><span id="infoTienDichVu">---</span></div>
+                <div class="info-item"><label>Tiền dịch vụ đã chọn</label><span id="infoTienDichVu">---</span></div>
                 <div class="info-item info-total"><label>Dự tính tổng tiền</label><span id="infoTongTien">---</span></div>
+            </div>
+            <div class="form-group" style="margin-top:1rem;">
+                <label>Dịch vụ phòng đã sử dụng</label>
+                <div id="dichVuHoaDonBox" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem;margin-top:.5rem;">
+                    <div style="color:var(--text-light);font-size:.875rem;">Chọn phòng để tải dịch vụ...</div>
+                </div>
             </div>
         </div>
         <div class="form-group">
@@ -1260,27 +1277,24 @@ async function openHoaDonModal(id = null) {
         if (!info) { showToast('Vui lòng chọn phòng có hợp đồng hợp lệ!', 'error'); return; }
 
         const phatSinh = Number(document.getElementById('f_tienPhatSinhKhac').value) || 0;
+        const maDichVuSuDung = getSelectedDichVuHoaDon();
+        const tienDichVu = tinhTienDichVuDaChon();
         const payload = {
             maNguoiThue: info.nguoiThue.maNguoiThue,
             maPhong: info.phong.maPhong,
             tienPhong: info.phong.giaPhong,
             tienDien: info.tienDien,
             tienNuoc: info.tienNuoc,
-            tienDichVu: info.tongTienDichVu,
+            tienDichVu: tienDichVu,
+            maDichVuSuDung: maDichVuSuDung,
             tienPhatSinhKhac: phatSinh,
-            tongTien: info.phong.giaPhong + info.tienDien + info.tienNuoc + info.tongTienDichVu + phatSinh,
+            tongTien: (info.phong.giaPhong || 0) + (info.tienDien || 0) + (info.tienNuoc || 0) + tienDichVu + phatSinh,
             ngayLap: document.getElementById('f_ngayLap').value,
             kyHoaDon: document.getElementById('f_kyHoaDon').value
         };
         try {
-            if (id) {
-                payload.maHoaDon = id;
-                await apiFetch(`/api/HoaDon/${id}`, 'PUT', payload);
-                showToast('Cập nhật hóa đơn thành công!');
-            } else {
-                await apiFetch('/api/HoaDon', 'POST', payload);
-                showToast('Lập hóa đơn thành công!');
-            }
+            await apiFetch('/api/HoaDon', 'POST', payload);
+            showToast('Lập hóa đơn thành công!');
             closeModal();
             refreshData();
         } catch (e) {
@@ -1292,7 +1306,11 @@ async function openHoaDonModal(id = null) {
 }
 
 async function loadPhongInfo(phongId) {
-    if (!phongId) { document.getElementById('phongInfoBox').style.display = 'none'; return; }
+    if (!phongId) {
+        document.getElementById('phongInfoBox').style.display = 'none';
+        window._hoaDonInfo = null;
+        return;
+    }
     try {
         const info = await apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}`);
         window._hoaDonInfo = info;
@@ -1301,8 +1319,8 @@ async function loadPhongInfo(phongId) {
         document.getElementById('infoTienPhong').textContent = fmtCurrency(info.phong?.giaPhong);
         document.getElementById('infoTienDien').textContent = fmtCurrency(info.tienDien);
         document.getElementById('infoTienNuoc').textContent = fmtCurrency(info.tienNuoc);
-        document.getElementById('infoTienDichVu').textContent = fmtCurrency(info.tongTienDichVu);
-        document.getElementById('infoTongTien').textContent = fmtCurrency(info.tongTienHoaDon);
+        renderDichVuHoaDon(info.danhSachDichVu || []);
+        recalcTotal();
     } catch (e) {
         window._hoaDonInfo = null;
         document.getElementById('phongInfoBox').style.display = 'none';
@@ -1310,11 +1328,44 @@ async function loadPhongInfo(phongId) {
     }
 }
 
+function renderDichVuHoaDon(danhSachDichVu) {
+    const box = document.getElementById('dichVuHoaDonBox');
+    if (!box) return;
+
+    if (!danhSachDichVu.length) {
+        box.innerHTML = '<div style="color:var(--text-light);font-size:.875rem;">Chủ trọ chưa khai báo dịch vụ nào.</div>';
+        document.getElementById('infoTienDichVu').textContent = fmtCurrency(0);
+        return;
+    }
+
+    box.innerHTML = danhSachDichVu.map(dv => {
+        const gia = Number(dv.tienDichVu ?? dv.tiendichvu ?? 0);
+        return `<label style="display:flex;align-items:center;gap:.5rem;padding:.65rem .75rem;border:1px solid var(--border);border-radius:.5rem;background:white;cursor:pointer;">
+            <input type="checkbox" class="hoa-don-dich-vu" value="${dv.maDichVu}" data-price="${gia}" onchange="recalcTotal()">
+            <span style="flex:1;">${dv.tenDichVu || 'Dịch vụ'}</span>
+            <strong>${fmtCurrency(gia)}</strong>
+        </label>`;
+    }).join('');
+}
+
+function getSelectedDichVuHoaDon() {
+    return Array.from(document.querySelectorAll('.hoa-don-dich-vu:checked'))
+        .map(cb => Number(cb.value))
+        .filter(v => !isNaN(v));
+}
+
+function tinhTienDichVuDaChon() {
+    return Array.from(document.querySelectorAll('.hoa-don-dich-vu:checked'))
+        .reduce((sum, cb) => sum + (Number(cb.dataset.price) || 0), 0);
+}
+
 function recalcTotal() {
     if (!window._hoaDonInfo) return;
     const info = window._hoaDonInfo;
     const ps = Number(document.getElementById('f_tienPhatSinhKhac')?.value) || 0;
-    const total = (info.phong?.giaPhong || 0) + (info.tienDien || 0) + (info.tienNuoc || 0) + (info.tongTienDichVu || 0) + ps;
+    const tienDichVu = tinhTienDichVuDaChon();
+    const total = (info.phong?.giaPhong || 0) + (info.tienDien || 0) + (info.tienNuoc || 0) + tienDichVu + ps;
+    document.getElementById('infoTienDichVu').textContent = fmtCurrency(tienDichVu);
     document.getElementById('infoTongTien').textContent = fmtCurrency(total);
 }
 
@@ -1402,6 +1453,10 @@ async function openUserModal(id = null) {
 // CRUD HELPERS
 // ==========================================
 function editItem(section, id) {
+    if (section === 'nguoithue' && CURRENT_ROLE === 'ChuTro') {
+        showToast('Chủ trọ không được sửa thông tin khách thuê', 'error');
+        return;
+    }
     currentSection = section;
     openModal(id);
 }

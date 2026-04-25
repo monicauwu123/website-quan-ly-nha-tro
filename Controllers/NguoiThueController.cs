@@ -209,8 +209,11 @@ namespace DoAnSE104.Controllers
         }
 
         // PUT: api/NguoiThue/5
+        // Chỉ Admin được sửa hồ sơ khách thuê.
+        // Chủ trọ có thể thêm khách thuê, nhưng không được sửa thông tin khách thuê
+        // để tránh làm sai lệch thông tin tài khoản người dùng đã đồng bộ từ yêu cầu thuê/hợp đồng.
         [HttpPut("{id}")]
-        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
+        [Authorize(Roles = VaiTroConst.Admin)]
         public async Task<IActionResult> PutNguoiThue(int id, [FromBody] NguoiThue nguoiThue)
         {
             try
@@ -225,15 +228,6 @@ namespace DoAnSE104.Controllers
                 var loiValidation = await ValidateNguoiThue(nguoiThue);
                 if (loiValidation != null)
                     return BadRequest(ApiResponse<object>.Loi(loiValidation));
-
-                var role = GetCurrentRole();
-                var userId = GetCurrentUserId();
-
-                if (role == VaiTroConst.ChuTro)
-                {
-                    if (!await PhongThuocChuTro(existing.MaPhong, userId) || !await PhongThuocChuTro(nguoiThue.MaPhong, userId))
-                        return Forbid();
-                }
 
                 _context.Entry(nguoiThue).State = EntityState.Modified;
                 await _context.SaveChangesAsync();

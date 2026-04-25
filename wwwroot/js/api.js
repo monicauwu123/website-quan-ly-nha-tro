@@ -43,6 +43,8 @@ const API = {
     hoadon: {
         getAll: () => apiFetch('/api/HoaDon'),
         getInfoByPhong: (phongId) => apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}`),
+        getPayments: (hoaDonId) => apiFetch(`/api/ThanhToan/HoaDon/${hoaDonId}`),
+        createPayment: (data) => apiFetch('/api/ThanhToan', 'POST', data),
         exportPdf: (id) => {
             window.open(`/api/HoaDon/ExportPdf/${id}`, '_blank');
         }
