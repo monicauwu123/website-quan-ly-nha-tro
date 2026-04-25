@@ -90,10 +90,9 @@ namespace DoAnSE104.Controllers
             }
             else if (role == VaiTroConst.NguoiDung)
             {
-                // NguoiDung chỉ thấy hợp đồng của chính mình
-                var maPhongCuaUser = await _context.NguoiThue
-                    .Where(nt => nt.MaNguoiDung == userId).Select(nt => nt.MaPhong).ToListAsync();
-                query = query.Where(h => maPhongCuaUser.Contains(h.MaPhong));
+                // NguoiDung chỉ thấy hợp đồng gắn với hồ sơ khách thuê của chính mình.
+                // Một tài khoản có thể có nhiều hồ sơ thuê ở nhiều phòng/nhà trọ khác nhau.
+                query = query.Where(h => h.NguoiThue.MaNguoiDung == userId);
             }
 
             var hopDongs = await query.ToListAsync();

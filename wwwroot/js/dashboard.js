@@ -513,14 +513,31 @@ function renderNguoiDungOverview(data) {
     document.getElementById('sectionTitle').textContent = 'Tổng quan của tôi';
 
     const tk = data?.taiKhoan || {};
-    const phong = data?.phongDangThue;
-    const hd = data?.hopDongHienTai;
-    const hoaDon = data?.hoaDonThangNay;
-    const daThanhToan = hoaDon?.daThanhToan ?? 0;
-    const tongTien = hoaDon?.tongTien ?? 0;
-    const conLai = Math.max(tongTien - daThanhToan, 0);
-    const trangThai = !hoaDon ? 'Chưa có hóa đơn tháng này' : (conLai <= 0 ? 'Đã trả' : 'Chưa trả');
-    const badgeClass = !hoaDon ? 'badge-warning' : (conLai <= 0 ? 'badge-success' : 'badge-danger');
+    const phongList = data?.danhSachPhongDangThue || (data?.phongDangThue ? [data.phongDangThue] : []);
+    const hopDongList = data?.danhSachHopDongHienTai || (data?.hopDongHienTai ? [data.hopDongHienTai] : []);
+    const hoaDonList = data?.danhSachHoaDonThangNay || (data?.hoaDonThangNay ? [data.hoaDonThangNay] : []);
+
+    const tongTien = data?.tongTienThangNay ?? hoaDonList.reduce((sum, h) => sum + (h.tongTien || 0), 0);
+    const daThanhToan = data?.daThanhToanThangNay ?? hoaDonList.reduce((sum, h) => sum + (h.daThanhToan || 0), 0);
+    const conLai = data?.conLaiThangNay ?? Math.max(tongTien - daThanhToan, 0);
+    const trangThai = data?.trangThaiThanhToan || (!hoaDonList.length ? 'Chưa có hóa đơn tháng này' : (conLai <= 0 ? 'Đã trả' : 'Chưa trả'));
+    const badgeClass = !hoaDonList.length ? 'badge-warning' : (conLai <= 0 ? 'badge-success' : 'badge-danger');
+
+    const phongText = phongList.length
+        ? `${phongList.length} phòng đang thuê`
+        : 'Chưa có phòng';
+
+    const phongSmall = phongList.length
+        ? phongList.slice(0, 3).map(p => `${p.tenPhong || 'Phòng'}${p.tenNhaTro ? ' - ' + p.tenNhaTro : ''}`).join('<br>')
+        : '';
+
+    const hopDongText = hopDongList.length
+        ? `${hopDongList.length} hợp đồng hiệu lực`
+        : 'Chưa có hợp đồng';
+
+    const hopDongSmall = hopDongList.length
+        ? hopDongList.slice(0, 2).map(h => `${fmtDate(h.ngayBatDau)} - ${fmtDate(h.ngayKetThuc)}`).join('<br>')
+        : '';
 
     const statsGrid = document.querySelector('#overviewSection .stats-grid');
     statsGrid.innerHTML = `
@@ -530,19 +547,19 @@ function renderNguoiDungOverview(data) {
         </div>
         <div class="stat-card stat-card-blue">
             <div class="stat-icon"><i class="fas fa-home"></i></div>
-            <div class="stat-info"><h3>Phòng đang thuê</h3><div class="value" style="font-size:1.25rem">${phong?.tenPhong || 'Chưa có phòng'}</div><small>${phong?.tenNhaTro || ''}</small></div>
+            <div class="stat-info"><h3>Phòng đang thuê</h3><div class="value" style="font-size:1.15rem">${phongText}</div><small>${phongSmall}</small></div>
         </div>
         <div class="stat-card stat-card-green">
             <div class="stat-icon"><i class="fas fa-file-contract"></i></div>
-            <div class="stat-info"><h3>Hợp đồng hiện tại</h3><div class="value" style="font-size:1rem;line-height:1.45">${hd ? `${fmtDate(hd.ngayBatDau)}<br>đến ${fmtDate(hd.ngayKetThuc)}` : 'Chưa có hợp đồng'}</div></div>
+            <div class="stat-info"><h3>Hợp đồng hiện tại</h3><div class="value" style="font-size:1rem;line-height:1.45">${hopDongText}</div>${hopDongSmall ? `<small>${hopDongSmall}</small>` : ''}</div>
         </div>
         <div class="stat-card stat-card-purple">
             <div class="stat-icon"><i class="fas fa-coins"></i></div>
-            <div class="stat-info"><h3>Tổng tiền tháng này</h3><div class="value">${hoaDon ? fmtCurrency(tongTien) : '---'}</div></div>
+            <div class="stat-info"><h3>Tổng tiền tháng này</h3><div class="value">${hoaDonList.length ? fmtCurrency(tongTien) : '---'}</div>${hoaDonList.length ? `<small>${hoaDonList.length} hóa đơn</small>` : ''}</div>
         </div>
         <div class="stat-card stat-card-red">
             <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
-            <div class="stat-info"><h3>Trạng thái thanh toán</h3><div class="value" style="font-size:1.1rem"><span class="badge ${badgeClass}">${trangThai}</span></div>${hoaDon ? `<small>Còn lại: ${fmtCurrency(conLai)}</small>` : ''}</div>
+            <div class="stat-info"><h3>Trạng thái thanh toán</h3><div class="value" style="font-size:1.1rem"><span class="badge ${badgeClass}">${trangThai}</span></div>${hoaDonList.length ? `<small>Còn lại: ${fmtCurrency(conLai)}</small>` : ''}</div>
         </div>
     `;
 
@@ -550,18 +567,25 @@ function renderNguoiDungOverview(data) {
     if (title) title.textContent = 'Chi tiết hóa đơn tháng này';
 
     const tbody = document.querySelector('#recentRoomsTable tbody');
-    if (!hoaDon) {
+    if (!hoaDonList.length) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-light);">Chưa có hóa đơn tháng này</td></tr>';
         return;
     }
 
-    tbody.innerHTML = `<tr>
-        <td><strong>${hoaDon.kyHoaDon || '---'}</strong></td>
-        <td>${phong?.tenPhong || '---'}</td>
-        <td>${fmtCurrency(hoaDon.tongTien)}</td>
-        <td><span class="badge ${badgeClass}">${trangThai}</span></td>
-        <td>Đã trả: ${fmtCurrency(daThanhToan)}</td>
-    </tr>`;
+    tbody.innerHTML = hoaDonList.map(h => {
+        const conLaiHoaDon = h.conLai ?? Math.max((h.tongTien || 0) - (h.daThanhToan || 0), 0);
+        const daTra = h.daThanhToan ?? Math.max((h.tongTien || 0) - conLaiHoaDon, 0);
+        const trangThaiHoaDon = h.trangThaiThanhToan || (conLaiHoaDon <= 0 ? 'Đã trả' : 'Chưa trả');
+        const cls = conLaiHoaDon <= 0 ? 'badge-success' : 'badge-danger';
+
+        return `<tr>
+            <td><strong>${h.kyHoaDon || '---'}</strong></td>
+            <td>${h.tenPhong || phongList.find(p => p.maPhong === h.maPhong)?.tenPhong || '---'}</td>
+            <td>${fmtCurrency(h.tongTien)}</td>
+            <td><span class="badge ${cls}">${trangThaiHoaDon}</span></td>
+            <td>Đã trả: ${fmtCurrency(daTra)}</td>
+        </tr>`;
+    }).join('');
 }
 
 

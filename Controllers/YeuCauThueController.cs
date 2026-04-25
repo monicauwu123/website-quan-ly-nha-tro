@@ -290,17 +290,6 @@ namespace DoAnSE104.Controllers
                             return;
                         }
 
-                        var nguoiThueDangCoHopDong = await _context.HopDong.AnyAsync(h =>
-                            h.NguoiThue.MaNguoiDung == yeuCau.MaNguoiDung &&
-                            (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
-
-                        if (nguoiThueDangCoHopDong)
-                        {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("Người dùng này đã có hợp đồng đang hiệu lực"));
-                            await transaction.RollbackAsync();
-                            return;
-                        }
-
                         var nguoiThue = await _context.NguoiThue
                             .FirstOrDefaultAsync(nt => nt.MaNguoiDung == yeuCau.MaNguoiDung && nt.MaPhong == yeuCau.MaPhong);
 

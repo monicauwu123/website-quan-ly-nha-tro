@@ -126,12 +126,13 @@ namespace DoAnSE104.Controllers
             }
             else if (role == VaiTroConst.NguoiDung)
             {
-                // NguoiDung chỉ thấy hóa đơn của mình
-                var maPhongCuaUser = await _context.NguoiThue
+                // NguoiDung chỉ thấy hóa đơn gắn với các hồ sơ khách thuê của chính mình.
+                // Một tài khoản có thể thuê nhiều phòng/nhà trọ nên cần lọc theo MaNguoiThue, không lọc theo MaPhong.
+                var maNguoiThueCuaUser = await _context.NguoiThue
                     .Where(nt => nt.MaNguoiDung == userId)
-                    .Select(nt => nt.MaPhong)
+                    .Select(nt => nt.MaNguoiThue)
                     .ToListAsync();
-                query = query.Where(h => maPhongCuaUser.Contains(h.MaPhong));
+                query = query.Where(h => maNguoiThueCuaUser.Contains(h.MaNguoiThue));
             }
             // Admin: không filter
 

@@ -121,32 +121,18 @@ namespace DoAnSE104.Controllers
                 })
                 .FirstOrDefaultAsync();
 
-            var nguoiThue = await _context.NguoiThue
-                .Where(nt => nt.MaNguoiDung == userId)
-                .OrderByDescending(nt => nt.MaNguoiThue)
-                .FirstOrDefaultAsync();
-
-            if (nguoiThue == null)
-            {
-                return new
-                {
-                    TaiKhoan = taiKhoan,
-                    PhongDangThue = (object?)null,
-                    HopDongHienTai = (object?)null,
-                    HoaDonThangNay = (object?)null
-                };
-            }
-
-            var hopDongHienTai = await _context.HopDong
+            var hopDongHienTaiList = await _context.HopDong
+                .Include(h => h.NguoiThue)
                 .Include(h => h.Phong)
                 .ThenInclude(p => p.NhaTro)
-                .Where(h => h.MaNguoiThue == nguoiThue.MaNguoiThue
+                .Where(h => h.NguoiThue.MaNguoiDung == userId
                     && h.NgayBatDau <= now
                     && (h.NgayKetThuc == null || h.NgayKetThuc >= now))
                 .OrderByDescending(h => h.NgayBatDau)
                 .Select(h => new
                 {
                     h.MaHopDong,
+                    h.MaNguoiThue,
                     h.NgayBatDau,
                     h.NgayKetThuc,
                     h.TienCoc,
@@ -154,13 +140,21 @@ namespace DoAnSE104.Controllers
                     h.Phong.TenPhong,
                     h.Phong.NhaTro.TenNhaTro
                 })
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
-            var maPhong = hopDongHienTai != null ? hopDongHienTai.MaPhong : nguoiThue.MaPhong;
+            var maNguoiThueList = await _context.NguoiThue
+                .Where(nt => nt.MaNguoiDung == userId)
+                .Select(nt => nt.MaNguoiThue)
+                .ToListAsync();
 
-            var phongDangThue = await _context.Phong
+            var maPhongDangThueList = hopDongHienTaiList
+                .Select(h => h.MaPhong)
+                .Distinct()
+                .ToList();
+
+            var phongDangThueList = await _context.Phong
                 .Include(p => p.NhaTro)
-                .Where(p => p.MaPhong == maPhong)
+                .Where(p => maPhongDangThueList.Contains(p.MaPhong))
                 .Select(p => new
                 {
                     p.MaPhong,
@@ -169,46 +163,81 @@ namespace DoAnSE104.Controllers
                     p.DiaChiPhong,
                     TenNhaTro = p.NhaTro.TenNhaTro
                 })
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
-            var hoaDon = await _context.HoaDon
-                .Where(h => h.MaNguoiThue == nguoiThue.MaNguoiThue
+            var hoaDonList = await _context.HoaDon
+                .Include(h => h.Phong)
+                .Where(h => maNguoiThueList.Contains(h.MaNguoiThue)
                     && (h.KyHoaDon == kyHoaDon || (h.NgayLap.Month == now.Month && h.NgayLap.Year == now.Year)))
                 .OrderByDescending(h => h.NgayLap)
                 .Select(h => new
                 {
                     h.MaHoaDon,
+                    h.MaNguoiThue,
+                    h.MaPhong,
+                    TenPhong = h.Phong.TenPhong,
                     h.KyHoaDon,
                     h.NgayLap,
                     h.TongTien
                 })
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
-            object? hoaDonThangNay = null;
-            if (hoaDon != null)
-            {
-                var daThanhToan = await _context.ThanhToan
-                    .Where(t => t.MaHoaDon == hoaDon.MaHoaDon)
-                    .SumAsync(t => (decimal?)t.TongTien) ?? 0m;
-
-                hoaDonThangNay = new
+            var maHoaDonList = hoaDonList.Select(h => h.MaHoaDon).ToList();
+            var thanhToanTheoHoaDon = await _context.ThanhToan
+                .Where(t => maHoaDonList.Contains(t.MaHoaDon))
+                .GroupBy(t => t.MaHoaDon)
+                .Select(g => new
                 {
-                    hoaDon.MaHoaDon,
-                    hoaDon.KyHoaDon,
-                    hoaDon.NgayLap,
-                    hoaDon.TongTien,
+                    MaHoaDon = g.Key,
+                    DaThanhToan = g.Sum(t => t.TongTien)
+                })
+                .ToListAsync();
+
+            var hoaDonThangNayList = hoaDonList.Select(h =>
+            {
+                var daThanhToan = thanhToanTheoHoaDon.FirstOrDefault(t => t.MaHoaDon == h.MaHoaDon)?.DaThanhToan ?? 0m;
+                var conLai = Math.Max(h.TongTien - daThanhToan, 0m);
+
+                return new
+                {
+                    h.MaHoaDon,
+                    h.MaNguoiThue,
+                    h.MaPhong,
+                    h.TenPhong,
+                    h.KyHoaDon,
+                    h.NgayLap,
+                    h.TongTien,
                     DaThanhToan = daThanhToan,
-                    ConLai = Math.Max(hoaDon.TongTien - daThanhToan, 0m),
-                    TrangThaiThanhToan = daThanhToan >= hoaDon.TongTien ? "Đã trả" : "Chưa trả"
+                    ConLai = conLai,
+                    TrangThaiThanhToan = daThanhToan >= h.TongTien ? "Đã trả" : "Chưa trả"
                 };
-            }
+            }).ToList();
+
+            var tongTienThangNay = hoaDonThangNayList.Sum(h => h.TongTien);
+            var daThanhToanThangNay = hoaDonThangNayList.Sum(h => h.DaThanhToan);
+            var conLaiThangNay = Math.Max(tongTienThangNay - daThanhToanThangNay, 0m);
 
             return new
             {
                 TaiKhoan = taiKhoan,
-                PhongDangThue = phongDangThue,
-                HopDongHienTai = hopDongHienTai,
-                HoaDonThangNay = hoaDonThangNay
+
+                // Giữ lại field cũ để frontend cũ không bị vỡ.
+                PhongDangThue = phongDangThueList.FirstOrDefault(),
+                HopDongHienTai = hopDongHienTaiList.FirstOrDefault(),
+                HoaDonThangNay = hoaDonThangNayList.FirstOrDefault(),
+
+                // Field mới: một người có thể thuê nhiều phòng/nhà trọ.
+                DanhSachPhongDangThue = phongDangThueList,
+                DanhSachHopDongHienTai = hopDongHienTaiList,
+                DanhSachHoaDonThangNay = hoaDonThangNayList,
+                TongPhongDangThue = phongDangThueList.Count,
+                TongHopDongHienTai = hopDongHienTaiList.Count,
+                TongTienThangNay = tongTienThangNay,
+                DaThanhToanThangNay = daThanhToanThangNay,
+                ConLaiThangNay = conLaiThangNay,
+                TrangThaiThanhToan = hoaDonThangNayList.Count == 0
+                    ? "Chưa có hóa đơn tháng này"
+                    : (conLaiThangNay <= 0 ? "Đã trả" : "Chưa trả")
             };
         }
     }
