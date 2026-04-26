@@ -220,6 +220,12 @@ const modules = {
             { label: 'Số điện thoại', key: 'sdt' },
             { label: 'Email', key: 'email' },
             { label: 'Phòng', key: 'maPhong', render: v => lookups.phong.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
+            { label: 'Ảnh CCCD', key: 'anhCccdMatTruoc', render: (v, row) => {
+                const hasFront = !!row.anhCccdMatTruoc;
+                const hasBack = !!row.anhCccdMatSau;
+                if (!hasFront && !hasBack) return '<span style="color:var(--text-light);">Chưa có</span>';
+                return `<span class="badge badge-success">${hasFront ? 'Mặt trước' : ''}${hasFront && hasBack ? ' / ' : ''}${hasBack ? 'Mặt sau' : ''}</span>`;
+            } },
             { label: 'Giới tính', key: 'gioiTinh' },
             { label: 'Ngày sinh', key: 'ngaySinh', render: fmtDate }
         ],
@@ -227,6 +233,8 @@ const modules = {
             { id: 'hoTen', label: 'Họ tên', type: 'text', required: true },
             { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },
             { id: 'cccd', label: 'CCCD/CMND', type: 'text' },
+            { id: 'anhCccdMatTruoc', label: 'Ảnh CCCD mặt trước', type: 'file' },
+            { id: 'anhCccdMatSau', label: 'Ảnh CCCD mặt sau', type: 'file' },
             { id: 'sdt', label: 'Số điện thoại', type: 'text' },
             { id: 'email', label: 'Email', type: 'email' },
             { id: 'ngaySinh', label: 'Ngày sinh', type: 'date' },
@@ -287,8 +295,6 @@ const modules = {
             { label: 'Tiền phòng', key: 'tienPhong', render: fmtCurrency },
             { label: 'Tiền điện', key: 'tienDien', render: fmtCurrency },
             { label: 'Tiền nước', key: 'tienNuoc', render: fmtCurrency },
-            { label: 'Dịch vụ', key: 'tienDichVu', render: fmtCurrency },
-            { label: 'Dịch vụ dùng', key: 'dichVuSuDung', render: v => Array.isArray(v) && v.length ? v.join(', ') : '---' },
             { label: 'Phát sinh khác', key: 'tienPhatSinhKhac', render: fmtCurrency },
             { label: 'Tổng tiền', key: 'tongTien', render: v => `<strong style="color:var(--primary)">${fmtCurrency(v)}</strong>` },
             { label: 'Ngày lập', key: 'ngayLap', render: fmtDate },
@@ -731,14 +737,21 @@ function renderTable(cfg, data, section) {
             } else if (CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'ChoDuyet') {
                 actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('yeucauthue',${item.maYeuCau})"><i class="fas fa-trash"></i> Hủy</button>`;
             }
-        } else if (canWrite) {
-            if (section === 'nguoithue' && CURRENT_ROLE === 'ChuTro') {
-                actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>`;
-            } else {
-                actionHtml = `
-                    <button class="btn-action btn-edit" onclick="editItem('${section}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
-                    <button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>`;
+        } else if (section === 'nguoithue') {
+            actionHtml = `<button class="btn-action btn-edit" onclick="viewNguoiThueDetail(${item.maNguoiThue})"><i class="fas fa-eye"></i> Chi tiết</button>`;
+
+            if (CURRENT_ROLE === 'Admin') {
+                actionHtml += `
+                    <button class="btn-action btn-edit" onclick="editItem('nguoithue',${item.maNguoiThue})"><i class="fas fa-edit"></i> Sửa</button>
+                    <button class="btn-action btn-delete" onclick="deleteItem('nguoithue',${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
+            } else if (CURRENT_ROLE === 'ChuTro') {
+                actionHtml += `
+                    <button class="btn-action btn-delete" onclick="deleteItem('nguoithue',${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
             }
+        } else if (canWrite) {
+            actionHtml = `
+                <button class="btn-action btn-edit" onclick="editItem('${section}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
+                <button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>`;
         }
 
         return `<tr>
@@ -873,9 +886,23 @@ async function deleteDienNuoc(tab, id) {
 }
 
 // ==========================================
+// MODAL FOOTER HELPER
+// ==========================================
+function resetModalFooter() {
+    const footer = document.querySelector('#universalModal .modal-footer');
+    if (!footer) return;
+    footer.innerHTML = `
+        <button type="button" class="btn btn-secondary" style="width:auto;" onclick="closeModal()">Hủy</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">
+            <i class="fas fa-save"></i> Lưu dữ liệu
+        </button>`;
+}
+
+// ==========================================
 // GENERIC MODAL BUILDER
 // ==========================================
 function buildModal(title, fields, item, onSubmit) {
+    resetModalFooter();
     document.getElementById('modalTitle').textContent = title;
     const body = document.getElementById('modalFields');
 
@@ -926,11 +953,11 @@ function buildModal(title, fields, item, onSubmit) {
         e.preventDefault();
         const payload = {};
 
-        // Handle file upload first if any
+        // Handle file uploads first if any
         const fileEl = document.getElementById('f_fileUpload');
         if (fileEl && fileEl.files.length > 0) {
             try {
-                showToast('Đang tải ảnh lên...', 'info');
+                showToast('Đang tải ảnh phòng lên...', 'info');
                 const uploadRes = await API.phong.uploadImage(fileEl.files[0]);
                 const imageUrl = uploadRes?.url || uploadRes?.duLieu?.url;
 
@@ -946,8 +973,42 @@ function buildModal(title, fields, item, onSubmit) {
             }
         }
 
+        const cccdFrontEl = document.getElementById('f_anhCccdMatTruoc');
+        if (cccdFrontEl && cccdFrontEl.files.length > 0) {
+            try {
+                showToast('Đang tải CCCD mặt trước...', 'info');
+                const uploadRes = await API.nguoithue.uploadCccdImage(cccdFrontEl.files[0]);
+                const imageUrl = uploadRes?.url || uploadRes?.duLieu?.url;
+                if (!imageUrl) {
+                    showToast('Upload CCCD mặt trước thất bại', 'error');
+                    return;
+                }
+                payload.anhCccdMatTruoc = imageUrl;
+            } catch (e) {
+                showToast('Lỗi upload CCCD mặt trước: ' + (e.message || 'Không tải được ảnh'), 'error');
+                return;
+            }
+        }
+
+        const cccdBackEl = document.getElementById('f_anhCccdMatSau');
+        if (cccdBackEl && cccdBackEl.files.length > 0) {
+            try {
+                showToast('Đang tải CCCD mặt sau...', 'info');
+                const uploadRes = await API.nguoithue.uploadCccdImage(cccdBackEl.files[0]);
+                const imageUrl = uploadRes?.url || uploadRes?.duLieu?.url;
+                if (!imageUrl) {
+                    showToast('Upload CCCD mặt sau thất bại', 'error');
+                    return;
+                }
+                payload.anhCccdMatSau = imageUrl;
+            } catch (e) {
+                showToast('Lỗi upload CCCD mặt sau: ' + (e.message || 'Không tải được ảnh'), 'error');
+                return;
+            }
+        }
+
         fields.forEach(f => {
-            if (f.id === 'fileUpload') return; // Handled separately
+            if (['fileUpload', 'anhCccdMatTruoc', 'anhCccdMatSau'].includes(f.id)) return; // Handled separately
             const el = document.getElementById(`f_${f.id}`);
             if (!el) return;
             const v = el.value;
@@ -976,6 +1037,7 @@ function buildModal(title, fields, item, onSubmit) {
 // OPEN MODAL (dispatch by section)
 // ==========================================
 function openModal(id = null) {
+    resetModalFooter();
     const section = currentSection;
     const cfg = modules[section];
     if (!cfg) return;
@@ -1023,6 +1085,7 @@ async function openYeuCauThueModal(id = null, maPhongChon = null) {
         return;
     }
 
+    resetModalFooter();
     document.getElementById('modalTitle').textContent = 'Gửi yêu cầu thuê phòng';
 
     document.getElementById('modalFields').innerHTML = `
@@ -1140,6 +1203,7 @@ async function rejectYeuCauThue(maYeuCau) {
 // HỢP ĐỒNG CUSTOM MODAL
 // ==========================================
 async function openHopDongModal(id = null) {
+    resetModalFooter();
     document.getElementById('modalTitle').textContent = id ? 'Cập nhật Hợp Đồng' : 'Thêm mới Hợp Đồng';
 
     let item = id ? currentData.find(i => i.maHopDong == id) : null;
@@ -1222,12 +1286,8 @@ async function openHopDongModal(id = null) {
 // HÓA ĐƠN CUSTOM MODAL
 // ==========================================
 async function openHoaDonModal(id = null) {
-    if (id) {
-        showToast('Hóa đơn đã lập không nên sửa lại. Hãy xóa và lập hóa đơn mới nếu nhập sai.', 'error');
-        return;
-    }
-
-    document.getElementById('modalTitle').textContent = 'Lập Hóa Đơn Mới';
+    resetModalFooter();
+    document.getElementById('modalTitle').textContent = id ? 'Cập nhật Hóa Đơn' : 'Lập Hóa Đơn Mới';
     window._hoaDonInfo = null;
 
     const now = new Date();
@@ -1252,14 +1312,8 @@ async function openHoaDonModal(id = null) {
                 <div class="info-item"><label>Tiền phòng</label><span id="infoTienPhong">---</span></div>
                 <div class="info-item"><label>Tiền điện</label><span id="infoTienDien">---</span></div>
                 <div class="info-item"><label>Tiền nước</label><span id="infoTienNuoc">---</span></div>
-                <div class="info-item"><label>Tiền dịch vụ đã chọn</label><span id="infoTienDichVu">---</span></div>
+                <div class="info-item"><label>Tiền dịch vụ</label><span id="infoTienDichVu">---</span></div>
                 <div class="info-item info-total"><label>Dự tính tổng tiền</label><span id="infoTongTien">---</span></div>
-            </div>
-            <div class="form-group" style="margin-top:1rem;">
-                <label>Dịch vụ phòng đã sử dụng</label>
-                <div id="dichVuHoaDonBox" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem;margin-top:.5rem;">
-                    <div style="color:var(--text-light);font-size:.875rem;">Chọn phòng để tải dịch vụ...</div>
-                </div>
             </div>
         </div>
         <div class="form-group">
@@ -1277,24 +1331,27 @@ async function openHoaDonModal(id = null) {
         if (!info) { showToast('Vui lòng chọn phòng có hợp đồng hợp lệ!', 'error'); return; }
 
         const phatSinh = Number(document.getElementById('f_tienPhatSinhKhac').value) || 0;
-        const maDichVuSuDung = getSelectedDichVuHoaDon();
-        const tienDichVu = tinhTienDichVuDaChon();
         const payload = {
             maNguoiThue: info.nguoiThue.maNguoiThue,
             maPhong: info.phong.maPhong,
             tienPhong: info.phong.giaPhong,
             tienDien: info.tienDien,
             tienNuoc: info.tienNuoc,
-            tienDichVu: tienDichVu,
-            maDichVuSuDung: maDichVuSuDung,
+            tienDichVu: info.tongTienDichVu,
             tienPhatSinhKhac: phatSinh,
-            tongTien: (info.phong.giaPhong || 0) + (info.tienDien || 0) + (info.tienNuoc || 0) + tienDichVu + phatSinh,
+            tongTien: info.phong.giaPhong + info.tienDien + info.tienNuoc + info.tongTienDichVu + phatSinh,
             ngayLap: document.getElementById('f_ngayLap').value,
             kyHoaDon: document.getElementById('f_kyHoaDon').value
         };
         try {
-            await apiFetch('/api/HoaDon', 'POST', payload);
-            showToast('Lập hóa đơn thành công!');
+            if (id) {
+                payload.maHoaDon = id;
+                await apiFetch(`/api/HoaDon/${id}`, 'PUT', payload);
+                showToast('Cập nhật hóa đơn thành công!');
+            } else {
+                await apiFetch('/api/HoaDon', 'POST', payload);
+                showToast('Lập hóa đơn thành công!');
+            }
             closeModal();
             refreshData();
         } catch (e) {
@@ -1306,11 +1363,7 @@ async function openHoaDonModal(id = null) {
 }
 
 async function loadPhongInfo(phongId) {
-    if (!phongId) {
-        document.getElementById('phongInfoBox').style.display = 'none';
-        window._hoaDonInfo = null;
-        return;
-    }
+    if (!phongId) { document.getElementById('phongInfoBox').style.display = 'none'; return; }
     try {
         const info = await apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}`);
         window._hoaDonInfo = info;
@@ -1319,8 +1372,8 @@ async function loadPhongInfo(phongId) {
         document.getElementById('infoTienPhong').textContent = fmtCurrency(info.phong?.giaPhong);
         document.getElementById('infoTienDien').textContent = fmtCurrency(info.tienDien);
         document.getElementById('infoTienNuoc').textContent = fmtCurrency(info.tienNuoc);
-        renderDichVuHoaDon(info.danhSachDichVu || []);
-        recalcTotal();
+        document.getElementById('infoTienDichVu').textContent = fmtCurrency(info.tongTienDichVu);
+        document.getElementById('infoTongTien').textContent = fmtCurrency(info.tongTienHoaDon);
     } catch (e) {
         window._hoaDonInfo = null;
         document.getElementById('phongInfoBox').style.display = 'none';
@@ -1328,44 +1381,11 @@ async function loadPhongInfo(phongId) {
     }
 }
 
-function renderDichVuHoaDon(danhSachDichVu) {
-    const box = document.getElementById('dichVuHoaDonBox');
-    if (!box) return;
-
-    if (!danhSachDichVu.length) {
-        box.innerHTML = '<div style="color:var(--text-light);font-size:.875rem;">Chủ trọ chưa khai báo dịch vụ nào.</div>';
-        document.getElementById('infoTienDichVu').textContent = fmtCurrency(0);
-        return;
-    }
-
-    box.innerHTML = danhSachDichVu.map(dv => {
-        const gia = Number(dv.tienDichVu ?? dv.tiendichvu ?? 0);
-        return `<label style="display:flex;align-items:center;gap:.5rem;padding:.65rem .75rem;border:1px solid var(--border);border-radius:.5rem;background:white;cursor:pointer;">
-            <input type="checkbox" class="hoa-don-dich-vu" value="${dv.maDichVu}" data-price="${gia}" onchange="recalcTotal()">
-            <span style="flex:1;">${dv.tenDichVu || 'Dịch vụ'}</span>
-            <strong>${fmtCurrency(gia)}</strong>
-        </label>`;
-    }).join('');
-}
-
-function getSelectedDichVuHoaDon() {
-    return Array.from(document.querySelectorAll('.hoa-don-dich-vu:checked'))
-        .map(cb => Number(cb.value))
-        .filter(v => !isNaN(v));
-}
-
-function tinhTienDichVuDaChon() {
-    return Array.from(document.querySelectorAll('.hoa-don-dich-vu:checked'))
-        .reduce((sum, cb) => sum + (Number(cb.dataset.price) || 0), 0);
-}
-
 function recalcTotal() {
     if (!window._hoaDonInfo) return;
     const info = window._hoaDonInfo;
     const ps = Number(document.getElementById('f_tienPhatSinhKhac')?.value) || 0;
-    const tienDichVu = tinhTienDichVuDaChon();
-    const total = (info.phong?.giaPhong || 0) + (info.tienDien || 0) + (info.tienNuoc || 0) + tienDichVu + ps;
-    document.getElementById('infoTienDichVu').textContent = fmtCurrency(tienDichVu);
+    const total = (info.phong?.giaPhong || 0) + (info.tienDien || 0) + (info.tienNuoc || 0) + (info.tongTienDichVu || 0) + ps;
     document.getElementById('infoTongTien').textContent = fmtCurrency(total);
 }
 
@@ -1373,6 +1393,7 @@ function recalcTotal() {
 // USER CUSTOM MODAL
 // ==========================================
 async function openUserModal(id = null) {
+    resetModalFooter();
     document.getElementById('modalTitle').textContent = id ? 'Cập nhật Người Dùng' : 'Thêm Người Dùng Mới';
 
     const item = id ? currentData.find(i => i.maNguoiDung == id) : null;
@@ -1449,14 +1470,87 @@ async function openUserModal(id = null) {
     document.getElementById('universalModal').style.display = 'flex';
 }
 
+
+// ==========================================
+// KHÁCH THUÊ DETAIL MODAL
+// ==========================================
+function safeText(value) {
+    return value === null || value === undefined || value === '' ? '---' : String(value);
+}
+
+function imageBox(url, label) {
+    if (!url) {
+        return `<div style="padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;color:var(--text-light);text-align:center;">Chưa có ${label.toLowerCase()}</div>`;
+    }
+
+    return `<a href="${url}" target="_blank" title="Mở ảnh ${label}">
+        <img src="${url}" alt="${label}" style="width:100%;max-height:260px;object-fit:contain;border-radius:.75rem;background:#f8fafc;border:1px solid #e5e7eb;">
+    </a>`;
+}
+
+async function viewNguoiThueDetail(id) {
+    try {
+        const nt = await apiFetch(`/api/NguoiThue/${id}`);
+        const phong = lookups.phong.find(p => p.maPhong === nt.maPhong);
+        const nhaTro = phong ? lookups.nhatro.find(n => n.maNhaTro === phong.maNhaTro) : null;
+
+        document.getElementById('modalTitle').textContent = 'Thông tin chi tiết khách thuê';
+        document.getElementById('modalFields').innerHTML = `
+            <div style="grid-column:1/-1;display:grid;gap:1.25rem;">
+                <div>
+                    <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-user"></i> Thông tin cá nhân</h3>
+                    <div class="info-grid">
+                        <div class="info-item"><label>Họ tên</label><span>${safeText(nt.hoTen)}</span></div>
+                        <div class="info-item"><label>CCCD/CMND</label><span>${safeText(nt.cccd)}</span></div>
+                        <div class="info-item"><label>Số điện thoại</label><span>${safeText(nt.sdt)}</span></div>
+                        <div class="info-item"><label>Email</label><span>${safeText(nt.email)}</span></div>
+                        <div class="info-item"><label>Ngày sinh</label><span>${fmtDate(nt.ngaySinh)}</span></div>
+                        <div class="info-item"><label>Giới tính</label><span>${safeText(nt.gioiTinh)}</span></div>
+                        <div class="info-item"><label>Quốc tịch</label><span>${safeText(nt.quocTich || 'Việt Nam')}</span></div>
+                        <div class="info-item"><label>Nơi công tác</label><span>${safeText(nt.noiCongTac)}</span></div>
+                        <div class="info-item" style="grid-column:1/-1;"><label>Địa chỉ</label><span>${safeText(nt.diaChi)}</span></div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-home"></i> Thông tin thuê phòng</h3>
+                    <div class="info-grid">
+                        <div class="info-item"><label>Nhà trọ</label><span>${safeText(nhaTro?.tenNhaTro)}</span></div>
+                        <div class="info-item"><label>Phòng</label><span>${safeText(phong?.tenPhong || ('#' + nt.maPhong))}</span></div>
+                        <div class="info-item"><label>Mã tài khoản liên kết</label><span>${safeText(nt.maNguoiDung)}</span></div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-id-card"></i> Ảnh CCCD/CMND</h3>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;">
+                        <div>
+                            <label style="display:block;font-weight:700;margin-bottom:.5rem;">Mặt trước</label>
+                            ${imageBox(nt.anhCccdMatTruoc, 'CCCD mặt trước')}
+                        </div>
+                        <div>
+                            <label style="display:block;font-weight:700;margin-bottom:.5rem;">Mặt sau</label>
+                            ${imageBox(nt.anhCccdMatSau, 'CCCD mặt sau')}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        const footer = document.querySelector('#universalModal .modal-footer');
+        if (footer) {
+            footer.innerHTML = `<button type="button" class="btn btn-secondary" style="width:auto;" onclick="closeModal()">Đóng</button>`;
+        }
+
+        document.getElementById('universalModal').style.display = 'flex';
+    } catch (e) {
+        showToast(e.message || 'Không tải được chi tiết khách thuê', 'error');
+    }
+}
+
 // ==========================================
 // CRUD HELPERS
 // ==========================================
 function editItem(section, id) {
-    if (section === 'nguoithue' && CURRENT_ROLE === 'ChuTro') {
-        showToast('Chủ trọ không được sửa thông tin khách thuê', 'error');
-        return;
-    }
     currentSection = section;
     openModal(id);
 }

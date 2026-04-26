@@ -18,31 +18,28 @@
 
 <body class="auth-container">
 
-    <div class="auth-card animate-fade-in">
+<div class="auth-card animate-fade-in" style="max-width: 760px;">
 
-        <div class="auth-header">
-
-            <div class="auth-icon-wrap">
-                <i class="fas fa-user-plus"></i>
-            </div>
-
-            <h1>ĐĂNG KÝ TÀI KHOẢN</h1>
-
-            <p style="color: var(--text-light); font-size: 0.9rem;">
-                Tạo tài khoản để sử dụng hệ thống quản lý phòng trọ.
-            </p>
-
+    <div class="auth-header">
+        <div class="auth-icon-wrap">
+            <i class="fas fa-user-plus"></i>
         </div>
 
-        <form id="registerForm">
+        <h1>ĐĂNG KÝ TÀI KHOẢN</h1>
 
+        <p style="color: var(--text-light); font-size: 0.9rem;">
+            Tạo tài khoản để sử dụng hệ thống quản lý phòng trọ.
+        </p>
+    </div>
+
+    <form id="registerForm">
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;">
             <div class="form-group">
                 <label>Tên đăng nhập</label>
-
                 <div style="position: relative;">
                     <i class="fas fa-user"
                        style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);"></i>
-
                     <input type="text"
                            id="tenDangNhap"
                            class="form-control"
@@ -54,11 +51,9 @@
 
             <div class="form-group">
                 <label>Họ tên</label>
-
                 <div style="position: relative;">
                     <i class="fas fa-id-card"
                        style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);"></i>
-
                     <input type="text"
                            id="hoTen"
                            class="form-control"
@@ -70,11 +65,9 @@
 
             <div class="form-group">
                 <label>Email</label>
-
                 <div style="position: relative;">
                     <i class="fas fa-envelope"
                        style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);"></i>
-
                     <input type="email"
                            id="email"
                            class="form-control"
@@ -86,11 +79,9 @@
 
             <div class="form-group">
                 <label>Số điện thoại</label>
-
                 <div style="position: relative;">
                     <i class="fas fa-phone"
                        style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);"></i>
-
                     <input type="text"
                            id="soDienThoai"
                            class="form-control"
@@ -102,11 +93,9 @@
 
             <div class="form-group">
                 <label>Mật khẩu</label>
-
                 <div style="position: relative;">
                     <i class="fas fa-lock"
                        style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);"></i>
-
                     <input type="password"
                            id="matKhau"
                            class="form-control"
@@ -119,185 +108,246 @@
 
             <div class="form-group">
                 <label>Vai trò</label>
-
                 <select id="vaiTro" class="form-control">
-
-                    <option value="NguoiDung">
-                        Người dùng
-                    </option>
-
-                    <option value="ChuTro">
-                        Chủ trọ
-                    </option>
-
+                    <option value="NguoiDung">Người dùng</option>
+                    <option value="ChuTro">Chủ trọ</option>
                 </select>
             </div>
+        </div>
 
-            <div id="registerMsg"
-                 style="display:none;
+        <div id="nguoiDungExtraFields"
+             style="display:block;margin-top:1rem;border:1px solid #e5e7eb;border-radius:1rem;padding:1rem;background:#f8fafc;">
+            <div style="font-weight:800;color:var(--text);margin-bottom:.75rem;">
+                <i class="fas fa-address-card"></i> Thông tin bắt buộc đối với người dùng/khách thuê
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;">
+                <div class="form-group">
+                    <label>CCCD/CMND</label>
+                    <input type="text" id="cccd" class="form-control user-required" placeholder="Nhập số CCCD/CMND" maxlength="20">
+                </div>
+
+                <div class="form-group">
+                    <label>Ngày sinh</label>
+                    <input type="date" id="ngaySinh" class="form-control user-required">
+                </div>
+
+                <div class="form-group">
+                    <label>Giới tính</label>
+                    <select id="gioiTinh" class="form-control user-required">
+                        <option value="">-- Chọn --</option>
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Quốc tịch</label>
+                    <input type="text" id="quocTich" class="form-control user-required" value="Việt Nam" maxlength="50">
+                </div>
+
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Địa chỉ</label>
+                    <input type="text" id="diaChi" class="form-control user-required" placeholder="Nhập địa chỉ hiện tại" maxlength="255">
+                </div>
+
+                <div class="form-group">
+                    <label>Nơi công tác</label>
+                    <input type="text" id="noiCongTac" class="form-control" placeholder="Có thể để trống" maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label>Ảnh CCCD mặt trước</label>
+                    <input type="file" id="anhCccdMatTruocFile" class="form-control user-required-file" accept="image/*">
+                    <input type="hidden" id="anhCccdMatTruoc">
+                </div>
+
+                <div class="form-group">
+                    <label>Ảnh CCCD mặt sau</label>
+                    <input type="file" id="anhCccdMatSauFile" class="form-control user-required-file" accept="image/*">
+                    <input type="hidden" id="anhCccdMatSau">
+                </div>
+            </div>
+        </div>
+
+        <div id="registerMsg"
+             style="display:none;
                     font-size:.875rem;
                     padding:.75rem 1rem;
                     border-radius:.5rem;
-                    margin-bottom:1rem;">
-            </div>
+                    margin:1rem 0;">
+        </div>
 
-            <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary">
+            <span id="registerBtnText">
+                <i class="fas fa-user-plus"></i>
+                Đăng ký
+            </span>
+            <i id="registerLoader"
+               class="fas fa-spinner fa-spin"
+               style="display:none;"></i>
+        </button>
+    </form>
 
-                <span id="registerBtnText">
-                    <i class="fas fa-user-plus"></i>
-                    Đăng ký
-                </span>
-
-                <i id="registerLoader"
-                   class="fas fa-spinner fa-spin"
-                   style="display:none;"></i>
-
-            </button>
-
-        </form>
-
-        <div style="margin-top:1rem;text-align:center;">
-
-            <a href="/index.html"
-               style="font-size:.875rem;
+    <div style="margin-top:1rem;text-align:center;">
+        <a href="/index.html"
+           style="font-size:.875rem;
                   color:var(--primary);
                   text-decoration:none;
                   font-weight:600;">
-
-                <i class="fas fa-arrow-left"></i>
-                Quay lại đăng nhập
-
-            </a>
-
-        </div>
-
+            <i class="fas fa-arrow-left"></i>
+            Quay lại đăng nhập
+        </a>
     </div>
+</div>
 
-    <script>
+<script>
+const msgBox  = document.getElementById('registerMsg');
+const vaiTroSelect = document.getElementById('vaiTro');
+const extraFields = document.getElementById('nguoiDungExtraFields');
 
-        document.getElementById('registerForm')
-            .addEventListener('submit', async (e) => {
+function showRegisterMessage(message, type = 'error') {
+    msgBox.style.display = 'block';
+    msgBox.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
+    msgBox.style.color = type === 'success' ? '#065f46' : '#991b1b';
+    msgBox.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${message}`;
+}
 
-                e.preventDefault();
+function toggleNguoiDungFields() {
+    const isNguoiDung = vaiTroSelect.value === 'NguoiDung';
+    extraFields.style.display = isNguoiDung ? 'block' : 'none';
 
-                const msgBox = document.getElementById('registerMsg');
+    document.querySelectorAll('.user-required').forEach(el => {
+        if (isNguoiDung) el.setAttribute('required', 'required');
+        else el.removeAttribute('required');
+    });
 
-                const btnText = document.getElementById('registerBtnText');
+    document.querySelectorAll('.user-required-file').forEach(el => {
+        if (isNguoiDung) el.setAttribute('required', 'required');
+        else el.removeAttribute('required');
+    });
+}
 
-                const loader = document.getElementById('registerLoader');
+async function uploadCccdImage(file, label) {
+    const formData = new FormData();
+    formData.append('file', file);
 
-                msgBox.style.display = 'none';
+    const response = await fetch('/api/Auth/upload-cccd-image', {
+        method: 'POST',
+        body: formData
+    });
 
-                const tenDangNhap = document.getElementById('tenDangNhap').value.trim();
-                const hoTen = document.getElementById('hoTen').value.trim();
-                const email = document.getElementById('email').value.trim();
-                const soDienThoai = document.getElementById('soDienThoai').value.trim();
-                const matKhau = document.getElementById('matKhau').value;
-                const vaiTro = document.getElementById('vaiTro').value;
+    const text = await response.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
 
-                if (matKhau.length < 6) {
-                    msgBox.style.display = 'block';
-                    msgBox.style.background = '#fee2e2';
-                    msgBox.style.color = '#991b1b';
-                    msgBox.innerHTML =
-                        '<i class="fas fa-exclamation-circle"></i> Mật khẩu phải có ít nhất 6 ký tự';
-                    return;
-                }
+    if (!response.ok || data.thanhCong === false) {
+        let message = data.thongBao || data.title || `Upload ${label} thất bại`;
+        if (data.errors) {
+            const errors = Object.values(data.errors).flat();
+            if (errors.length > 0) message = errors.join('<br>');
+        }
+        throw new Error(message);
+    }
 
-                btnText.style.display = 'none';
+    const url = data.duLieu?.url || data.url;
+    if (!url) throw new Error(`Upload ${label} thất bại`);
+    return url;
+}
 
-                loader.style.display = 'inline-block';
+vaiTroSelect.addEventListener('change', toggleNguoiDungFields);
+toggleNguoiDungFields();
 
-                try {
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-                    const response = await fetch('/api/Auth/dang-ky', {
+    const btnText = document.getElementById('registerBtnText');
+    const loader  = document.getElementById('registerLoader');
 
-                        method: 'POST',
+    msgBox.style.display = 'none';
 
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+    const tenDangNhap = document.getElementById('tenDangNhap').value.trim();
+    const hoTen = document.getElementById('hoTen').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const soDienThoai = document.getElementById('soDienThoai').value.trim();
+    const matKhau = document.getElementById('matKhau').value;
+    const vaiTro = document.getElementById('vaiTro').value;
 
-                        body: JSON.stringify({
-                            tenDangNhap: tenDangNhap,
-                            matKhau: matKhau,
-                            email: email,
-                            hoTen: hoTen,
-                            soDienThoai: soDienThoai,
-                            vaiTro: vaiTro
-                        })
-                    });
+    if (matKhau.length < 6) {
+        showRegisterMessage('Mật khẩu phải có ít nhất 6 ký tự');
+        return;
+    }
 
-                    let data = {};
+    btnText.style.display = 'none';
+    loader.style.display = 'inline-block';
 
-                    try {
-                        data = await response.json();
-                    } catch {
-                        data = {};
-                    }
+    try {
+        let anhCccdMatTruoc = '';
+        let anhCccdMatSau = '';
 
-                    console.log(data);
+        if (vaiTro === 'NguoiDung') {
+            const frontFile = document.getElementById('anhCccdMatTruocFile').files[0];
+            const backFile = document.getElementById('anhCccdMatSauFile').files[0];
 
-                    msgBox.style.display = 'block';
+            if (!frontFile) throw new Error('Vui lòng chọn ảnh CCCD mặt trước');
+            if (!backFile) throw new Error('Vui lòng chọn ảnh CCCD mặt sau');
 
-                    if (response.ok && data.thanhCong) {
+            showRegisterMessage('Đang upload ảnh CCCD mặt trước...', 'success');
+            anhCccdMatTruoc = await uploadCccdImage(frontFile, 'ảnh CCCD mặt trước');
 
-                        msgBox.style.background = '#d1fae5';
+            showRegisterMessage('Đang upload ảnh CCCD mặt sau...', 'success');
+            anhCccdMatSau = await uploadCccdImage(backFile, 'ảnh CCCD mặt sau');
+        }
 
-                        msgBox.style.color = '#065f46';
+        const payload = {
+            tenDangNhap: tenDangNhap,
+            matKhau: matKhau,
+            email: email,
+            hoTen: hoTen,
+            soDienThoai: soDienThoai,
+            vaiTro: vaiTro,
+            cccd: vaiTro === 'NguoiDung' ? document.getElementById('cccd').value.trim() : null,
+            ngaySinh: vaiTro === 'NguoiDung' ? (document.getElementById('ngaySinh').value || null) : null,
+            gioiTinh: vaiTro === 'NguoiDung' ? document.getElementById('gioiTinh').value : null,
+            quocTich: vaiTro === 'NguoiDung' ? document.getElementById('quocTich').value.trim() : null,
+            diaChi: vaiTro === 'NguoiDung' ? document.getElementById('diaChi').value.trim() : null,
+            noiCongTac: vaiTro === 'NguoiDung' ? document.getElementById('noiCongTac').value.trim() : null,
+            anhCccdMatTruoc: anhCccdMatTruoc || null,
+            anhCccdMatSau: anhCccdMatSau || null
+        };
 
-                        msgBox.innerHTML =
-                            `<i class="fas fa-check-circle"></i>
-                     ${data.thongBao || 'Đăng ký thành công'}`;
+        const response = await fetch('/api/Auth/dang-ky', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-                        setTimeout(() => {
+        let data = {};
+        try { data = await response.json(); } catch { data = {}; }
 
-                            window.location.href = '/index.html';
-
-                        }, 1500);
-
-                    } else {
-
-                        msgBox.style.background = '#fee2e2';
-
-                        msgBox.style.color = '#991b1b';
-
-                        let errorMessage = data.thongBao || data.title || 'Đăng ký thất bại';
-
-                        if (data.errors) {
-                            const errors = Object.values(data.errors).flat();
-
-                            if (errors.length > 0) {
-                                errorMessage = errors.join('<br>');
-                            }
-                        }
-
-                        msgBox.innerHTML =
-                            `<i class="fas fa-exclamation-circle"></i> ${errorMessage}`;
-                    }
-
-                } catch (error) {
-
-                    console.error(error);
-
-                    msgBox.style.display = 'block';
-
-                    msgBox.style.background = '#fee2e2';
-
-                    msgBox.style.color = '#991b1b';
-
-                    msgBox.innerHTML =
-                        '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối hệ thống.';
-                }
-
-                finally {
-
-                    btnText.style.display = 'inline-block';
-
-                    loader.style.display = 'none';
-                }
-            });
-    </script>
+        if (response.ok && data.thanhCong) {
+            showRegisterMessage(data.thongBao || 'Đăng ký thành công', 'success');
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 1500);
+        } else {
+            let errorMessage = data.thongBao || data.title || 'Đăng ký thất bại';
+            if (data.errors) {
+                const errors = Object.values(data.errors).flat();
+                if (errors.length > 0) errorMessage = errors.join('<br>');
+            }
+            showRegisterMessage(errorMessage);
+        }
+    } catch (error) {
+        console.error(error);
+        showRegisterMessage(error.message || 'Lỗi kết nối hệ thống.');
+    } finally {
+        btnText.style.display = 'inline-block';
+        loader.style.display = 'none';
+    }
+});
+</script>
 
 </body>
 </html>

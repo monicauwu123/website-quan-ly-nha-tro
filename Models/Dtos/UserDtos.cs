@@ -25,6 +25,29 @@ namespace DoAnSE104.Models.Dtos
         [StringLength(15)]
         public string? SoDienThoai { get; set; }
 
+        [StringLength(20)]
+        public string? CCCD { get; set; }
+
+        public DateTime? NgaySinh { get; set; }
+
+        [StringLength(10)]
+        public string? GioiTinh { get; set; }
+
+        [StringLength(50)]
+        public string? QuocTich { get; set; }
+
+        [StringLength(255)]
+        public string? DiaChi { get; set; }
+
+        [StringLength(100)]
+        public string? NoiCongTac { get; set; }
+
+        [StringLength(500)]
+        public string? AnhCccdMatTruoc { get; set; }
+
+        [StringLength(500)]
+        public string? AnhCccdMatSau { get; set; }
+
         /// <summary>Admin | ChuTro | NguoiDung</summary>
         public string VaiTro { get; set; } = VaiTroConst.NguoiDung;
     }
@@ -49,6 +72,14 @@ namespace DoAnSE104.Models.Dtos
         public string Email { get; set; }
         public string? HoTen { get; set; }
         public string? SoDienThoai { get; set; }
+        public string? CCCD { get; set; }
+        public DateTime? NgaySinh { get; set; }
+        public string? GioiTinh { get; set; }
+        public string? QuocTich { get; set; }
+        public string? DiaChi { get; set; }
+        public string? NoiCongTac { get; set; }
+        public string? AnhCccdMatTruoc { get; set; }
+        public string? AnhCccdMatSau { get; set; }
         public string VaiTro { get; set; }
         public string Token { get; set; }
     }

@@ -35,6 +35,12 @@ namespace DoAnSE104.Models
         [MaxLength(100)]
         public string? NoiCongTac { get; set; }
 
+        [MaxLength(500)]
+        public string? AnhCccdMatTruoc { get; set; }
+
+        [MaxLength(500)]
+        public string? AnhCccdMatSau { get; set; }
+
         public int MaPhong { get; set; }
 
         /// <summary>FK tới User (NguoiDung account liên kết)</summary>

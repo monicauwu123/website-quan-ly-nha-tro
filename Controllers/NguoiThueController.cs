@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
+using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
 
 namespace DoAnSE104.Controllers
@@ -14,10 +17,12 @@ namespace DoAnSE104.Controllers
     public class NguoiThueController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly Cloudinary _cloudinary;
 
-        public NguoiThueController(ApplicationDbContext context)
+        public NguoiThueController(ApplicationDbContext context, Cloudinary cloudinary)
         {
             _context = context;
+            _cloudinary = cloudinary;
         }
 
         private int GetCurrentUserId()
@@ -60,7 +65,6 @@ namespace DoAnSE104.Controllers
 
                 if (role == VaiTroConst.ChuTro)
                 {
-                    // ChuTro chỉ thấy người thuê ở nhà trọ của mình
                     var maNhaTroList = await _context.NhaTro
                         .Where(n => n.MaChuTro == userId)
                         .Select(n => n.MaNhaTro)
@@ -75,12 +79,53 @@ namespace DoAnSE104.Controllers
                 }
                 else if (role == VaiTroConst.NguoiDung)
                 {
-                    // NguoiDung chỉ thấy profile mình
                     query = query.Where(nt => nt.MaNguoiDung == userId);
                 }
 
                 var data = await query.ToListAsync();
                 return Ok(ApiResponse<List<NguoiThue>>.Ok(data));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Loi(ex.Message));
+            }
+        }
+
+        // GET: api/NguoiThue/cua-toi
+        [HttpGet("cua-toi")]
+        [Authorize(Roles = VaiTroConst.NguoiDung)]
+        public async Task<IActionResult> GetNguoiThueCuaToi()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+
+                var data = await (
+                    from nt in _context.NguoiThue
+                    join p in _context.Phong on nt.MaPhong equals p.MaPhong
+                    join n in _context.NhaTro on p.MaNhaTro equals n.MaNhaTro
+                    where nt.MaNguoiDung == userId
+                    select new
+                    {
+                        nt.MaNguoiThue,
+                        nt.HoTen,
+                        nt.CCCD,
+                        nt.SDT,
+                        nt.Email,
+                        nt.NgaySinh,
+                        nt.GioiTinh,
+                        nt.QuocTich,
+                        nt.DiaChi,
+                        nt.NoiCongTac,
+                        nt.MaPhong,
+                        nt.MaNguoiDung,
+                        nt.AnhCccdMatTruoc,
+                        nt.AnhCccdMatSau,
+                        p.TenPhong,
+                        n.TenNhaTro
+                    }).ToListAsync();
+
+                return Ok(ApiResponse<object>.Ok(data));
             }
             catch (Exception ex)
             {
@@ -106,15 +151,7 @@ namespace DoAnSE104.Controllers
 
                 if (role == VaiTroConst.ChuTro)
                 {
-                    var maNhaTroList = await _context.NhaTro
-                        .Where(n => n.MaChuTro == userId)
-                        .Select(n => n.MaNhaTro)
-                        .ToListAsync();
-                    var maPhongList = await _context.Phong
-                        .Where(p => maNhaTroList.Contains(p.MaNhaTro))
-                        .Select(p => p.MaPhong)
-                        .ToListAsync();
-                    if (!maPhongList.Contains(nguoiThue.MaPhong))
+                    if (!await PhongThuocChuTro(nguoiThue.MaPhong, userId))
                         return Forbid();
                 }
 
@@ -169,6 +206,52 @@ namespace DoAnSE104.Controllers
             }
         }
 
+        // POST: api/NguoiThue/upload-cccd-image
+        [HttpPost("upload-cccd-image")]
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro},{VaiTroConst.NguoiDung}")]
+        public async Task<IActionResult> UploadCccdImage([FromForm] IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                    return BadRequest(ApiResponse<object>.Loi("Vui lòng chọn file ảnh CCCD"));
+
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+                if (!allowedExtensions.Contains(fileExtension))
+                    return BadRequest(ApiResponse<object>.Loi("Chỉ chấp nhận ảnh: .jpg, .jpeg, .png, .gif, .webp"));
+
+                if (file.Length > 5 * 1024 * 1024)
+                    return BadRequest(ApiResponse<object>.Loi("Kích thước ảnh CCCD không được vượt quá 5MB"));
+
+                var uploadParams = new ImageUploadParams()
+                {
+                    File = new FileDescription(file.FileName, file.OpenReadStream()),
+                    Folder = "nguoi_thue_cccd",
+                    Transformation = new Transformation().Width(1200).Height(800).Crop("limit").Quality("auto")
+                };
+
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+                if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK && uploadResult.SecureUrl != null)
+                {
+                    var data = new { url = uploadResult.SecureUrl.AbsoluteUri, publicId = uploadResult.PublicId };
+                    return Ok(ApiResponse<object>.Ok(data, "Upload ảnh CCCD thành công"));
+                }
+
+                var cloudinaryError = uploadResult.Error?.Message;
+                return StatusCode(500, ApiResponse<object>.Loi(
+                    string.IsNullOrWhiteSpace(cloudinaryError)
+                        ? "Lỗi upload ảnh CCCD lên Cloudinary"
+                        : $"Lỗi upload ảnh CCCD lên Cloudinary: {cloudinaryError}"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Loi($"Lỗi xử lý ảnh CCCD: {ex.Message}"));
+            }
+        }
+
         // POST: api/NguoiThue
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
@@ -208,10 +291,77 @@ namespace DoAnSE104.Controllers
             }
         }
 
+        // PUT: api/NguoiThue/cua-toi/5
+        [HttpPut("cua-toi/{id}")]
+        [Authorize(Roles = VaiTroConst.NguoiDung)]
+        public async Task<IActionResult> CapNhatNguoiThueCuaToi(int id, [FromBody] NguoiThueSelfUpdateDto dto)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var nguoiThue = await _context.NguoiThue.FirstOrDefaultAsync(nt => nt.MaNguoiThue == id && nt.MaNguoiDung == userId);
+
+                if (nguoiThue == null)
+                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy thông tin khách thuê thuộc tài khoản của bạn"));
+
+                nguoiThue.HoTen = dto.HoTen.Trim();
+                nguoiThue.CCCD = dto.CCCD;
+                nguoiThue.SDT = dto.SDT;
+                nguoiThue.Email = dto.Email;
+                nguoiThue.NgaySinh = dto.NgaySinh;
+                nguoiThue.GioiTinh = dto.GioiTinh;
+                nguoiThue.QuocTich = dto.QuocTich;
+                nguoiThue.DiaChi = dto.DiaChi;
+                nguoiThue.NoiCongTac = dto.NoiCongTac;
+                nguoiThue.AnhCccdMatTruoc = dto.AnhCccdMatTruoc;
+                nguoiThue.AnhCccdMatSau = dto.AnhCccdMatSau;
+
+                var user = await _context.Users.FindAsync(userId);
+                if (user != null)
+                {
+                    user.HoTen = nguoiThue.HoTen;
+                    user.CCCD = nguoiThue.CCCD;
+                    user.SoDienThoai = nguoiThue.SDT ?? string.Empty;
+                    user.Email = nguoiThue.Email ?? user.Email;
+                    user.NgaySinh = nguoiThue.NgaySinh;
+                    user.GioiTinh = nguoiThue.GioiTinh;
+                    user.QuocTich = nguoiThue.QuocTich;
+                    user.DiaChi = nguoiThue.DiaChi;
+                    user.NoiCongTac = nguoiThue.NoiCongTac;
+                    user.AnhCccdMatTruoc = nguoiThue.AnhCccdMatTruoc;
+                    user.AnhCccdMatSau = nguoiThue.AnhCccdMatSau;
+
+                    var cacHoSoKhac = await _context.NguoiThue
+                        .Where(nt => nt.MaNguoiDung == userId && nt.MaNguoiThue != id)
+                        .ToListAsync();
+
+                    foreach (var nt in cacHoSoKhac)
+                    {
+                        nt.HoTen = nguoiThue.HoTen;
+                        nt.CCCD = nguoiThue.CCCD;
+                        nt.SDT = nguoiThue.SDT;
+                        nt.Email = nguoiThue.Email;
+                        nt.NgaySinh = nguoiThue.NgaySinh;
+                        nt.GioiTinh = nguoiThue.GioiTinh;
+                        nt.QuocTich = nguoiThue.QuocTich;
+                        nt.DiaChi = nguoiThue.DiaChi;
+                        nt.NoiCongTac = nguoiThue.NoiCongTac;
+                        nt.AnhCccdMatTruoc = nguoiThue.AnhCccdMatTruoc;
+                        nt.AnhCccdMatSau = nguoiThue.AnhCccdMatSau;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(ApiResponse<NguoiThue>.Ok(nguoiThue, "Cập nhật thông tin khách thuê thành công"));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.Loi(ex.Message));
+            }
+        }
+
         // PUT: api/NguoiThue/5
-        // Chỉ Admin được sửa hồ sơ khách thuê.
-        // Chủ trọ có thể thêm khách thuê, nhưng không được sửa thông tin khách thuê
-        // để tránh làm sai lệch thông tin tài khoản người dùng đã đồng bộ từ yêu cầu thuê/hợp đồng.
         [HttpPut("{id}")]
         [Authorize(Roles = VaiTroConst.Admin)]
         public async Task<IActionResult> PutNguoiThue(int id, [FromBody] NguoiThue nguoiThue)
@@ -259,13 +409,22 @@ namespace DoAnSE104.Controllers
 
                 var role = GetCurrentRole();
                 var userId = GetCurrentUserId();
+
                 if (role == VaiTroConst.ChuTro && !await PhongThuocChuTro(nguoiThue.MaPhong, userId))
                     return Forbid();
+
+                var coHopDong = await _context.HopDong.AnyAsync(h => h.MaNguoiThue == id);
+                var coHoaDon = await _context.HoaDon.AnyAsync(hd => hd.MaNguoiThue == id);
+                var coThanhToan = await _context.ThanhToan.AnyAsync(tt => tt.MaNguoiThue == id);
+                var coYeuCauThue = await _context.YeuCauThue.AnyAsync(y => y.MaNguoiThue == id);
+
+                if (coHopDong || coHoaDon || coThanhToan || coYeuCauThue)
+                    return BadRequest(ApiResponse<object>.Loi("Không thể xóa khách thuê đã có hợp đồng, hóa đơn, thanh toán hoặc yêu cầu thuê liên quan. Bạn chỉ nên xóa khách thuê nhập nhầm/chưa phát sinh dữ liệu."));
 
                 _context.NguoiThue.Remove(nguoiThue);
                 await _context.SaveChangesAsync();
 
-                return Ok(ApiResponse<object>.Ok(null!, "Xóa thành công"));
+                return Ok(ApiResponse<object>.Ok(null!, "Xóa khách thuê thành công"));
             }
             catch (Exception ex)
             {

@@ -26,6 +26,29 @@ namespace DoAnSE104.Models
         [StringLength(15)]
         public string SoDienThoai { get; set; }
 
+        [StringLength(20)]
+        public string? CCCD { get; set; }
+
+        public DateTime? NgaySinh { get; set; }
+
+        [StringLength(10)]
+        public string? GioiTinh { get; set; }
+
+        [StringLength(50)]
+        public string? QuocTich { get; set; }
+
+        [StringLength(255)]
+        public string? DiaChi { get; set; }
+
+        [StringLength(100)]
+        public string? NoiCongTac { get; set; }
+
+        [StringLength(500)]
+        public string? AnhCccdMatTruoc { get; set; }
+
+        [StringLength(500)]
+        public string? AnhCccdMatSau { get; set; }
+
         /// <summary>Admin | ChuTro | NguoiDung</summary>
         public string VaiTro { get; set; } = "NguoiDung";
 

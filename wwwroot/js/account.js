@@ -9,12 +9,10 @@ showSection = function(section, el) {
     const taikhoanSec = document.getElementById('taikhoanSection');
 
     if (section === 'taikhoan') {
-        // Ẩn các section khác
         document.getElementById('overviewSection').style.display = 'none';
         document.getElementById('genericSection').style.display  = 'none';
         taikhoanSec.style.display = 'block';
 
-        // Ẩn nút "Thêm mới"
         document.getElementById('addBtn').style.display = 'none';
         document.getElementById('sectionTitle').textContent = 'Tài khoản của tôi';
 
@@ -23,6 +21,59 @@ showSection = function(section, el) {
         taikhoanSec.style.display = 'none';
     }
 };
+
+function escapeHtml(v) {
+    return v === null || v === undefined ? '' : String(v)
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+}
+
+function displayValue(v) {
+    const text = escapeHtml(v);
+    return text || '—';
+}
+
+function formatDateInput(v) {
+    return v ? String(v).substring(0, 10) : '';
+}
+
+function formatDateDisplay(v) {
+    if (!v) return '—';
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function renderCccdPreview(url, label) {
+    if (!url) {
+        return `<div style="padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;color:var(--text-light);text-align:center;">Chưa có ${label.toLowerCase()}</div>`;
+    }
+
+    const safeUrl = escapeHtml(url);
+    return `<a href="${safeUrl}" target="_blank"><img src="${safeUrl}" alt="${escapeHtml(label)}" style="width:100%;max-height:220px;object-fit:contain;border-radius:.75rem;background:#f8fafc;border:1px solid #e5e7eb;"></a>`;
+}
+
+async function uploadAccountCccdFile(inputId, hiddenId, previewId, label) {
+    const fileInput = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const preview = document.getElementById(previewId);
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        return hidden?.value || '';
+    }
+
+    showToast(`Đang tải ${label}...`, 'info');
+    const uploadRes = await API.nguoithue.uploadCccdImage(fileInput.files[0]);
+    const url = uploadRes?.url || uploadRes?.duLieu?.url;
+
+    if (!url) throw new Error(`Upload ${label} thất bại`);
+
+    hidden.value = url;
+    if (preview) preview.innerHTML = renderCccdPreview(url, label);
+    return url;
+}
 
 // ─── Helper: toggle password field ───────────────────────────────────────────
 function togglePasswordField(fieldId, btn) {
@@ -74,7 +125,6 @@ async function loadProfile() {
         const res  = await apiFetch('/api/Account/thong-tin');
         const data = res.duLieu || res;
 
-        // Avatar header
         const initial = (data.hoTen || data.tenDangNhap || 'A').charAt(0).toUpperCase();
         document.getElementById('profileAvatarBig').textContent = initial;
         document.getElementById('profileDisplayName').textContent = data.hoTen || '—';
@@ -84,41 +134,78 @@ async function loadProfile() {
             `<span class="badge badge-teal">${roleLabel[data.vaiTro] || data.vaiTro}</span>`;
         document.getElementById('profileDisplayEmail').textContent = data.email || '—';
 
-        // Info card (read-only rows)
-        const fmtDate = v => v ? new Date(v).toLocaleDateString('vi-VN', { year:'numeric', month:'long', day:'numeric' }) : '—';
         const rows = [
             { icon: 'fa-user',        label: 'Tên đăng nhập',  value: data.tenDangNhap },
             { icon: 'fa-id-card',     label: 'Họ tên',          value: data.hoTen || '—' },
             { icon: 'fa-envelope',    label: 'Email',            value: data.email },
             { icon: 'fa-phone',       label: 'Số điện thoại',   value: data.soDienThoai || '—' },
             { icon: 'fa-shield-alt',  label: 'Vai trò',          value: roleLabel[data.vaiTro] || data.vaiTro },
-            { icon: 'fa-calendar',    label: 'Ngày tạo',         value: fmtDate(data.ngayTao) },
-            { icon: 'fa-circle',      label: 'Trạng thái',       value: data.trangThai ? '✅ Đang hoạt động' : '🔒 Bị khóa' },
         ];
+
+        if (data.vaiTro === 'NguoiDung') {
+            rows.push(
+                { icon: 'fa-address-card', label: 'CCCD/CMND', value: data.cccd || '—' },
+                { icon: 'fa-birthday-cake', label: 'Ngày sinh', value: formatDateDisplay(data.ngaySinh) },
+                { icon: 'fa-venus-mars', label: 'Giới tính', value: data.gioiTinh || '—' },
+                { icon: 'fa-flag', label: 'Quốc tịch', value: data.quocTich || '—' },
+                { icon: 'fa-map-marker-alt', label: 'Địa chỉ', value: data.diaChi || '—' },
+                { icon: 'fa-briefcase', label: 'Nơi công tác', value: data.noiCongTac || '—' }
+            );
+        }
+
+        rows.push(
+            { icon: 'fa-calendar',    label: 'Ngày tạo',         value: formatDateDisplay(data.ngayTao) },
+            { icon: 'fa-circle',      label: 'Trạng thái',       value: data.trangThai ? '✅ Đang hoạt động' : '🔒 Bị khóa' }
+        );
 
         body.innerHTML = rows.map(r => `
             <div class="profile-row">
                 <div class="pr-icon"><i class="fas ${r.icon}"></i></div>
                 <div>
-                    <div class="pr-label">${r.label}</div>
-                    <div class="pr-value">${r.value}</div>
+                    <div class="pr-label">${escapeHtml(r.label)}</div>
+                    <div class="pr-value">${displayValue(r.value)}</div>
                 </div>
-            </div>`).join('');
+            </div>`).join('') + (data.vaiTro === 'NguoiDung' ? `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem;">
+                <div>
+                    <div class="pr-label" style="margin-bottom:.35rem;">Ảnh CCCD mặt trước</div>
+                    ${renderCccdPreview(data.anhCccdMatTruoc, 'CCCD mặt trước')}
+                </div>
+                <div>
+                    <div class="pr-label" style="margin-bottom:.35rem;">Ảnh CCCD mặt sau</div>
+                    ${renderCccdPreview(data.anhCccdMatSau, 'CCCD mặt sau')}
+                </div>
+            </div>` : '');
 
-        // Điền vào form sửa
         document.getElementById('editHoTen').value = data.hoTen || '';
         document.getElementById('editEmail').value  = data.email || '';
         document.getElementById('editPhone').value  = data.soDienThoai || '';
 
-        // Điền vào card bảo mật (readonly)
+        const extraEls = document.querySelectorAll('.account-user-extra');
+        extraEls.forEach(el => el.style.display = data.vaiTro === 'NguoiDung' ? '' : 'none');
+
+        if (document.getElementById('editCCCD')) {
+            document.getElementById('editCCCD').value = data.cccd || '';
+            document.getElementById('editNgaySinh').value = formatDateInput(data.ngaySinh);
+            document.getElementById('editGioiTinh').value = data.gioiTinh || '';
+            document.getElementById('editQuocTich').value = data.quocTich || 'Việt Nam';
+            document.getElementById('editDiaChi').value = data.diaChi || '';
+            document.getElementById('editNoiCongTac').value = data.noiCongTac || '';
+            document.getElementById('editAnhCccdMatTruoc').value = data.anhCccdMatTruoc || '';
+            document.getElementById('editAnhCccdMatSau').value = data.anhCccdMatSau || '';
+            document.getElementById('editAnhCccdMatTruocPreview').innerHTML = renderCccdPreview(data.anhCccdMatTruoc, 'CCCD mặt trước');
+            document.getElementById('editAnhCccdMatSauPreview').innerHTML = renderCccdPreview(data.anhCccdMatSau, 'CCCD mặt sau');
+        }
+
         document.getElementById('readUsername').value  = data.tenDangNhap;
         document.getElementById('readVaiTro').value    = roleLabel[data.vaiTro] || data.vaiTro;
         document.getElementById('readTrangThai').value = data.trangThai ? 'Đang hoạt động' : 'Bị khóa';
-        document.getElementById('readNgayTao').value   = fmtDate(data.ngayTao);
+        document.getElementById('readNgayTao').value   = formatDateDisplay(data.ngayTao);
 
-        // Sync sidebar avatar
         document.getElementById('userAvatar').textContent  = initial;
         document.getElementById('userName').textContent    = data.hoTen || data.tenDangNhap;
+
+        loadTenantProfiles();
 
     } catch (e) {
         body.innerHTML = `<div style="color:var(--error);padding:1rem;"><i class="fas fa-exclamation-circle"></i> ${e.message || 'Lỗi tải thông tin'}</div>`;
@@ -134,11 +221,29 @@ document.getElementById('profileEditForm').addEventListener('submit', async (e) 
     btn.disabled  = true;
 
     try {
-        await apiFetch('/api/Account/cap-nhat', 'PUT', {
+        const payload = {
             hoTen:       document.getElementById('editHoTen').value.trim(),
             email:       document.getElementById('editEmail').value.trim(),
             soDienThoai: document.getElementById('editPhone').value.trim()
-        });
+        };
+
+        if (CURRENT_ROLE === 'NguoiDung') {
+            const frontUrl = await uploadAccountCccdFile('editAnhCccdMatTruocFile', 'editAnhCccdMatTruoc', 'editAnhCccdMatTruocPreview', 'CCCD mặt trước');
+            const backUrl = await uploadAccountCccdFile('editAnhCccdMatSauFile', 'editAnhCccdMatSau', 'editAnhCccdMatSauPreview', 'CCCD mặt sau');
+
+            Object.assign(payload, {
+                cccd: document.getElementById('editCCCD').value.trim(),
+                ngaySinh: document.getElementById('editNgaySinh').value || null,
+                gioiTinh: document.getElementById('editGioiTinh').value,
+                quocTich: document.getElementById('editQuocTich').value.trim(),
+                diaChi: document.getElementById('editDiaChi').value.trim(),
+                noiCongTac: document.getElementById('editNoiCongTac').value.trim(),
+                anhCccdMatTruoc: frontUrl,
+                anhCccdMatSau: backUrl
+            });
+        }
+
+        await apiFetch('/api/Account/cap-nhat', 'PUT', payload);
         showToast('Cập nhật thông tin thành công!', 'success');
         loadProfile();
     } catch (err) {
@@ -175,7 +280,6 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
         });
         showToast('Đổi mật khẩu thành công!', 'success');
         e.target.reset();
-        // Reset strength bar
         const fill = document.getElementById('strengthFill');
         if (fill) { fill.style.width = '0%'; fill.style.background = '#e5e7eb'; }
         document.getElementById('strengthLabel').textContent = '';
@@ -186,3 +290,43 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
         btn.disabled  = false;
     }
 });
+
+// ─── Danh sách phòng đang thuê trong mục Tài khoản của tôi ──────────────────
+async function loadTenantProfiles() {
+    const box = document.getElementById('tenantProfileBody');
+    if (!box) return;
+
+    if (CURRENT_ROLE !== 'NguoiDung') {
+        box.innerHTML = '<div style="padding:1rem;color:var(--text-light);">Mục này chỉ áp dụng cho tài khoản người dùng/khách thuê.</div>';
+        return;
+    }
+
+    box.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--text-light);"><i class="fas fa-spinner fa-spin"></i> Đang tải danh sách phòng...</div>';
+
+    try {
+        const profiles = await apiFetch('/api/NguoiThue/cua-toi') || [];
+        const list = Array.isArray(profiles) ? profiles : [];
+
+        if (!list.length) {
+            box.innerHTML = '<div style="padding:1rem;color:var(--text-light);">Bạn chưa có phòng đang thuê. Khi chủ trọ duyệt yêu cầu thuê/lập hợp đồng, phòng sẽ xuất hiện tại đây.</div>';
+            return;
+        }
+
+        box.innerHTML = `
+            <div style="font-size:.85rem;color:var(--text-light);margin-bottom:1rem;">
+                Thông tin cá nhân và ảnh CCCD được quản lý ở phần <b>Cập nhật thông tin</b> bên trên. Danh sách dưới đây chỉ thể hiện các phòng bạn đang/từng thuê.
+            </div>
+            <div style="display:grid;gap:.75rem;">
+                ${list.map((p, idx) => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.85rem 1rem;border:1px solid #e5e7eb;border-radius:.75rem;background:#f8fafc;">
+                        <div>
+                            <div style="font-weight:700;color:var(--text);">${idx + 1}. ${displayValue(p.tenPhong || ('Phòng #' + p.maPhong))}</div>
+                            <div style="font-size:.85rem;color:var(--text-light);"><i class="fas fa-building"></i> ${displayValue(p.tenNhaTro)}</div>
+                        </div>
+                        <span class="badge badge-teal">Hồ sơ #${displayValue(p.maNguoiThue)}</span>
+                    </div>`).join('')}
+            </div>`;
+    } catch (err) {
+        box.innerHTML = `<div style="color:var(--error);padding:1rem;"><i class="fas fa-exclamation-circle"></i> ${err.message || 'Lỗi tải danh sách phòng đang thuê'}</div>`;
+    }
+}

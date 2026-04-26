@@ -12,6 +12,14 @@ namespace DoAnSE104.Models.Dtos
         public string HoTen { get; set; }
         public string Email { get; set; }
         public string SoDienThoai { get; set; }
+        public string? CCCD { get; set; }
+        public DateTime? NgaySinh { get; set; }
+        public string? GioiTinh { get; set; }
+        public string? QuocTich { get; set; }
+        public string? DiaChi { get; set; }
+        public string? NoiCongTac { get; set; }
+        public string? AnhCccdMatTruoc { get; set; }
+        public string? AnhCccdMatSau { get; set; }
         public string VaiTro { get; set; }
         public DateTime NgayTao { get; set; }
         public bool TrangThai { get; set; }
@@ -31,6 +39,29 @@ namespace DoAnSE104.Models.Dtos
 
         [StringLength(15, ErrorMessage = "Số điện thoại không được vượt quá 15 ký tự")]
         public string? SoDienThoai { get; set; }
+
+        [StringLength(20, ErrorMessage = "CCCD/CMND không được vượt quá 20 ký tự")]
+        public string? CCCD { get; set; }
+
+        public DateTime? NgaySinh { get; set; }
+
+        [StringLength(10, ErrorMessage = "Giới tính không được vượt quá 10 ký tự")]
+        public string? GioiTinh { get; set; }
+
+        [StringLength(50, ErrorMessage = "Quốc tịch không được vượt quá 50 ký tự")]
+        public string? QuocTich { get; set; }
+
+        [StringLength(255, ErrorMessage = "Địa chỉ không được vượt quá 255 ký tự")]
+        public string? DiaChi { get; set; }
+
+        [StringLength(100, ErrorMessage = "Nơi công tác không được vượt quá 100 ký tự")]
+        public string? NoiCongTac { get; set; }
+
+        [StringLength(500)]
+        public string? AnhCccdMatTruoc { get; set; }
+
+        [StringLength(500)]
+        public string? AnhCccdMatSau { get; set; }
     }
 
     // ─── Đổi mật khẩu ────────────────────────────────────────────────────────

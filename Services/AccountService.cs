@@ -37,7 +37,7 @@ namespace DoAnSE104.Services
             return MapToThongTinDto(user);
         }
 
-        // ─── Cập nhật thông tin (chỉ HoTen, Email, SoDienThoai) ──────────────
+        // ─── Cập nhật thông tin tài khoản ───────────────────────────────────
 
         public async Task<ThongTinTaiKhoanDto> CapNhatThongTin(int maNguoiDung, CapNhatThongTinDto dto)
         {
@@ -53,9 +53,36 @@ namespace DoAnSE104.Services
                     throw new Exception("Email này đã được sử dụng bởi tài khoản khác");
             }
 
-            user.HoTen = dto.HoTen;
-            user.Email = dto.Email;
+            user.HoTen = dto.HoTen.Trim();
+            user.Email = dto.Email.Trim();
             user.SoDienThoai = dto.SoDienThoai ?? string.Empty;
+            user.CCCD = dto.CCCD;
+            user.NgaySinh = dto.NgaySinh;
+            user.GioiTinh = dto.GioiTinh;
+            user.QuocTich = dto.QuocTich;
+            user.DiaChi = dto.DiaChi;
+            user.NoiCongTac = dto.NoiCongTac;
+            user.AnhCccdMatTruoc = dto.AnhCccdMatTruoc;
+            user.AnhCccdMatSau = dto.AnhCccdMatSau;
+
+            var danhSachNguoiThue = await _context.NguoiThue
+                .Where(nt => nt.MaNguoiDung == maNguoiDung)
+                .ToListAsync();
+
+            foreach (var nt in danhSachNguoiThue)
+            {
+                nt.HoTen = user.HoTen;
+                nt.CCCD = user.CCCD;
+                nt.SDT = user.SoDienThoai;
+                nt.Email = user.Email;
+                nt.NgaySinh = user.NgaySinh;
+                nt.GioiTinh = user.GioiTinh;
+                nt.QuocTich = user.QuocTich;
+                nt.DiaChi = user.DiaChi;
+                nt.NoiCongTac = user.NoiCongTac;
+                nt.AnhCccdMatTruoc = user.AnhCccdMatTruoc;
+                nt.AnhCccdMatSau = user.AnhCccdMatSau;
+            }
 
             await _context.SaveChangesAsync();
 
@@ -147,6 +174,14 @@ namespace DoAnSE104.Services
             HoTen = u.HoTen,
             Email = u.Email,
             SoDienThoai = u.SoDienThoai,
+            CCCD = u.CCCD,
+            NgaySinh = u.NgaySinh,
+            GioiTinh = u.GioiTinh,
+            QuocTich = u.QuocTich,
+            DiaChi = u.DiaChi,
+            NoiCongTac = u.NoiCongTac,
+            AnhCccdMatTruoc = u.AnhCccdMatTruoc,
+            AnhCccdMatSau = u.AnhCccdMatSau,
             VaiTro = u.VaiTro,
             NgayTao = u.NgayTao,
             TrangThai = u.TrangThai

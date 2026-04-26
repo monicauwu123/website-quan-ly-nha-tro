@@ -51,6 +51,36 @@ namespace DoAnSE104.Services
             if (await _context.Users.AnyAsync(u => u.Email == dangKyDto.Email))
                 throw new Exception("Email đã tồn tại");
 
+            if (dangKyDto.VaiTro == VaiTroConst.NguoiDung)
+            {
+                if (string.IsNullOrWhiteSpace(dangKyDto.HoTen))
+                    throw new Exception("Họ tên không được để trống");
+
+                if (string.IsNullOrWhiteSpace(dangKyDto.SoDienThoai))
+                    throw new Exception("Số điện thoại không được để trống");
+
+                if (string.IsNullOrWhiteSpace(dangKyDto.CCCD))
+                    throw new Exception("CCCD/CMND không được để trống");
+
+                if (dangKyDto.NgaySinh == null)
+                    throw new Exception("Ngày sinh không được để trống");
+
+                if (string.IsNullOrWhiteSpace(dangKyDto.GioiTinh))
+                    throw new Exception("Giới tính không được để trống");
+
+                if (string.IsNullOrWhiteSpace(dangKyDto.QuocTich))
+                    throw new Exception("Quốc tịch không được để trống");
+
+                if (string.IsNullOrWhiteSpace(dangKyDto.DiaChi))
+                    throw new Exception("Địa chỉ không được để trống");
+
+                if (string.IsNullOrWhiteSpace(dangKyDto.AnhCccdMatTruoc))
+                    throw new Exception("Vui lòng upload ảnh CCCD mặt trước");
+
+                if (string.IsNullOrWhiteSpace(dangKyDto.AnhCccdMatSau))
+                    throw new Exception("Vui lòng upload ảnh CCCD mặt sau");
+            }
+
             var nguoiDung = new User
             {
                 TenDangNhap = dangKyDto.TenDangNhap,
@@ -58,6 +88,14 @@ namespace DoAnSE104.Services
                 Email = dangKyDto.Email,
                 HoTen = dangKyDto.HoTen ?? string.Empty,
                 SoDienThoai = dangKyDto.SoDienThoai ?? string.Empty,
+                CCCD = dangKyDto.CCCD,
+                NgaySinh = dangKyDto.NgaySinh,
+                GioiTinh = dangKyDto.GioiTinh,
+                QuocTich = dangKyDto.QuocTich ?? (dangKyDto.VaiTro == VaiTroConst.NguoiDung ? "Việt Nam" : null),
+                DiaChi = dangKyDto.DiaChi,
+                NoiCongTac = dangKyDto.NoiCongTac,
+                AnhCccdMatTruoc = dangKyDto.AnhCccdMatTruoc,
+                AnhCccdMatSau = dangKyDto.AnhCccdMatSau,
                 VaiTro = dangKyDto.VaiTro
             };
 
@@ -127,6 +165,14 @@ namespace DoAnSE104.Services
             Email = u.Email,
             HoTen = u.HoTen,
             SoDienThoai = u.SoDienThoai,
+            CCCD = u.CCCD,
+            NgaySinh = u.NgaySinh,
+            GioiTinh = u.GioiTinh,
+            QuocTich = u.QuocTich,
+            DiaChi = u.DiaChi,
+            NoiCongTac = u.NoiCongTac,
+            AnhCccdMatTruoc = u.AnhCccdMatTruoc,
+            AnhCccdMatSau = u.AnhCccdMatSau,
             VaiTro = u.VaiTro,
             Token = token
         };

@@ -17,11 +17,14 @@ var builder = WebApplication.CreateBuilder(args);
 // ─── DB ───────────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
         sqlOptions => sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null));
+            errorNumbersToAdd: null
+        )
+    );
 });
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
@@ -39,10 +42,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
+
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+            ),
+
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
     });
@@ -57,40 +64,47 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 // ─── Controllers ──────────────────────────────────────────────────────────────
 builder.Services.AddControllers(options =>
 {
+    // Tránh ASP.NET tự bắt buộc navigation property như NhaTro, LoaiPhong, TrangThai...
     options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
 })
-    .ConfigureApiBehaviorOptions(options =>
+.ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
     {
-        options.InvalidModelStateResponseFactory = context =>
-        {
-            var errors = context.ModelState
-                .Where(x => x.Value != null && x.Value.Errors.Count > 0)
-                .SelectMany(x => x.Value!.Errors.Select(error =>
-                {
-                    var fieldName = x.Key;
-                    var errorMessage = string.IsNullOrWhiteSpace(error.ErrorMessage)
-                        ? "Dữ liệu không hợp lệ"
-                        : error.ErrorMessage;
+        var errors = context.ModelState
+            .Where(x => x.Value != null && x.Value.Errors.Count > 0)
+            .SelectMany(x => x.Value!.Errors.Select(error =>
+            {
+                var fieldName = x.Key;
 
-                    return string.IsNullOrWhiteSpace(fieldName)
-                        ? errorMessage
-                        : $"{fieldName}: {errorMessage}";
-                }))
-                .ToList();
+                var errorMessage = string.IsNullOrWhiteSpace(error.ErrorMessage)
+                    ? "Dữ liệu không hợp lệ"
+                    : error.ErrorMessage;
 
-            var message = errors.Any()
-                ? string.Join("; ", errors)
-                : "Dữ liệu gửi lên không hợp lệ";
+                return string.IsNullOrWhiteSpace(fieldName)
+                    ? errorMessage
+                    : $"{fieldName}: {errorMessage}";
+            }))
+            .ToList();
 
-            return new BadRequestObjectResult(ApiResponse<object>.Loi(message));
-        };
-    });
+        var message = errors.Any()
+            ? string.Join("; ", errors)
+            : "Dữ liệu gửi lên không hợp lệ";
+
+        return new BadRequestObjectResult(ApiResponse<object>.Loi(message));
+    };
+});
+
 builder.Services.AddEndpointsApiExplorer();
 
 // ─── Swagger với JWT ──────────────────────────────────────────────────────────
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "DoAnSE104 API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "DoAnSE104 API",
+        Version = "v1"
+    });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -106,7 +120,11 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
             },
             Array.Empty<string>()
         }
@@ -115,12 +133,19 @@ builder.Services.AddSwaggerGen(c =>
 
 // ─── Cloudinary ───────────────────────────────────────────────────────────────
 builder.Services.Configure<CloudinarySettings>(
-    builder.Configuration.GetSection("CloudinarySettings"));
+    builder.Configuration.GetSection("CloudinarySettings")
+);
 
 builder.Services.AddSingleton<Cloudinary>(sp =>
 {
     var settings = sp.GetRequiredService<IOptions<CloudinarySettings>>().Value;
-    var account = new Account(settings.CloudName, settings.ApiKey, settings.ApiSecret);
+
+    var account = new Account(
+        settings.CloudName,
+        settings.ApiKey,
+        settings.ApiSecret
+    );
+
     return new Cloudinary(account);
 });
 
@@ -128,20 +153,26 @@ builder.Services.AddSingleton<Cloudinary>(sp =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader());
 });
 
 var app = builder.Build();
 
-// ─── Seed Admin mặc định ──────────────────────────────────────────────────────
+// ─── Tự động cập nhật database + Seed Admin mặc định ──────────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
+
+        // Tự động tạo/cập nhật database theo migration
         context.Database.Migrate();
 
+        // Tạo tài khoản Admin mặc định nếu chưa có
         if (!context.Users.Any(u => u.TenDangNhap == "Admin"))
         {
             context.Users.Add(new User
@@ -153,13 +184,15 @@ using (var scope = app.Services.CreateScope())
                 VaiTro = "Admin",
                 MatKhau = BCrypt.Net.BCrypt.HashPassword("Admin123")
             });
+
             context.SaveChanges();
         }
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Lỗi khi seed dữ liệu mặc định.");
+
+        logger.LogError(ex, "Lỗi khi tự động cập nhật database hoặc seed dữ liệu mặc định.");
     }
 }
 
@@ -168,6 +201,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
@@ -177,5 +211,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapControllers();
+
 app.MapFallbackToFile("index.html");
+
 app.Run();

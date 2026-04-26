@@ -43,8 +43,6 @@ const API = {
     hoadon: {
         getAll: () => apiFetch('/api/HoaDon'),
         getInfoByPhong: (phongId) => apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}`),
-        getPayments: (hoaDonId) => apiFetch(`/api/ThanhToan/HoaDon/${hoaDonId}`),
-        createPayment: (data) => apiFetch('/api/ThanhToan', 'POST', data),
         exportPdf: (id) => {
             window.open(`/api/HoaDon/ExportPdf/${id}`, '_blank');
         }
@@ -58,7 +56,32 @@ const API = {
 
     // 5. KHÁCH THUÊ (TENANTS)
     nguoithue: {
+        getAll: () => apiFetch('/api/NguoiThue'),
+        getById: (id) => apiFetch(`/api/NguoiThue/${id}`),
         search: (keyword) => apiFetch(`/api/NguoiThue/Search?keyword=${encodeURIComponent(keyword)}`),
+        delete: (id) => apiFetch(`/api/NguoiThue/${id}`, 'DELETE'),
+        getMine: () => apiFetch('/api/NguoiThue/cua-toi'),
+        updateMine: (id, data) => apiFetch(`/api/NguoiThue/cua-toi/${id}`, 'PUT', data),
+        uploadCccdImage: async (file) => {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch('/api/NguoiThue/upload-cccd-image', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: formData
+            });
+
+            const text = await res.text();
+            let json = {};
+            try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+
+            if (!res.ok || json.thanhCong === false) {
+                throw new Error(extractApiErrorMessage(json) || 'Upload ảnh CCCD thất bại');
+            }
+
+            return json.duLieu || json;
+        }
     },
 
     // 6. YÊU CẦU THUÊ
