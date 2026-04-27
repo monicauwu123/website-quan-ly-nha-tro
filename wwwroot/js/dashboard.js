@@ -144,272 +144,86 @@ async function loadLookups() {
 // ==========================================
 // MODULE CONFIGS
 // ==========================================
-const modules = {
-    nhatro: {
-        title: 'Nhà Trọ',
-        endpoint: '/api/NhaTro',
-        pk: 'maNhaTro',
-        headers: [
-            { label: 'Tên nhà trọ', key: 'tenNhaTro' },
-            { label: 'Địa chỉ', key: 'diaChi' },
-            { label: 'Mô tả', key: 'moTa' }
-        ],
-        fields: [
-            { id: 'tenNhaTro', label: 'Tên nhà trọ', type: 'text', required: true },
-            { id: 'diaChi', label: 'Địa chỉ', type: 'text', required: true },
-            { id: 'moTa', label: 'Mô tả', type: 'textarea' }
-        ]
-    },
+const modules = window.AppModules || {};
 
-    loaiphong: {
-        title: 'Loại Phòng',
-        endpoint: '/api/LoaiPhong',
-        pk: 'maLoaiPhong',
-        headers: [
-            { label: 'Tên loại phòng', key: 'tenLoaiPhong' },
-            { label: 'Mô tả', key: 'moTa' }
-        ],
-        fields: [
-            { id: 'tenLoaiPhong', label: 'Tên loại phòng', type: 'text', required: true },
-            { id: 'moTa', label: 'Mô tả', type: 'textarea' }
-        ]
-    },
-
-    phong: {
-        title: 'Phòng Trọ',
-        endpoint: '/api/Phong',
-        pk: 'maPhong',
-        headers: [
-            { label: 'Tên phòng', key: 'tenPhong' },
-            { label: 'Nhà trọ', key: 'maNhaTro', render: v => lookups.nhatro.find(n => n.maNhaTro === v)?.tenNhaTro || `#${v}` },
-            { label: 'Loại phòng', key: 'maLoaiPhong', render: v => lookups.loaiphong.find(l => l.maLoaiPhong === v)?.tenLoaiPhong || `#${v}` },
-            { label: 'Giá thuê', key: 'giaPhong', render: fmtCurrency },
-            { label: 'Diện tích', key: 'dienTich', render: v => v ? `${v} m²` : '---' },
-            { label: 'Sức chứa', key: 'sucChua' },
-            {
-                label: 'Trạng thái', key: 'maTrangThai', render: v => {
-                    const t = lookups.trangthai.find(t => t.maTrangThai === v);
-                    const cls = v === 1 ? 'badge-success' : v === 2 ? 'badge-danger' : 'badge-warning';
-                    return `<span class="badge ${cls}">${t?.tenTrangThai || v}</span>`;
-                }
-            }
-        ],
-        fields: [
-            { id: 'tenPhong', label: 'Tên phòng', type: 'text', required: true },
-            { id: 'maNhaTro', label: 'Nhà trọ', type: 'lookup', lookup: 'nhatro', valField: 'maNhaTro', txtField: 'tenNhaTro', required: true },
-            { id: 'maLoaiPhong', label: 'Loại phòng', type: 'lookup', lookup: 'loaiphong', valField: 'maLoaiPhong', txtField: 'tenLoaiPhong', required: true },
-            { id: 'maTrangThai', label: 'Trạng thái', type: 'lookup', lookup: 'trangthai', valField: 'maTrangThai', txtField: 'tenTrangThai', required: true },
-            { id: 'giaPhong', label: 'Giá thuê (đ)', type: 'number', required: true },
-            { id: 'dienTich', label: 'Diện tích (m²)', type: 'number' },
-            { id: 'sucChua', label: 'Sức chứa (người)', type: 'number', required: true },
-            { id: 'fileUpload', label: 'Tải ảnh mới', type: 'file' },
-            { id: 'soNguoiHienTai', label: 'Số người hiện tại', type: 'number', defaultVal: 0, hidden: true },
-
-            { id: 'diaChiPhong', label: 'Địa chỉ phòng', type: 'text' },
-            { id: 'moTa', label: 'Mô tả', type: 'textarea' }
-        ]
-    },
-
-    nguoithue: {
-        title: 'Khách Thuê',
-        endpoint: '/api/NguoiThue',
-        pk: 'maNguoiThue',
-        headers: [
-            { label: 'Họ tên', key: 'hoTen' },
-            { label: 'CCCD', key: 'cccd' },
-            { label: 'Số điện thoại', key: 'sdt' },
-            { label: 'Email', key: 'email' },
-            { label: 'Phòng', key: 'maPhong', render: v => lookups.phong.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
-            { label: 'Ảnh CCCD', key: 'anhCccdMatTruoc', render: (v, row) => {
-                const hasFront = !!row.anhCccdMatTruoc;
-                const hasBack = !!row.anhCccdMatSau;
-                if (!hasFront && !hasBack) return '<span style="color:var(--text-light);">Chưa có</span>';
-                return `<span class="badge badge-success">${hasFront ? 'Mặt trước' : ''}${hasFront && hasBack ? ' / ' : ''}${hasBack ? 'Mặt sau' : ''}</span>`;
-            } },
-            { label: 'Giới tính', key: 'gioiTinh' },
-            { label: 'Ngày sinh', key: 'ngaySinh', render: fmtDate }
-        ],
-        fields: [
-            { id: 'hoTen', label: 'Họ tên', type: 'text', required: true },
-            { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },
-            { id: 'cccd', label: 'CCCD/CMND', type: 'text' },
-            { id: 'anhCccdMatTruoc', label: 'Ảnh CCCD mặt trước', type: 'file' },
-            { id: 'anhCccdMatSau', label: 'Ảnh CCCD mặt sau', type: 'file' },
-            { id: 'sdt', label: 'Số điện thoại', type: 'text' },
-            { id: 'email', label: 'Email', type: 'email' },
-            { id: 'ngaySinh', label: 'Ngày sinh', type: 'date' },
-            { id: 'gioiTinh', label: 'Giới tính', type: 'options', options: ['Nam', 'Nữ', 'Khác'] },
-            { id: 'diaChi', label: 'Địa chỉ', type: 'text' },
-            { id: 'quocTich', label: 'Quốc tịch', type: 'text', defaultVal: 'Việt Nam' },
-            { id: 'noiCongTac', label: 'Nơi công tác', type: 'text' }
-        ]
-    },
-
-    hopdong: {
-        title: 'Hợp Đồng',
-        endpoint: '/api/HopDong',
-        pk: 'maHopDong',
-        customModal: true,
-        headers: [
-            { label: 'Phòng', key: 'phong', render: (v, row) => v?.tenPhong || `Phòng #${row.maPhong}` },
-            { label: 'Khách thuê', key: 'nguoiThue', render: (v, row) => v?.hoTen || `Khách #${row.maNguoiThue}` },
-            { label: 'Ngày bắt đầu', key: 'ngayBatDau', render: fmtDate },
-            { label: 'Ngày kết thúc', key: 'ngayKetThuc', render: v => v ? fmtDate(v) : 'Không xác định' },
-            { label: 'Tiền cọc', key: 'tienCoc', render: fmtCurrency },
-            {
-                label: 'Trạng thái', key: 'trangThaiText', render: v => {
-                    const cls = v === 'Đang còn hiệu lực' ? 'badge-success' : v === 'Sắp hết hợp đồng' ? 'badge-warning' : 'badge-danger';
-                    return `<span class="badge ${cls}">${v || '---'}</span>`;
-                }
-            }
-        ]
-    },
-
-    yeucauthue: {
-        title: 'Yêu Cầu Thuê',
-        endpoint: '/api/YeuCauThue',
-        pk: 'maYeuCau',
-        customModal: true,
-        headers: [
-            { label: 'Người gửi', key: 'nguoiDung', render: v => v?.hoTen || v?.email || '---' },
-            { label: 'Phòng', key: 'phong', render: v => v?.tenPhong || '---' },
-            { label: 'Nhà trọ', key: 'phong', render: v => v?.nhaTro?.tenNhaTro || '---' },
-            { label: 'Ngày gửi', key: 'ngayGui', render: fmtDate },
-            { label: 'Trạng thái', key: 'trangThaiText', render: (v, row) => {
-                const cls = row.trangThai === 'ChoDuyet' ? 'badge-warning' : row.trangThai === 'DaLapHopDong' ? 'badge-success' : row.trangThai === 'TuChoi' ? 'badge-danger' : 'badge-info';
-                return `<span class="badge ${cls}">${v || row.trangThai || '---'}</span>`;
-            }},
-            { label: 'Ghi chú', key: 'ghiChuNguoiDung' }
-        ]
-    },
-
-    hoadon: {
-        title: 'Hóa Đơn',
-        endpoint: '/api/HoaDon',
-        pk: 'maHoaDon',
-        customModal: true,
-        headers: [
-            { label: 'Phòng', key: 'tenPhong' },
-            { label: 'Khách thuê', key: 'tenNguoiThue' },
-            { label: 'Kỳ hóa đơn', key: 'kyHoaDon' },
-            { label: 'Tiền phòng', key: 'tienPhong', render: fmtCurrency },
-            { label: 'Tiền điện', key: 'tienDien', render: fmtCurrency },
-            { label: 'Tiền nước', key: 'tienNuoc', render: fmtCurrency },
-            { label: 'Phát sinh khác', key: 'tienPhatSinhKhac', render: fmtCurrency },
-            { label: 'Tổng tiền', key: 'tongTien', render: v => `<strong style="color:var(--primary)">${fmtCurrency(v)}</strong>` },
-            { label: 'Ngày lập', key: 'ngayLap', render: fmtDate },
-            { label: 'In', key: 'maHoaDon', render: v => `<button class="btn" style="padding:0.2rem 0.5rem; background:#6366f1; color:white;" onclick="API.hoadon.exportPdf(${v})"><i class="fas fa-file-pdf"></i> PDF</button>` }
-        ]
-    },
-
-    thanhtoan: {
-        title: 'Thanh Toán',
-        endpoint: '/api/ThanhToan',
-        pk: 'maThanhToan',
-        headers: [
-            { label: 'Hóa đơn', key: 'maHoaDon', render: v => `HĐ#${v}` },
-            { label: 'Khách thuê', key: 'maNguoiThue', render: v => lookups.nguoithue.find(n => n.maNguoiThue === v)?.hoTen || `#${v}` },
-            { label: 'Ngày thanh toán', key: 'ngayThanhToan', render: fmtDate },
-            { label: 'Số tiền', key: 'tongTien', render: fmtCurrency },
-            { label: 'Hình thức', key: 'hinhThucThanhToan' },
-            { label: 'Ghi chú', key: 'ghiChu' }
-        ],
-        fields: [
-            { id: 'MaHoaDon', label: 'Hóa đơn', type: 'lookup', lookup: 'hoadon', valField: 'maHoaDon', txtField: 'maHoaDon', required: true },
-            { id: 'MaNguoiThue', label: 'Khách thuê', type: 'lookup', lookup: 'nguoithue', valField: 'maNguoiThue', txtField: 'hoTen', required: true },
-            { id: 'TongTien', label: 'Số tiền thanh toán (đ)', type: 'number', required: true },
-            { id: 'HinhThucThanhToan', label: 'Hình thức thanh toán', type: 'lookup', lookup: 'hinhthuc', valField: 'val', txtField: 'label', required: true },
-            { id: 'GhiChu', label: 'Ghi chú', type: 'text' }
-        ]
-    },
-
-    dichvu: {
-        title: 'Dịch Vụ',
-        endpoint: '/api/DichVu',
-        pk: 'maDichVu',
-        headers: [
-            { label: 'Tên dịch vụ', key: 'tenDichVu' },
-            { label: 'Đơn giá', key: 'tiendichvu', render: fmtCurrency }
-        ],
-        fields: [
-            { id: 'tenDichVu', label: 'Tên dịch vụ', type: 'text', required: true },
-            { id: 'tiendichvu', label: 'Đơn giá (đ)', type: 'number', required: true }
-        ]
-    },
-
-    user: {
-        title: 'Người Dùng',
-        endpoint: '/api/User',
-        pk: 'maNguoiDung',
-        customModal: true,
-        headers: [
-            { label: 'Tên đăng nhập', key: 'tenDangNhap' },
-            { label: 'Họ tên', key: 'hoTen' },
-            { label: 'Email', key: 'email' },
-            {
-                label: 'Vai trò', key: 'vaiTro', render: v => {
-                    const cls = v === 'Admin' ? 'badge-danger' : v === 'ChuTro' ? 'badge-warning' : 'badge-info';
-                    return `<span class="badge ${cls}">${v}</span>`;
-                }
-            },
-            { label: 'SĐT', key: 'soDienThoai' },
-            { label: 'Trạng thái', key: 'trangThai', render: v => v ? '<span class="badge badge-success">Hoạt động</span>' : '<span class="badge badge-secondary">Khóa</span>' }
-        ]
-    }
-};
 
 // --- Điện & Nước modules ---
-const dienModule = {
-    title: 'Chỉ Số Điện',
-    endpoint: '/api/ChiSoDien',
-    pk: 'maDien',
-    headers: [
-        { label: 'Phòng', key: 'maPhong', render: v => lookups.phong.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
-        { label: 'Chỉ số cũ', key: 'soDienCu', render: v => `${v} kWh` },
-        { label: 'Chỉ số mới', key: 'soDienMoi', render: v => `${v} kWh` },
-        { label: 'Tiêu thụ', key: null, render: (_, row) => `${(row.soDienMoi || 0) - (row.soDienCu || 0)} kWh` },
-        { label: 'Giá điện/kWh', key: 'giaDien', render: fmtCurrency },
-        { label: 'Tiền điện', key: 'tienDien', render: v => `<strong>${fmtCurrency(v)}</strong>` },
-        { label: 'Ngày ghi', key: 'ngayThangDien', render: fmtDate }
-    ],
-    fields: [
-        { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },
-        { id: 'soDienCu', label: 'Chỉ số cũ (kWh)', type: 'number', required: true },
-        { id: 'soDienMoi', label: 'Chỉ số mới (kWh)', type: 'number', required: true },
-        { id: 'giaDien', label: 'Giá điện (đ/kWh)', type: 'number', required: true, defaultVal: 3500 },
-        { id: 'ngayThangDien', label: 'Ngày ghi', type: 'date', required: true }
-    ]
-};
-
-const nuocModule = {
-    title: 'Chỉ Số Nước',
-    endpoint: '/api/ChiSoNuoc',
-    pk: 'maNuoc',
-    headers: [
-        { label: 'Phòng', key: 'maPhong', render: v => lookups.phong.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
-        { label: 'Chỉ số cũ', key: 'soNuocCu', render: v => `${v} m³` },
-        { label: 'Chỉ số mới', key: 'soNuocMoi', render: v => `${v} m³` },
-        { label: 'Tiêu thụ', key: null, render: (_, row) => `${(row.soNuocMoi || 0) - (row.soNuocCu || 0)} m³` },
-        { label: 'Giá nước/m³', key: 'giaNuoc', render: fmtCurrency },
-        { label: 'Tiền nước', key: 'tienNuoc', render: v => `<strong>${fmtCurrency(v)}</strong>` },
-        { label: 'Ngày ghi', key: 'ngayThangNuoc', render: fmtDate }
-    ],
-    fields: [
-        { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },
-        { id: 'soNuocCu', label: 'Chỉ số cũ (m³)', type: 'number', required: true },
-        { id: 'soNuocMoi', label: 'Chỉ số mới (m³)', type: 'number', required: true },
-        { id: 'giaNuoc', label: 'Giá nước (đ/m³)', type: 'number', required: true, defaultVal: 20000 },
-        { id: 'ngayThangNuoc', label: 'Ngày ghi', type: 'date', required: true }
-    ]
-};
+const dienModule = window.AppDienNuocModules?.dien || {};
+const nuocModule = window.AppDienNuocModules?.nuoc || {};
 
 // ==========================================
 // SECTION NAVIGATION
 // ==========================================
-function showSection(section, el) {
-    currentSection = section;
+function normalizeSectionFromHash() {
+    const raw = (window.location.hash || '').replace('#', '').trim();
+    if (!raw) return 'overview';
+
+    const aliases = {
+        'nha-tro': 'nhatro',
+        'phong-tro': 'phong',
+        'loai-phong': 'loaiphong',
+        'dich-vu': 'dichvu',
+        'khach-thue': 'nguoithue',
+        'hop-dong': 'hopdong',
+        'hoa-don': 'hoadon',
+        'thanh-toan': 'thanhtoan',
+        'dien-nuoc': 'diennuoc',
+        'yeu-cau-thue': 'yeucauthue',
+        'bao-cao-su-co': 'baocaosuco',
+        'nguoi-dung': 'user',
+        'tai-khoan': 'account'
+    };
+
+    return aliases[raw] || raw;
+}
+
+function sectionToHash(section) {
+    const map = {
+        nhatro: 'nha-tro',
+        phong: 'phong',
+        loaiphong: 'loai-phong',
+        dichvu: 'dich-vu',
+        nguoithue: 'khach-thue',
+        hopdong: 'hop-dong',
+        hoadon: 'hoa-don',
+        thanhtoan: 'thanh-toan',
+        diennuoc: 'dien-nuoc',
+        yeucauthue: 'yeu-cau-thue',
+        baocaosuco: 'bao-cao-su-co',
+        user: 'nguoi-dung',
+        account: 'tai-khoan',
+        overview: 'overview'
+    };
+    return map[section] || section;
+}
+
+function activateNav(section, el) {
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    if (el) el.classList.add('active');
+    if (el) {
+        el.classList.add('active');
+        return;
+    }
+
+    const hash = sectionToHash(section);
+    const candidates = [section, hash];
+    const matched = Array.from(document.querySelectorAll('.nav-link')).find(link => {
+        const attr = link.getAttribute('onclick') || '';
+        return candidates.some(x => attr.includes(`'${x}'`) || attr.includes(`\"${x}\"`));
+    });
+    if (matched) matched.classList.add('active');
+}
+
+function showSection(section, el, skipHashUpdate = false) {
+    currentSection = section;
+
+    if (!skipHashUpdate) {
+        const nextHash = '#' + sectionToHash(section);
+        if (window.location.hash !== nextHash) {
+            history.pushState(null, '', nextHash);
+        }
+    }
+
+    activateNav(section, el);
 
     const addBtn = document.getElementById('addBtn');
     const sectionTitle = document.getElementById('sectionTitle');
@@ -1586,5 +1400,14 @@ function logout() {
 // ==========================================
 (async () => {
     await loadLookups();
-    loadOverview();
+
+    const firstSection = normalizeSectionFromHash();
+    showSection(firstSection, null, true);
+
+    window.addEventListener('hashchange', () => {
+        const section = normalizeSectionFromHash();
+        if (section !== currentSection) {
+            showSection(section, null, true);
+        }
+    });
 })();
