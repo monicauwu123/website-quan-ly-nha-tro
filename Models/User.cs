@@ -49,6 +49,21 @@ namespace DoAnSE104.Models
         [StringLength(500)]
         public string? AnhCccdMatSau { get; set; }
 
+        [StringLength(100)]
+        public string? TenNganHang { get; set; }
+
+        [StringLength(50)]
+        public string? MaNganHang { get; set; }
+
+        [StringLength(50)]
+        public string? SoTaiKhoan { get; set; }
+
+        [StringLength(100)]
+        public string? TenChuTaiKhoan { get; set; }
+
+        [StringLength(255)]
+        public string? NoiDungChuyenKhoanMacDinh { get; set; }
+
         /// <summary>Admin | ChuTro | NguoiDung</summary>
         public string VaiTro { get; set; } = "NguoiDung";
 

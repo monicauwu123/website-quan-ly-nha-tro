@@ -65,6 +65,15 @@ namespace DoAnSE104.Services
             user.AnhCccdMatTruoc = dto.AnhCccdMatTruoc;
             user.AnhCccdMatSau = dto.AnhCccdMatSau;
 
+            if (user.VaiTro == "ChuTro" || user.VaiTro == "Admin")
+            {
+                user.TenNganHang = string.IsNullOrWhiteSpace(dto.TenNganHang) ? null : dto.TenNganHang.Trim();
+                user.MaNganHang = string.IsNullOrWhiteSpace(dto.MaNganHang) ? null : dto.MaNganHang.Trim();
+                user.SoTaiKhoan = string.IsNullOrWhiteSpace(dto.SoTaiKhoan) ? null : dto.SoTaiKhoan.Trim();
+                user.TenChuTaiKhoan = string.IsNullOrWhiteSpace(dto.TenChuTaiKhoan) ? null : dto.TenChuTaiKhoan.Trim();
+                user.NoiDungChuyenKhoanMacDinh = string.IsNullOrWhiteSpace(dto.NoiDungChuyenKhoanMacDinh) ? null : dto.NoiDungChuyenKhoanMacDinh.Trim();
+            }
+
             var danhSachNguoiThue = await _context.NguoiThue
                 .Where(nt => nt.MaNguoiDung == maNguoiDung)
                 .ToListAsync();
@@ -182,6 +191,11 @@ namespace DoAnSE104.Services
             NoiCongTac = u.NoiCongTac,
             AnhCccdMatTruoc = u.AnhCccdMatTruoc,
             AnhCccdMatSau = u.AnhCccdMatSau,
+            TenNganHang = u.TenNganHang,
+            MaNganHang = u.MaNganHang,
+            SoTaiKhoan = u.SoTaiKhoan,
+            TenChuTaiKhoan = u.TenChuTaiKhoan,
+            NoiDungChuyenKhoanMacDinh = u.NoiDungChuyenKhoanMacDinh,
             VaiTro = u.VaiTro,
             NgayTao = u.NgayTao,
             TrangThai = u.TrangThai

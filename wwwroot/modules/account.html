@@ -40,6 +40,28 @@
                                     <label>Số điện thoại</label>
                                     <input type="text" id="editPhone" class="form-control" placeholder="0912345678" maxlength="15">
                                 </div>
+                                <div class="form-group account-owner-payment" style="display:none;">
+                                    <label>Tên ngân hàng</label>
+                                    <input type="text" id="editTenNganHang" class="form-control" placeholder="VD: Vietcombank" maxlength="100">
+                                </div>
+                                <div class="form-group account-owner-payment" style="display:none;">
+                                    <label>Mã ngân hàng VietQR</label>
+                                    <input type="text" id="editMaNganHang" class="form-control" placeholder="VD: VCB, BIDV, MB, TCB..." maxlength="50">
+                                    <small style="color:var(--text-light);">Dùng mã ngân hàng VietQR để tạo mã QR thanh toán.</small>
+                                </div>
+                                <div class="form-group account-owner-payment" style="display:none;">
+                                    <label>Số tài khoản</label>
+                                    <input type="text" id="editSoTaiKhoan" class="form-control" placeholder="Nhập số tài khoản nhận tiền" maxlength="50">
+                                </div>
+                                <div class="form-group account-owner-payment" style="display:none;">
+                                    <label>Tên chủ tài khoản</label>
+                                    <input type="text" id="editTenChuTaiKhoan" class="form-control" placeholder="Tên trên tài khoản ngân hàng" maxlength="100">
+                                </div>
+                                <div class="form-group account-owner-payment" style="display:none;grid-column:1/-1;">
+                                    <label>Nội dung chuyển khoản mặc định</label>
+                                    <input type="text" id="editNoiDungChuyenKhoanMacDinh" class="form-control" placeholder="VD: Thanh toán hóa đơn {MaHoaDon} phòng {TenPhong}" maxlength="255">
+                                    <small style="color:var(--text-light);">Có thể dùng: {MaHoaDon}, {KyHoaDon}, {TenPhong}</small>
+                                </div>
                                 <div class="form-group account-user-extra">
                                     <label>CCCD/CMND</label>
                                     <input type="text" id="editCCCD" class="form-control" placeholder="Nhập số CCCD/CMND" maxlength="20">

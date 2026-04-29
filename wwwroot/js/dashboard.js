@@ -40,11 +40,17 @@ let currentSection = 'overview';
 let currentSubSection = 'dien';
 let currentData = [];
 let lookups = { nhatro: [], loaiphong: [], trangthai: [], phong: [], nguoithue: [] };
-window.lookups = lookups;
 
 // --- FORMATTERS ---
 const fmtCurrency = v => (v != null && v !== '') ? new Intl.NumberFormat('vi-VN').format(v) + 'đ' : '---';
 const fmtDate = v => v ? new Date(v).toLocaleDateString('vi-VN') : '---';
+function escapeHtmlDashboard(v) {
+    return v === null || v === undefined ? '' : String(v)
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+}
 
 // ==========================================
 // API WRAPPER
@@ -172,7 +178,7 @@ function normalizeSectionFromHash() {
         'yeu-cau-thue': 'yeucauthue',
         'bao-cao-su-co': 'baocaosuco',
         'nguoi-dung': 'user',
-        'tai-khoan': 'taikhoan'
+        'tai-khoan': 'account'
     };
 
     return aliases[raw] || raw;
@@ -192,7 +198,6 @@ function sectionToHash(section) {
         yeucauthue: 'yeu-cau-thue',
         baocaosuco: 'bao-cao-su-co',
         user: 'nguoi-dung',
-        taikhoan: 'tai-khoan',
         account: 'tai-khoan',
         overview: 'overview'
     };
@@ -216,8 +221,6 @@ function activateNav(section, el) {
 }
 
 function showSection(section, el, skipHashUpdate = false) {
-    if (section === 'account') section = 'taikhoan';
-    if (section === 'thanhtoan') section = 'hoadon';
     currentSection = section;
 
     if (!skipHashUpdate) {
@@ -233,17 +236,11 @@ function showSection(section, el, skipHashUpdate = false) {
     const sectionTitle = document.getElementById('sectionTitle');
 
     // NguoiDung chỉ xem, không được tạo/sửa/xóa
-    const canCreate = ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco'].includes(section))
-        || (CURRENT_ROLE === 'NguoiDung' && (section === 'yeucauthue' || section === 'baocaosuco'));
+    const canCreate = ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && section !== 'yeucauthue')
+        || (CURRENT_ROLE === 'NguoiDung' && section === 'yeucauthue');
     const canWrite = canCreate;
 
-    const taikhoanSec = document.getElementById('taikhoanSection');
-    if (taikhoanSec) taikhoanSec.style.display = section === 'taikhoan' ? 'block' : 'none';
-
-    if (section === 'taikhoan') {
-        addBtn.style.display = 'none';
-        sectionTitle.textContent = 'Tài khoản của tôi';
-    } else if (section === 'overview') {
+    if (section === 'overview') {
         addBtn.style.display = 'none';
         sectionTitle.textContent = 'Tổng quan hệ thống';
     } else if (section === 'diennuoc') {
@@ -257,12 +254,8 @@ function showSection(section, el, skipHashUpdate = false) {
     }
 
     document.getElementById('overviewSection').style.display = section === 'overview' ? 'block' : 'none';
-    document.getElementById('genericSection').style.display = (section !== 'overview' && section !== 'taikhoan') ? 'block' : 'none';
+    document.getElementById('genericSection').style.display = section !== 'overview' ? 'block' : 'none';
 
-    if (section === 'taikhoan') {
-        if (typeof loadProfile === 'function') loadProfile();
-        return;
-    }
     if (section === 'overview') loadOverview();
     else if (section === 'phong') renderRoomGrid();
     else if (section === 'diennuoc') renderDienNuocSection();
@@ -511,11 +504,7 @@ function filterRooms() {
 // ==========================================
 async function loadGenericSection(section) {
     const cfg = modules[section];
-    if (!cfg) {
-        const body = document.getElementById('genericSection');
-        if (body) body.innerHTML = `<div class="data-card" style="padding:1.5rem;color:var(--error);"><i class="fas fa-exclamation-circle"></i> Chưa có cấu hình giao diện cho mục: ${section}</div>`;
-        return;
-    }
+    if (!cfg) return;
     document.getElementById('addBtn').onclick = () => openModal();
 
     let searchHtml = '';
@@ -569,14 +558,6 @@ function renderTable(cfg, data, section) {
             } else if (CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'ChoDuyet') {
                 actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('yeucauthue',${item.maYeuCau})"><i class="fas fa-trash"></i> Hủy</button>`;
             }
-        } else if (section === 'baocaosuco') {
-            actionHtml = `<button class="btn-action btn-edit" onclick="viewBaoCaoSuCoDetail(${item.maBaoCao})"><i class="fas fa-eye"></i> Chi tiết</button>`;
-            if ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && item.trangThai !== 'Huy') {
-                actionHtml += ` <button class="btn-action btn-edit" onclick="openBaoCaoSuCoModal(${item.maBaoCao})"><i class="fas fa-reply"></i> Xử lý</button>`;
-            }
-            if ((CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'Moi') || CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
-                actionHtml += ` <button class="btn-action btn-delete" onclick="deleteItem('baocaosuco',${item.maBaoCao})"><i class="fas fa-trash"></i> ${CURRENT_ROLE === 'NguoiDung' ? 'Hủy' : 'Xóa'}</button>`;
-            }
         } else if (section === 'nguoithue') {
             actionHtml = `<button class="btn-action btn-edit" onclick="viewNguoiThueDetail(${item.maNguoiThue})"><i class="fas fa-eye"></i> Chi tiết</button>`;
 
@@ -587,6 +568,13 @@ function renderTable(cfg, data, section) {
             } else if (CURRENT_ROLE === 'ChuTro') {
                 actionHtml += `
                     <button class="btn-action btn-delete" onclick="deleteItem('nguoithue',${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
+            }
+        } else if (section === 'hoadon') {
+            actionHtml = `<button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>`;
+            if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
+                actionHtml += `
+                    <button class="btn-action btn-edit" onclick="editItem('hoadon',${item.maHoaDon})"><i class="fas fa-edit"></i> Sửa</button>
+                    <button class="btn-action btn-delete" onclick="deleteItem('hoadon',${item.maHoaDon})"><i class="fas fa-trash"></i> Xóa</button>`;
             }
         } else if (canWrite) {
             actionHtml = `
@@ -887,7 +875,6 @@ function openModal(id = null) {
         if (section === 'yeucauthue') return openYeuCauThueModal(id);
         if (section === 'hoadon') return openHoaDonModal(id);
         if (section === 'user') return openUserModal(id);
-        if (section === 'baocaosuco') return openBaoCaoSuCoModal(id);
         return;
     }
 
@@ -1232,137 +1219,130 @@ function recalcTotal() {
 
 
 // ==========================================
-// BÁO CÁO SỰ CỐ CUSTOM MODAL
+// THANH TOÁN HÓA ĐƠN
 // ==========================================
-async function openBaoCaoSuCoModal(id = null) {
+async function openHoaDonThanhToanModal(maHoaDon) {
+    const hoaDon = (currentData || []).find(h => h.maHoaDon == maHoaDon);
+    if (!hoaDon) {
+        showToast('Không tìm thấy hóa đơn', 'error');
+        return;
+    }
+
     resetModalFooter();
+    document.getElementById('modalTitle').textContent = `Thanh toán hóa đơn #${hoaDon.maHoaDon}`;
 
-    if (CURRENT_ROLE === 'NguoiDung' && !id) {
-        document.getElementById('modalTitle').textContent = 'Gửi báo cáo sự cố';
-        let taoMoi = { phongDangThue: [], mucDo: ['Bình thường', 'Gấp', 'Rất gấp'] };
-        try {
-            taoMoi = await apiFetch('/api/BaoCaoSuCo/TaoMoi') || taoMoi;
-        } catch (e) {
-            showToast(e.message || 'Không tải được danh sách phòng đang thuê', 'error');
-        }
-
-        const phongList = taoMoi.phongDangThue || [];
-        document.getElementById('modalFields').innerHTML = `
-            <div class="form-group">
-                <label>Phòng đang thuê <span style="color:var(--error)">*</span></label>
-                <select id="f_maPhong" class="form-control" required>
-                    <option value="">-- Chọn phòng --</option>
-                    ${phongList.map(p => `<option value="${p.maPhong}">${p.tenPhong || ('Phòng #' + p.maPhong)}${p.nhaTro?.tenNhaTro ? ' - ' + p.nhaTro.tenNhaTro : ''}</option>`).join('')}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Mức độ</label>
-                <select id="f_mucDo" class="form-control">
-                    ${(taoMoi.mucDo || ['Bình thường', 'Gấp', 'Rất gấp']).map(m => `<option value="${m}">${m}</option>`).join('')}
-                </select>
-            </div>
-            <div class="form-group" style="grid-column:1/-1;">
-                <label>Tiêu đề <span style="color:var(--error)">*</span></label>
-                <input type="text" id="f_tieuDe" class="form-control" required maxlength="150" placeholder="Ví dụ: Bóng đèn phòng bị hỏng">
-            </div>
-            <div class="form-group" style="grid-column:1/-1;">
-                <label>Nội dung sự cố <span style="color:var(--error)">*</span></label>
-                <textarea id="f_noiDung" class="form-control" required maxlength="1000" placeholder="Mô tả chi tiết sự cố..."></textarea>
-            </div>`;
-
-        document.getElementById('modalForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const payload = {
-                maPhong: Number(document.getElementById('f_maPhong').value),
-                tieuDe: document.getElementById('f_tieuDe').value.trim(),
-                noiDung: document.getElementById('f_noiDung').value.trim(),
-                mucDo: document.getElementById('f_mucDo').value
-            };
-            try {
-                await apiFetch('/api/BaoCaoSuCo', 'POST', payload);
-                showToast('Gửi báo cáo sự cố thành công!');
-                closeModal();
-                refreshData();
-            } catch (e) {
-                showToast(e.message || 'Lỗi gửi báo cáo sự cố', 'error');
-            }
-        };
-
-        document.getElementById('universalModal').style.display = 'flex';
-        return;
+    let history = [];
+    try {
+        history = await apiFetch(`/api/ThanhToan/HoaDon/${maHoaDon}`) || [];
+    } catch (e) {
+        console.warn('Không tải được lịch sử thanh toán', e);
     }
 
-    if (!(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
-        showToast('Bạn không có quyền xử lý báo cáo này', 'error');
-        return;
-    }
+    const conLai = Number(hoaDon.conLai ?? Math.max((hoaDon.tongTien || 0) - (hoaDon.daThanhToan || 0), 0));
+    const hasPaymentInfo = !!(hoaDon.maNganHang && hoaDon.soTaiKhoan);
+    const isOwner = CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro';
 
-    const item = id ? (currentData.find(i => i.maBaoCao == id) || await apiFetch(`/api/BaoCaoSuCo/${id}`)) : null;
-    if (!item) return;
+    const historyHtml = history.length ? `
+        <div style="margin-top:1rem;">
+            <h4 style="margin-bottom:.5rem;">Lịch sử thanh toán</h4>
+            <div class="table-container" style="max-height:220px;overflow:auto;">
+                <table>
+                    <thead><tr><th>Ngày</th><th>Số tiền</th><th>Hình thức</th><th>Ghi chú</th></tr></thead>
+                    <tbody>${history.map(t => `
+                        <tr>
+                            <td>${fmtDate(t.ngayThanhToan)}</td>
+                            <td>${fmtCurrency(t.tongTien)}</td>
+                            <td>${escapeHtmlDashboard(t.hinhThucThanhToan || '---')}</td>
+                            <td>${escapeHtmlDashboard(t.ghiChu || '---')}</td>
+                        </tr>`).join('')}</tbody>
+                </table>
+            </div>
+        </div>` : '<div style="margin-top:1rem;color:var(--text-light);">Chưa có lịch sử thanh toán.</div>';
 
-    document.getElementById('modalTitle').textContent = 'Xử lý báo cáo sự cố';
-    document.getElementById('modalFields').innerHTML = `
-        <div style="grid-column:1/-1;" class="info-grid">
-            <div class="info-item"><label>Tiêu đề</label><span>${safeText(item.tieuDe)}</span></div>
-            <div class="info-item"><label>Mức độ</label><span>${safeText(item.mucDo)}</span></div>
-            <div class="info-item"><label>Người gửi</label><span>${safeText(item.nguoiDung?.hoTen || item.nguoiDung?.email)}</span></div>
-            <div class="info-item"><label>Phòng</label><span>${safeText(item.phong?.tenPhong)}</span></div>
-            <div class="info-item" style="grid-column:1/-1;"><label>Nội dung</label><span>${safeText(item.noiDung)}</span></div>
-        </div>
-        <div class="form-group">
-            <label>Trạng thái <span style="color:var(--error)">*</span></label>
-            <select id="f_trangThai" class="form-control" required>
-                <option value="Moi" ${item.trangThai === 'Moi' ? 'selected' : ''}>Mới gửi</option>
-                <option value="DangXuLy" ${item.trangThai === 'DangXuLy' ? 'selected' : ''}>Đang xử lý</option>
-                <option value="DaXuLy" ${item.trangThai === 'DaXuLy' ? 'selected' : ''}>Đã xử lý</option>
-            </select>
-        </div>
-        <div class="form-group" style="grid-column:1/-1;">
-            <label>Phản hồi cho khách thuê</label>
-            <textarea id="f_phanHoiChuTro" class="form-control" maxlength="1000">${item.phanHoiChuTro || ''}</textarea>
+    const qrHtml = hasPaymentInfo ? `
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:1rem;align-items:start;margin-top:1rem;">
+            <div style="text-align:center;">
+                ${hoaDon.qrThanhToanUrl ? `<img src="${escapeHtmlDashboard(hoaDon.qrThanhToanUrl)}" alt="QR thanh toán" style="width:220px;max-width:100%;border-radius:.75rem;border:1px solid #e5e7eb;background:white;">` : '<div style="padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;">Chưa tạo được QR</div>'}
+                <div style="font-size:.8rem;color:var(--text-light);margin-top:.5rem;">QR VietQR theo số tiền còn lại</div>
+            </div>
+            <div class="info-grid" style="grid-template-columns:1fr;">
+                <div class="info-item"><label>Ngân hàng</label><span>${escapeHtmlDashboard(hoaDon.tenNganHang || hoaDon.maNganHang || '---')}</span></div>
+                <div class="info-item"><label>Số tài khoản</label><span>${escapeHtmlDashboard(hoaDon.soTaiKhoan || '---')}</span></div>
+                <div class="info-item"><label>Tên chủ tài khoản</label><span>${escapeHtmlDashboard(hoaDon.tenChuTaiKhoan || hoaDon.tenChuTro || '---')}</span></div>
+                <div class="info-item"><label>Nội dung chuyển khoản</label><span>${escapeHtmlDashboard(hoaDon.noiDungChuyenKhoan || `Thanh toan hoa don ${hoaDon.maHoaDon}`)}</span></div>
+            </div>
+        </div>` : `
+        <div style="margin-top:1rem;padding:1rem;border-radius:.75rem;background:#fff7ed;color:#9a3412;">
+            <i class="fas fa-exclamation-circle"></i>
+            Chủ trọ chưa cập nhật thông tin nhận thanh toán. Vui lòng liên hệ chủ trọ.
         </div>`;
+
+    document.getElementById('modalFields').innerHTML = `
+        <div style="grid-column:1/-1;">
+            <div class="info-grid">
+                <div class="info-item"><label>Phòng</label><span>${escapeHtmlDashboard(hoaDon.tenPhong || '---')}</span></div>
+                <div class="info-item"><label>Khách thuê</label><span>${escapeHtmlDashboard(hoaDon.tenNguoiThue || '---')}</span></div>
+                <div class="info-item"><label>Kỳ hóa đơn</label><span>${escapeHtmlDashboard(hoaDon.kyHoaDon || '---')}</span></div>
+                <div class="info-item"><label>Tổng tiền</label><span>${fmtCurrency(hoaDon.tongTien)}</span></div>
+                <div class="info-item"><label>Đã thanh toán</label><span>${fmtCurrency(hoaDon.daThanhToan || 0)}</span></div>
+                <div class="info-item info-total"><label>Còn lại</label><span>${fmtCurrency(conLai)}</span></div>
+            </div>
+            ${qrHtml}
+            ${historyHtml}
+        </div>
+        ${isOwner && conLai > 0 ? `
+            <div class="form-group">
+                <label>Số tiền ghi nhận (đ)</label>
+                <input type="number" id="f_payAmount" class="form-control" value="${conLai}" min="1" max="${conLai}" required>
+            </div>
+            <div class="form-group">
+                <label>Hình thức thanh toán</label>
+                <select id="f_payMethod" class="form-control" required>
+                    <option value="Chuyển khoản">Chuyển khoản</option>
+                    <option value="Tiền mặt">Tiền mặt</option>
+                </select>
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label>Ghi chú</label>
+                <input type="text" id="f_payNote" class="form-control" value="Thanh toán hóa đơn ${hoaDon.maHoaDon}">
+            </div>` : ''}
+    `;
+
+    const footer = document.querySelector('#universalModal .modal-footer');
+    if (footer) {
+        footer.innerHTML = `
+            <button type="button" class="btn btn-secondary" style="width:auto;" onclick="closeModal()">Đóng</button>
+            ${isOwner && conLai > 0 ? `<button type="submit" class="btn btn-primary" style="width:auto;"><i class="fas fa-check"></i> Ghi nhận thanh toán</button>` : ''}`;
+    }
 
     document.getElementById('modalForm').onsubmit = async (e) => {
         e.preventDefault();
+        if (!isOwner || conLai <= 0) return;
+
+        const amount = Number(document.getElementById('f_payAmount').value || 0);
+        if (amount <= 0 || amount > conLai) {
+            showToast('Số tiền thanh toán không hợp lệ', 'error');
+            return;
+        }
+
         try {
-            await apiFetch(`/api/BaoCaoSuCo/${id}`, 'PUT', {
-                trangThai: document.getElementById('f_trangThai').value,
-                phanHoiChuTro: document.getElementById('f_phanHoiChuTro').value
+            await apiFetch('/api/ThanhToan', 'POST', {
+                maHoaDon: hoaDon.maHoaDon,
+                maNguoiThue: hoaDon.maNguoiThue,
+                tongTien: amount,
+                hinhThucThanhToan: document.getElementById('f_payMethod').value,
+                ghiChu: document.getElementById('f_payNote').value
             });
-            showToast('Cập nhật báo cáo sự cố thành công!');
+            showToast('Ghi nhận thanh toán thành công!');
             closeModal();
             refreshData();
-        } catch (e) {
-            showToast(e.message || 'Lỗi cập nhật báo cáo sự cố', 'error');
+            loadLookups();
+        } catch (err) {
+            showToast(err.message || 'Lỗi ghi nhận thanh toán', 'error');
         }
     };
 
     document.getElementById('universalModal').style.display = 'flex';
-}
-
-async function viewBaoCaoSuCoDetail(id) {
-    try {
-        const item = await apiFetch(`/api/BaoCaoSuCo/${id}`);
-        document.getElementById('modalTitle').textContent = 'Chi tiết báo cáo sự cố';
-        document.getElementById('modalFields').innerHTML = `
-            <div style="grid-column:1/-1;display:grid;gap:1rem;">
-                <div class="info-grid">
-                    <div class="info-item"><label>Tiêu đề</label><span>${safeText(item.tieuDe)}</span></div>
-                    <div class="info-item"><label>Mức độ</label><span>${safeText(item.mucDo)}</span></div>
-                    <div class="info-item"><label>Trạng thái</label><span>${safeText(item.trangThaiText || item.trangThai)}</span></div>
-                    <div class="info-item"><label>Ngày gửi</label><span>${fmtDate(item.ngayGui)}</span></div>
-                    <div class="info-item"><label>Người gửi</label><span>${safeText(item.nguoiDung?.hoTen || item.nguoiDung?.email)}</span></div>
-                    <div class="info-item"><label>Phòng</label><span>${safeText(item.phong?.tenPhong)}</span></div>
-                    <div class="info-item" style="grid-column:1/-1;"><label>Nội dung</label><span>${safeText(item.noiDung)}</span></div>
-                    <div class="info-item" style="grid-column:1/-1;"><label>Phản hồi chủ trọ</label><span>${safeText(item.phanHoiChuTro)}</span></div>
-                </div>
-            </div>`;
-        const footer = document.querySelector('#universalModal .modal-footer');
-        if (footer) footer.innerHTML = `<button type="button" class="btn btn-secondary" style="width:auto;" onclick="closeModal()">Đóng</button>`;
-        document.getElementById('universalModal').style.display = 'flex';
-    } catch (e) {
-        showToast(e.message || 'Không tải được chi tiết báo cáo', 'error');
-    }
 }
 
 // ==========================================

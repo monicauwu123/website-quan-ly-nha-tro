@@ -48,6 +48,11 @@ const API = {
         }
     },
 
+    thanhtoan: {
+        getByHoaDon: (hoaDonId) => apiFetch(`/api/ThanhToan/HoaDon/${hoaDonId}`),
+        create: (data) => apiFetch('/api/ThanhToan', 'POST', data)
+    },
+
     // 4. HỢP ĐỒNG (CONTRACTS)
     hopdong: {
         getAll: () => apiFetch('/api/HopDong'),

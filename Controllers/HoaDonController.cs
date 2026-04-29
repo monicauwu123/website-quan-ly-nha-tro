@@ -140,6 +140,42 @@ namespace DoAnSE104.Controllers
             }
         }
 
+        private static string LayTrangThaiThanhToan(decimal tongTien, decimal daThanhToan)
+        {
+            if (daThanhToan <= 0) return "Chưa thanh toán";
+            if (daThanhToan < tongTien) return "Thanh toán một phần";
+            return "Đã thanh toán";
+        }
+
+        private static string TaoNoiDungChuyenKhoan(HoaDon hoaDon, User? chuTro)
+        {
+            var macDinh = chuTro?.NoiDungChuyenKhoanMacDinh;
+            if (!string.IsNullOrWhiteSpace(macDinh))
+            {
+                return macDinh
+                    .Replace("{MaHoaDon}", hoaDon.MaHoaDon.ToString())
+                    .Replace("{KyHoaDon}", hoaDon.KyHoaDon ?? "")
+                    .Replace("{TenPhong}", hoaDon.Phong?.TenPhong ?? "")
+                    .Trim();
+            }
+
+            return $"Thanh toan hoa don {hoaDon.MaHoaDon} phong {hoaDon.Phong?.TenPhong ?? hoaDon.MaPhong.ToString()} ky {hoaDon.KyHoaDon}";
+        }
+
+        private static string? TaoVietQrUrl(User? chuTro, decimal soTien, string noiDung)
+        {
+            if (chuTro == null || string.IsNullOrWhiteSpace(chuTro.MaNganHang) || string.IsNullOrWhiteSpace(chuTro.SoTaiKhoan))
+                return null;
+
+            var bank = Uri.EscapeDataString(chuTro.MaNganHang.Trim());
+            var account = Uri.EscapeDataString(chuTro.SoTaiKhoan.Trim());
+            var amount = Math.Max(0, decimal.ToInt64(decimal.Round(soTien, 0, MidpointRounding.AwayFromZero)));
+            var addInfo = Uri.EscapeDataString(noiDung ?? string.Empty);
+            var accountName = Uri.EscapeDataString(chuTro.TenChuTaiKhoan ?? chuTro.HoTen ?? string.Empty);
+
+            return $"https://img.vietqr.io/image/{bank}-{account}-compact2.png?amount={amount}&addInfo={addInfo}&accountName={accountName}";
+        }
+
         // GET: api/HoaDon
         [HttpGet]
         public async Task<ActionResult<IEnumerable<HoaDonDto>>> GetAllHoaDon()
@@ -150,6 +186,7 @@ namespace DoAnSE104.Controllers
             IQueryable<HoaDon> query = _context.HoaDon
                 .Include(h => h.Phong)
                     .ThenInclude(p => p.NhaTro)
+                        .ThenInclude(n => n.ChuTro)
                 .Include(h => h.NguoiThue)
                 .Include(h => h.ChiSoDien)
                 .Include(h => h.ChiSoNuoc)
@@ -168,15 +205,29 @@ namespace DoAnSE104.Controllers
                 .OrderByDescending(h => h.NgayLap)
                 .ToListAsync();
 
+            var maHoaDons = danhSachHoaDon.Select(h => h.MaHoaDon).ToList();
+            var thanhToanTheoHoaDon = await _context.ThanhToan
+                .Where(t => maHoaDons.Contains(t.MaHoaDon))
+                .GroupBy(t => t.MaHoaDon)
+                .Select(g => new { MaHoaDon = g.Key, DaThanhToan = g.Sum(x => x.TongTien) })
+                .ToDictionaryAsync(x => x.MaHoaDon, x => x.DaThanhToan);
+
             var hoaDons = danhSachHoaDon.Select(h =>
             {
                 var chiTietDichVu = h.ChiTietHoaDon?
                     .Where(ct => ct.LoaiKhoan.StartsWith("DichVu"))
                     .ToList() ?? new List<ChiTietHoaDon>();
 
+                var daThanhToan = thanhToanTheoHoaDon.TryGetValue(h.MaHoaDon, out var paid) ? paid : 0m;
+                var conLai = Math.Max(h.TongTien - daThanhToan, 0m);
+                var chuTro = h.Phong?.NhaTro?.ChuTro;
+                var noiDungChuyenKhoan = TaoNoiDungChuyenKhoan(h, chuTro);
+
                 return new HoaDonDto
                 {
                     MaHoaDon = h.MaHoaDon,
+                    MaNguoiThue = h.MaNguoiThue,
+                    MaPhong = h.MaPhong,
                     TenPhong = h.Phong?.TenPhong ?? "---",
                     TenNguoiThue = h.NguoiThue?.HoTen ?? "---",
                     NgayLap = h.NgayLap,
@@ -187,6 +238,17 @@ namespace DoAnSE104.Controllers
                     TienDichVu = chiTietDichVu.Sum(ct => ct.SoTien),
                     TienPhatSinhKhac = h.TienPhatSinhKhac,
                     TongTien = h.TongTien,
+                    DaThanhToan = daThanhToan,
+                    ConLai = conLai,
+                    TrangThaiThanhToan = LayTrangThaiThanhToan(h.TongTien, daThanhToan),
+                    MaChuTro = h.Phong?.NhaTro?.MaChuTro,
+                    TenChuTro = chuTro?.HoTen,
+                    TenNganHang = chuTro?.TenNganHang,
+                    MaNganHang = chuTro?.MaNganHang,
+                    SoTaiKhoan = chuTro?.SoTaiKhoan,
+                    TenChuTaiKhoan = chuTro?.TenChuTaiKhoan,
+                    NoiDungChuyenKhoan = noiDungChuyenKhoan,
+                    QrThanhToanUrl = TaoVietQrUrl(chuTro, conLai, noiDungChuyenKhoan),
                     DichVuSuDung = chiTietDichVu.Select(ct => LayTenDichVuTuLoaiKhoan(ct.LoaiKhoan)).ToList()
                 };
             }).ToList();

@@ -20,6 +20,11 @@ namespace DoAnSE104.Models.Dtos
         public string? NoiCongTac { get; set; }
         public string? AnhCccdMatTruoc { get; set; }
         public string? AnhCccdMatSau { get; set; }
+        public string? TenNganHang { get; set; }
+        public string? MaNganHang { get; set; }
+        public string? SoTaiKhoan { get; set; }
+        public string? TenChuTaiKhoan { get; set; }
+        public string? NoiDungChuyenKhoanMacDinh { get; set; }
         public string VaiTro { get; set; }
         public DateTime NgayTao { get; set; }
         public bool TrangThai { get; set; }
@@ -62,6 +67,21 @@ namespace DoAnSE104.Models.Dtos
 
         [StringLength(500)]
         public string? AnhCccdMatSau { get; set; }
+
+        [StringLength(100, ErrorMessage = "Tên ngân hàng không được vượt quá 100 ký tự")]
+        public string? TenNganHang { get; set; }
+
+        [StringLength(50, ErrorMessage = "Mã ngân hàng không được vượt quá 50 ký tự")]
+        public string? MaNganHang { get; set; }
+
+        [StringLength(50, ErrorMessage = "Số tài khoản không được vượt quá 50 ký tự")]
+        public string? SoTaiKhoan { get; set; }
+
+        [StringLength(100, ErrorMessage = "Tên chủ tài khoản không được vượt quá 100 ký tự")]
+        public string? TenChuTaiKhoan { get; set; }
+
+        [StringLength(255, ErrorMessage = "Nội dung chuyển khoản mặc định không được vượt quá 255 ký tự")]
+        public string? NoiDungChuyenKhoanMacDinh { get; set; }
     }
 
     // ─── Đổi mật khẩu ────────────────────────────────────────────────────────

@@ -2,8 +2,25 @@
 // ACCOUNT.JS — Tài khoản của tôi
 // ==========================================
 
-// Tài khoản được điều phối trực tiếp trong dashboard.js.
-// File này chỉ khai báo hàm loadProfile và các handler của form tài khoản.
+// ─── Hook vào showSection của dashboard.js ───────────────────────────────────
+const _origShowSection = showSection;
+showSection = function(section, el) {
+    _origShowSection(section, el);
+    const taikhoanSec = document.getElementById('taikhoanSection');
+
+    if (section === 'taikhoan') {
+        document.getElementById('overviewSection').style.display = 'none';
+        document.getElementById('genericSection').style.display  = 'none';
+        taikhoanSec.style.display = 'block';
+
+        document.getElementById('addBtn').style.display = 'none';
+        document.getElementById('sectionTitle').textContent = 'Tài khoản của tôi';
+
+        loadProfile();
+    } else {
+        taikhoanSec.style.display = 'none';
+    }
+};
 
 function escapeHtml(v) {
     return v === null || v === undefined ? '' : String(v)
@@ -136,6 +153,16 @@ async function loadProfile() {
             );
         }
 
+        if (data.vaiTro === 'ChuTro' || data.vaiTro === 'Admin') {
+            rows.push(
+                { icon: 'fa-university', label: 'Ngân hàng nhận tiền', value: data.tenNganHang || '—' },
+                { icon: 'fa-qrcode', label: 'Mã ngân hàng VietQR', value: data.maNganHang || '—' },
+                { icon: 'fa-credit-card', label: 'Số tài khoản', value: data.soTaiKhoan || '—' },
+                { icon: 'fa-user-check', label: 'Tên chủ tài khoản', value: data.tenChuTaiKhoan || '—' },
+                { icon: 'fa-comment-dollar', label: 'Nội dung CK mặc định', value: data.noiDungChuyenKhoanMacDinh || '—' }
+            );
+        }
+
         rows.push(
             { icon: 'fa-calendar',    label: 'Ngày tạo',         value: formatDateDisplay(data.ngayTao) },
             { icon: 'fa-circle',      label: 'Trạng thái',       value: data.trangThai ? '✅ Đang hoạt động' : '🔒 Bị khóa' }
@@ -166,6 +193,17 @@ async function loadProfile() {
 
         const extraEls = document.querySelectorAll('.account-user-extra');
         extraEls.forEach(el => el.style.display = data.vaiTro === 'NguoiDung' ? '' : 'none');
+
+        const paymentEls = document.querySelectorAll('.account-owner-payment');
+        paymentEls.forEach(el => el.style.display = (data.vaiTro === 'ChuTro' || data.vaiTro === 'Admin') ? '' : 'none');
+
+        if (document.getElementById('editTenNganHang')) {
+            document.getElementById('editTenNganHang').value = data.tenNganHang || '';
+            document.getElementById('editMaNganHang').value = data.maNganHang || '';
+            document.getElementById('editSoTaiKhoan').value = data.soTaiKhoan || '';
+            document.getElementById('editTenChuTaiKhoan').value = data.tenChuTaiKhoan || '';
+            document.getElementById('editNoiDungChuyenKhoanMacDinh').value = data.noiDungChuyenKhoanMacDinh || '';
+        }
 
         if (document.getElementById('editCCCD')) {
             document.getElementById('editCCCD').value = data.cccd || '';
@@ -223,6 +261,16 @@ document.getElementById('profileEditForm').addEventListener('submit', async (e) 
                 noiCongTac: document.getElementById('editNoiCongTac').value.trim(),
                 anhCccdMatTruoc: frontUrl,
                 anhCccdMatSau: backUrl
+            });
+        }
+
+        if (CURRENT_ROLE === 'ChuTro' || CURRENT_ROLE === 'Admin') {
+            Object.assign(payload, {
+                tenNganHang: document.getElementById('editTenNganHang')?.value.trim() || '',
+                maNganHang: document.getElementById('editMaNganHang')?.value.trim() || '',
+                soTaiKhoan: document.getElementById('editSoTaiKhoan')?.value.trim() || '',
+                tenChuTaiKhoan: document.getElementById('editTenChuTaiKhoan')?.value.trim() || '',
+                noiDungChuyenKhoanMacDinh: document.getElementById('editNoiDungChuyenKhoanMacDinh')?.value.trim() || ''
             });
         }
 
