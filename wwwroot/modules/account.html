@@ -21,11 +21,16 @@
 
                 <!-- Chỉnh sửa thông tin -->
                 <div class="account-card">
-                    <div class="account-card-header">
-                        <div class="card-icon icon-teal"><i class="fas fa-pencil-alt"></i></div>
-                        <h3>Cập nhật thông tin</h3>
+                    <div class="account-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                        <div style="display:flex;align-items:center;gap:.75rem;">
+                            <div class="card-icon icon-teal"><i class="fas fa-pencil-alt"></i></div>
+                            <h3>Cập nhật thông tin</h3>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAccountPanel('profileEditPanel', this)">
+                            <i class="fas fa-chevron-down"></i> Mở
+                        </button>
                     </div>
-                    <div class="account-card-body">
+                    <div class="account-card-body" id="profileEditPanel" style="display:none;">
                         <form id="profileEditForm">
                             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;">
                                 <div class="form-group">
@@ -113,11 +118,16 @@
 
                 <!-- Đổi mật khẩu -->
                 <div class="account-card">
-                    <div class="account-card-header">
-                        <div class="card-icon icon-amber"><i class="fas fa-key"></i></div>
-                        <h3>Đổi mật khẩu</h3>
+                    <div class="account-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                        <div style="display:flex;align-items:center;gap:.75rem;">
+                            <div class="card-icon icon-amber"><i class="fas fa-key"></i></div>
+                            <h3>Đổi mật khẩu</h3>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAccountPanel('changePasswordPanel', this)">
+                            <i class="fas fa-chevron-down"></i> Mở
+                        </button>
                     </div>
-                    <div class="account-card-body">
+                    <div class="account-card-body" id="changePasswordPanel" style="display:none;">
                         <form id="changePasswordForm">
                             <div class="form-group">
                                 <label>Mật khẩu cũ</label>
@@ -158,8 +168,8 @@
                     </div>
                 </div>
 
-                <!-- Thông tin bảo mật (không cho sửa) -->
-                <div class="account-card">
+                <!-- Thông tin bảo mật (ẩn khỏi giao diện) -->
+                <div class="account-card" style="display:none;">
                     <div class="account-card-header">
                         <div class="card-icon icon-red"><i class="fas fa-lock"></i></div>
                         <h3>Thông tin bảo mật</h3>

@@ -75,6 +75,26 @@ async function uploadAccountCccdFile(inputId, hiddenId, previewId, label) {
     return url;
 }
 
+
+// ─── Toggle account panels ──────────────────────────────────────────────────
+function toggleAccountPanel(panelId, button) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    const isHidden = panel.style.display === 'none' || !panel.style.display;
+    panel.style.display = isHidden ? 'block' : 'none';
+
+    if (button) {
+        const icon = button.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-down', !isHidden);
+            icon.classList.toggle('fa-chevron-up', isHidden);
+        }
+        const textNode = Array.from(button.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+        if (textNode) textNode.textContent = isHidden ? ' Thu gọn' : ' Mở';
+    }
+}
+
 // ─── Helper: toggle password field ───────────────────────────────────────────
 function togglePasswordField(fieldId, btn) {
     const input = document.getElementById(fieldId);
@@ -218,10 +238,14 @@ async function loadProfile() {
             document.getElementById('editAnhCccdMatSauPreview').innerHTML = renderCccdPreview(data.anhCccdMatSau, 'CCCD mặt sau');
         }
 
-        document.getElementById('readUsername').value  = data.tenDangNhap;
-        document.getElementById('readVaiTro').value    = roleLabel[data.vaiTro] || data.vaiTro;
-        document.getElementById('readTrangThai').value = data.trangThai ? 'Đang hoạt động' : 'Bị khóa';
-        document.getElementById('readNgayTao').value   = formatDateDisplay(data.ngayTao);
+        const readUsername = document.getElementById('readUsername');
+        const readVaiTro = document.getElementById('readVaiTro');
+        const readTrangThai = document.getElementById('readTrangThai');
+        const readNgayTao = document.getElementById('readNgayTao');
+        if (readUsername) readUsername.value = data.tenDangNhap || '';
+        if (readVaiTro) readVaiTro.value = roleLabel[data.vaiTro] || data.vaiTro || '';
+        if (readTrangThai) readTrangThai.value = data.trangThai ? 'Đang hoạt động' : 'Bị khóa';
+        if (readNgayTao) readNgayTao.value = formatDateDisplay(data.ngayTao);
 
         document.getElementById('userAvatar').textContent  = initial;
         document.getElementById('userName').textContent    = data.hoTen || data.tenDangNhap;

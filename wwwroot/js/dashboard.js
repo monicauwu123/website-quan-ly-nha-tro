@@ -39,7 +39,8 @@ applyRoleUI();
 let currentSection = 'overview';
 let currentSubSection = 'dien';
 let currentData = [];
-let lookups = { nhatro: [], loaiphong: [], trangthai: [], phong: [], nguoithue: [] };
+let lookups = { nhatro: [], loaiphong: [], trangthai: [], phong: [], nguoithue: [], hoadon: [], hinhthuc: [] };
+window.lookups = lookups;
 
 // --- FORMATTERS ---
 const fmtCurrency = v => (v != null && v !== '') ? new Intl.NumberFormat('vi-VN').format(v) + 'đ' : '---';
@@ -178,7 +179,7 @@ function normalizeSectionFromHash() {
         'yeu-cau-thue': 'yeucauthue',
         'bao-cao-su-co': 'baocaosuco',
         'nguoi-dung': 'user',
-        'tai-khoan': 'account'
+        'tai-khoan': 'taikhoan'
     };
 
     return aliases[raw] || raw;
@@ -198,6 +199,7 @@ function sectionToHash(section) {
         yeucauthue: 'yeu-cau-thue',
         baocaosuco: 'bao-cao-su-co',
         user: 'nguoi-dung',
+        taikhoan: 'tai-khoan',
         account: 'tai-khoan',
         overview: 'overview'
     };
@@ -235,10 +237,28 @@ function showSection(section, el, skipHashUpdate = false) {
     const addBtn = document.getElementById('addBtn');
     const sectionTitle = document.getElementById('sectionTitle');
 
+    if (section === 'account') section = 'taikhoan';
+    currentSection = section;
+
     // NguoiDung chỉ xem, không được tạo/sửa/xóa
     const canCreate = ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && section !== 'yeucauthue')
         || (CURRENT_ROLE === 'NguoiDung' && section === 'yeucauthue');
     const canWrite = canCreate;
+
+    const overviewEl = document.getElementById('overviewSection');
+    const genericEl = document.getElementById('genericSection');
+    const accountEl = document.getElementById('taikhoanSection');
+
+    if (accountEl) accountEl.style.display = section === 'taikhoan' ? 'block' : 'none';
+
+    if (section === 'taikhoan') {
+        if (overviewEl) overviewEl.style.display = 'none';
+        if (genericEl) genericEl.style.display = 'none';
+        if (addBtn) addBtn.style.display = 'none';
+        if (sectionTitle) sectionTitle.textContent = 'Tài khoản của tôi';
+        if (typeof window.loadProfile === 'function') window.loadProfile();
+        return;
+    }
 
     if (section === 'overview') {
         addBtn.style.display = 'none';
@@ -254,7 +274,7 @@ function showSection(section, el, skipHashUpdate = false) {
     }
 
     document.getElementById('overviewSection').style.display = section === 'overview' ? 'block' : 'none';
-    document.getElementById('genericSection').style.display = section !== 'overview' ? 'block' : 'none';
+    document.getElementById('genericSection').style.display = section !== 'overview' && section !== 'taikhoan' ? 'block' : 'none';
 
     if (section === 'overview') loadOverview();
     else if (section === 'phong') renderRoomGrid();
@@ -504,7 +524,13 @@ function filterRooms() {
 // ==========================================
 async function loadGenericSection(section) {
     const cfg = modules[section];
-    if (!cfg) return;
+    if (!cfg) {
+        const sectionTitle = document.getElementById('sectionTitle');
+        if (sectionTitle) sectionTitle.textContent = 'Không tìm thấy mục';
+        const generic = document.getElementById('genericSection');
+        if (generic) generic.innerHTML = '<div class="data-card" style="padding:1.5rem;color:var(--error);">Không tìm thấy cấu hình module cho mục này. Vui lòng tải lại trang.</div>';
+        return;
+    }
     document.getElementById('addBtn').onclick = () => openModal();
 
     let searchHtml = '';
@@ -1540,7 +1566,10 @@ function logout() {
 // ==========================================
 // STARTUP
 // ==========================================
-(async () => {
+async function startDashboard() {
+    if (window.__dashboardStarted) return;
+    window.__dashboardStarted = true;
+
     await loadLookups();
 
     const firstSection = normalizeSectionFromHash();
@@ -1552,4 +1581,10 @@ function logout() {
             showSection(section, null, true);
         }
     });
-})();
+}
+
+window.startDashboard = startDashboard;
+
+if (!window.__USING_MODULE_LOADER) {
+    startDashboard();
+}

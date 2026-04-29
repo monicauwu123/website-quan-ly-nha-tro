@@ -4,7 +4,7 @@
 // ==========================================
 
 (function () {
-    const VERSION = '3.2';
+    const VERSION = '3.4';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
@@ -37,7 +37,17 @@
         `js/account.js?v=${VERSION}`
     ];
 
+    window.__USING_MODULE_LOADER = true;
     window.AppHtmlModules = window.AppHtmlModules || {};
+    window.AppFormat = window.AppFormat || {
+        currency: v => (v !== null && v !== undefined && v !== '') ? new Intl.NumberFormat('vi-VN').format(v) + 'đ' : '---',
+        date: v => v ? new Date(v).toLocaleDateString('vi-VN') : '---',
+        escapeHtml: v => v === null || v === undefined ? '' : String(v)
+            .replaceAll('&', '&amp;')
+            .replaceAll('\"', '&quot;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+    };
     window.AppModules = window.AppModules || {};
     window.AppDienNuocModules = window.AppDienNuocModules || {};
 
@@ -76,11 +86,15 @@
             // 2) api.js load trước.
             await loadScript(apiScript, false);
 
-            // 3) Các module cấu hình nghiệp vụ độc lập nên load song song.
-            await Promise.all(businessScripts.map(src => loadScript(src, true)));
+            // 3) Load tuần tự để tránh lỗi phụ thuộc ngầm giữa các module.
+            await loadScriptsSequential(businessScripts);
 
             // 4) dashboard.js và account.js cần chạy sau khi module cấu hình đã có.
             await loadScriptsSequential(appScripts);
+
+            if (typeof window.startDashboard === 'function') {
+                await window.startDashboard();
+            }
 
             window.dispatchEvent(new Event('app:ready'));
         } catch (err) {

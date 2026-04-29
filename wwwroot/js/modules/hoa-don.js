@@ -9,15 +9,15 @@ window.AppModules.hoadon = {
             { label: 'Phòng', key: 'tenPhong' },
             { label: 'Khách thuê', key: 'tenNguoiThue' },
             { label: 'Kỳ hóa đơn', key: 'kyHoaDon' },
-            { label: 'Tiền phòng', key: 'tienPhong', render: fmtCurrency },
-            { label: 'Tiền điện', key: 'tienDien', render: fmtCurrency },
-            { label: 'Tiền nước', key: 'tienNuoc', render: fmtCurrency },
-            { label: 'Phát sinh khác', key: 'tienPhatSinhKhac', render: fmtCurrency },
-            { label: 'Tổng tiền', key: 'tongTien', render: v => `<strong style="color:var(--primary)">${fmtCurrency(v)}</strong>` },
-            { label: 'Đã thanh toán', key: 'daThanhToan', render: fmtCurrency },
-            { label: 'Còn lại', key: 'conLai', render: v => `<strong style="color:${Number(v || 0) > 0 ? 'var(--error)' : 'var(--success)'}">${fmtCurrency(v)}</strong>` },
+            { label: 'Tiền phòng', key: 'tienPhong', render: v => window.AppFormat.currency(v) },
+            { label: 'Tiền điện', key: 'tienDien', render: v => window.AppFormat.currency(v) },
+            { label: 'Tiền nước', key: 'tienNuoc', render: v => window.AppFormat.currency(v) },
+            { label: 'Phát sinh khác', key: 'tienPhatSinhKhac', render: v => window.AppFormat.currency(v) },
+            { label: 'Tổng tiền', key: 'tongTien', render: v => `<strong style="color:var(--primary)">${window.AppFormat.currency(v)}</strong>` },
+            { label: 'Đã thanh toán', key: 'daThanhToan', render: v => window.AppFormat.currency(v) },
+            { label: 'Còn lại', key: 'conLai', render: v => `<strong style="color:${Number(v || 0) > 0 ? 'var(--error)' : 'var(--success)'}">${window.AppFormat.currency(v)}</strong>` },
             { label: 'Trạng thái', key: 'trangThaiThanhToan', render: v => `<span class="badge ${v === 'Đã thanh toán' ? 'badge-green' : v === 'Thanh toán một phần' ? 'badge-amber' : 'badge-red'}">${v || 'Chưa thanh toán'}</span>` },
-            { label: 'Ngày lập', key: 'ngayLap', render: fmtDate },
+            { label: 'Ngày lập', key: 'ngayLap', render: v => window.AppFormat.date(v) },
             { label: 'In', key: 'maHoaDon', render: v => `<button class="btn" style="padding:0.2rem 0.5rem; background:#6366f1; color:white;" onclick="API.hoadon.exportPdf(${v})"><i class="fas fa-file-pdf"></i> PDF</button>` }
         ]
     };
