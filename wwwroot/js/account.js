@@ -2,25 +2,8 @@
 // ACCOUNT.JS — Tài khoản của tôi
 // ==========================================
 
-// ─── Hook vào showSection của dashboard.js ───────────────────────────────────
-const _origShowSection = showSection;
-showSection = function(section, el) {
-    _origShowSection(section, el);
-    const taikhoanSec = document.getElementById('taikhoanSection');
-
-    if (section === 'taikhoan') {
-        document.getElementById('overviewSection').style.display = 'none';
-        document.getElementById('genericSection').style.display  = 'none';
-        taikhoanSec.style.display = 'block';
-
-        document.getElementById('addBtn').style.display = 'none';
-        document.getElementById('sectionTitle').textContent = 'Tài khoản của tôi';
-
-        loadProfile();
-    } else {
-        taikhoanSec.style.display = 'none';
-    }
-};
+// Tài khoản được điều phối trực tiếp trong dashboard.js.
+// File này chỉ khai báo hàm loadProfile và các handler của form tài khoản.
 
 function escapeHtml(v) {
     return v === null || v === undefined ? '' : String(v)

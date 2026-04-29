@@ -40,6 +40,7 @@ let currentSection = 'overview';
 let currentSubSection = 'dien';
 let currentData = [];
 let lookups = { nhatro: [], loaiphong: [], trangthai: [], phong: [], nguoithue: [] };
+window.lookups = lookups;
 
 // --- FORMATTERS ---
 const fmtCurrency = v => (v != null && v !== '') ? new Intl.NumberFormat('vi-VN').format(v) + 'đ' : '---';
@@ -171,7 +172,7 @@ function normalizeSectionFromHash() {
         'yeu-cau-thue': 'yeucauthue',
         'bao-cao-su-co': 'baocaosuco',
         'nguoi-dung': 'user',
-        'tai-khoan': 'account'
+        'tai-khoan': 'taikhoan'
     };
 
     return aliases[raw] || raw;
@@ -191,6 +192,7 @@ function sectionToHash(section) {
         yeucauthue: 'yeu-cau-thue',
         baocaosuco: 'bao-cao-su-co',
         user: 'nguoi-dung',
+        taikhoan: 'tai-khoan',
         account: 'tai-khoan',
         overview: 'overview'
     };
@@ -214,6 +216,8 @@ function activateNav(section, el) {
 }
 
 function showSection(section, el, skipHashUpdate = false) {
+    if (section === 'account') section = 'taikhoan';
+    if (section === 'thanhtoan') section = 'hoadon';
     currentSection = section;
 
     if (!skipHashUpdate) {
@@ -229,11 +233,17 @@ function showSection(section, el, skipHashUpdate = false) {
     const sectionTitle = document.getElementById('sectionTitle');
 
     // NguoiDung chỉ xem, không được tạo/sửa/xóa
-    const canCreate = ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && section !== 'yeucauthue')
-        || (CURRENT_ROLE === 'NguoiDung' && section === 'yeucauthue');
+    const canCreate = ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco'].includes(section))
+        || (CURRENT_ROLE === 'NguoiDung' && (section === 'yeucauthue' || section === 'baocaosuco'));
     const canWrite = canCreate;
 
-    if (section === 'overview') {
+    const taikhoanSec = document.getElementById('taikhoanSection');
+    if (taikhoanSec) taikhoanSec.style.display = section === 'taikhoan' ? 'block' : 'none';
+
+    if (section === 'taikhoan') {
+        addBtn.style.display = 'none';
+        sectionTitle.textContent = 'Tài khoản của tôi';
+    } else if (section === 'overview') {
         addBtn.style.display = 'none';
         sectionTitle.textContent = 'Tổng quan hệ thống';
     } else if (section === 'diennuoc') {
@@ -247,8 +257,12 @@ function showSection(section, el, skipHashUpdate = false) {
     }
 
     document.getElementById('overviewSection').style.display = section === 'overview' ? 'block' : 'none';
-    document.getElementById('genericSection').style.display = section !== 'overview' ? 'block' : 'none';
+    document.getElementById('genericSection').style.display = (section !== 'overview' && section !== 'taikhoan') ? 'block' : 'none';
 
+    if (section === 'taikhoan') {
+        if (typeof loadProfile === 'function') loadProfile();
+        return;
+    }
     if (section === 'overview') loadOverview();
     else if (section === 'phong') renderRoomGrid();
     else if (section === 'diennuoc') renderDienNuocSection();
@@ -497,7 +511,11 @@ function filterRooms() {
 // ==========================================
 async function loadGenericSection(section) {
     const cfg = modules[section];
-    if (!cfg) return;
+    if (!cfg) {
+        const body = document.getElementById('genericSection');
+        if (body) body.innerHTML = `<div class="data-card" style="padding:1.5rem;color:var(--error);"><i class="fas fa-exclamation-circle"></i> Chưa có cấu hình giao diện cho mục: ${section}</div>`;
+        return;
+    }
     document.getElementById('addBtn').onclick = () => openModal();
 
     let searchHtml = '';
@@ -550,6 +568,14 @@ function renderTable(cfg, data, section) {
                     <button class="btn-action btn-delete" onclick="rejectYeuCauThue(${item.maYeuCau})"><i class="fas fa-times"></i> Từ chối</button>`;
             } else if (CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'ChoDuyet') {
                 actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('yeucauthue',${item.maYeuCau})"><i class="fas fa-trash"></i> Hủy</button>`;
+            }
+        } else if (section === 'baocaosuco') {
+            actionHtml = `<button class="btn-action btn-edit" onclick="viewBaoCaoSuCoDetail(${item.maBaoCao})"><i class="fas fa-eye"></i> Chi tiết</button>`;
+            if ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && item.trangThai !== 'Huy') {
+                actionHtml += ` <button class="btn-action btn-edit" onclick="openBaoCaoSuCoModal(${item.maBaoCao})"><i class="fas fa-reply"></i> Xử lý</button>`;
+            }
+            if ((CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'Moi') || CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
+                actionHtml += ` <button class="btn-action btn-delete" onclick="deleteItem('baocaosuco',${item.maBaoCao})"><i class="fas fa-trash"></i> ${CURRENT_ROLE === 'NguoiDung' ? 'Hủy' : 'Xóa'}</button>`;
             }
         } else if (section === 'nguoithue') {
             actionHtml = `<button class="btn-action btn-edit" onclick="viewNguoiThueDetail(${item.maNguoiThue})"><i class="fas fa-eye"></i> Chi tiết</button>`;
@@ -861,6 +887,7 @@ function openModal(id = null) {
         if (section === 'yeucauthue') return openYeuCauThueModal(id);
         if (section === 'hoadon') return openHoaDonModal(id);
         if (section === 'user') return openUserModal(id);
+        if (section === 'baocaosuco') return openBaoCaoSuCoModal(id);
         return;
     }
 
@@ -1201,6 +1228,141 @@ function recalcTotal() {
     const ps = Number(document.getElementById('f_tienPhatSinhKhac')?.value) || 0;
     const total = (info.phong?.giaPhong || 0) + (info.tienDien || 0) + (info.tienNuoc || 0) + (info.tongTienDichVu || 0) + ps;
     document.getElementById('infoTongTien').textContent = fmtCurrency(total);
+}
+
+
+// ==========================================
+// BÁO CÁO SỰ CỐ CUSTOM MODAL
+// ==========================================
+async function openBaoCaoSuCoModal(id = null) {
+    resetModalFooter();
+
+    if (CURRENT_ROLE === 'NguoiDung' && !id) {
+        document.getElementById('modalTitle').textContent = 'Gửi báo cáo sự cố';
+        let taoMoi = { phongDangThue: [], mucDo: ['Bình thường', 'Gấp', 'Rất gấp'] };
+        try {
+            taoMoi = await apiFetch('/api/BaoCaoSuCo/TaoMoi') || taoMoi;
+        } catch (e) {
+            showToast(e.message || 'Không tải được danh sách phòng đang thuê', 'error');
+        }
+
+        const phongList = taoMoi.phongDangThue || [];
+        document.getElementById('modalFields').innerHTML = `
+            <div class="form-group">
+                <label>Phòng đang thuê <span style="color:var(--error)">*</span></label>
+                <select id="f_maPhong" class="form-control" required>
+                    <option value="">-- Chọn phòng --</option>
+                    ${phongList.map(p => `<option value="${p.maPhong}">${p.tenPhong || ('Phòng #' + p.maPhong)}${p.nhaTro?.tenNhaTro ? ' - ' + p.nhaTro.tenNhaTro : ''}</option>`).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Mức độ</label>
+                <select id="f_mucDo" class="form-control">
+                    ${(taoMoi.mucDo || ['Bình thường', 'Gấp', 'Rất gấp']).map(m => `<option value="${m}">${m}</option>`).join('')}
+                </select>
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label>Tiêu đề <span style="color:var(--error)">*</span></label>
+                <input type="text" id="f_tieuDe" class="form-control" required maxlength="150" placeholder="Ví dụ: Bóng đèn phòng bị hỏng">
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label>Nội dung sự cố <span style="color:var(--error)">*</span></label>
+                <textarea id="f_noiDung" class="form-control" required maxlength="1000" placeholder="Mô tả chi tiết sự cố..."></textarea>
+            </div>`;
+
+        document.getElementById('modalForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const payload = {
+                maPhong: Number(document.getElementById('f_maPhong').value),
+                tieuDe: document.getElementById('f_tieuDe').value.trim(),
+                noiDung: document.getElementById('f_noiDung').value.trim(),
+                mucDo: document.getElementById('f_mucDo').value
+            };
+            try {
+                await apiFetch('/api/BaoCaoSuCo', 'POST', payload);
+                showToast('Gửi báo cáo sự cố thành công!');
+                closeModal();
+                refreshData();
+            } catch (e) {
+                showToast(e.message || 'Lỗi gửi báo cáo sự cố', 'error');
+            }
+        };
+
+        document.getElementById('universalModal').style.display = 'flex';
+        return;
+    }
+
+    if (!(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
+        showToast('Bạn không có quyền xử lý báo cáo này', 'error');
+        return;
+    }
+
+    const item = id ? (currentData.find(i => i.maBaoCao == id) || await apiFetch(`/api/BaoCaoSuCo/${id}`)) : null;
+    if (!item) return;
+
+    document.getElementById('modalTitle').textContent = 'Xử lý báo cáo sự cố';
+    document.getElementById('modalFields').innerHTML = `
+        <div style="grid-column:1/-1;" class="info-grid">
+            <div class="info-item"><label>Tiêu đề</label><span>${safeText(item.tieuDe)}</span></div>
+            <div class="info-item"><label>Mức độ</label><span>${safeText(item.mucDo)}</span></div>
+            <div class="info-item"><label>Người gửi</label><span>${safeText(item.nguoiDung?.hoTen || item.nguoiDung?.email)}</span></div>
+            <div class="info-item"><label>Phòng</label><span>${safeText(item.phong?.tenPhong)}</span></div>
+            <div class="info-item" style="grid-column:1/-1;"><label>Nội dung</label><span>${safeText(item.noiDung)}</span></div>
+        </div>
+        <div class="form-group">
+            <label>Trạng thái <span style="color:var(--error)">*</span></label>
+            <select id="f_trangThai" class="form-control" required>
+                <option value="Moi" ${item.trangThai === 'Moi' ? 'selected' : ''}>Mới gửi</option>
+                <option value="DangXuLy" ${item.trangThai === 'DangXuLy' ? 'selected' : ''}>Đang xử lý</option>
+                <option value="DaXuLy" ${item.trangThai === 'DaXuLy' ? 'selected' : ''}>Đã xử lý</option>
+            </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Phản hồi cho khách thuê</label>
+            <textarea id="f_phanHoiChuTro" class="form-control" maxlength="1000">${item.phanHoiChuTro || ''}</textarea>
+        </div>`;
+
+    document.getElementById('modalForm').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await apiFetch(`/api/BaoCaoSuCo/${id}`, 'PUT', {
+                trangThai: document.getElementById('f_trangThai').value,
+                phanHoiChuTro: document.getElementById('f_phanHoiChuTro').value
+            });
+            showToast('Cập nhật báo cáo sự cố thành công!');
+            closeModal();
+            refreshData();
+        } catch (e) {
+            showToast(e.message || 'Lỗi cập nhật báo cáo sự cố', 'error');
+        }
+    };
+
+    document.getElementById('universalModal').style.display = 'flex';
+}
+
+async function viewBaoCaoSuCoDetail(id) {
+    try {
+        const item = await apiFetch(`/api/BaoCaoSuCo/${id}`);
+        document.getElementById('modalTitle').textContent = 'Chi tiết báo cáo sự cố';
+        document.getElementById('modalFields').innerHTML = `
+            <div style="grid-column:1/-1;display:grid;gap:1rem;">
+                <div class="info-grid">
+                    <div class="info-item"><label>Tiêu đề</label><span>${safeText(item.tieuDe)}</span></div>
+                    <div class="info-item"><label>Mức độ</label><span>${safeText(item.mucDo)}</span></div>
+                    <div class="info-item"><label>Trạng thái</label><span>${safeText(item.trangThaiText || item.trangThai)}</span></div>
+                    <div class="info-item"><label>Ngày gửi</label><span>${fmtDate(item.ngayGui)}</span></div>
+                    <div class="info-item"><label>Người gửi</label><span>${safeText(item.nguoiDung?.hoTen || item.nguoiDung?.email)}</span></div>
+                    <div class="info-item"><label>Phòng</label><span>${safeText(item.phong?.tenPhong)}</span></div>
+                    <div class="info-item" style="grid-column:1/-1;"><label>Nội dung</label><span>${safeText(item.noiDung)}</span></div>
+                    <div class="info-item" style="grid-column:1/-1;"><label>Phản hồi chủ trọ</label><span>${safeText(item.phanHoiChuTro)}</span></div>
+                </div>
+            </div>`;
+        const footer = document.querySelector('#universalModal .modal-footer');
+        if (footer) footer.innerHTML = `<button type="button" class="btn btn-secondary" style="width:auto;" onclick="closeModal()">Đóng</button>`;
+        document.getElementById('universalModal').style.display = 'flex';
+    } catch (e) {
+        showToast(e.message || 'Không tải được chi tiết báo cáo', 'error');
+    }
 }
 
 // ==========================================

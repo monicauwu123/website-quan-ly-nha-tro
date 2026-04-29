@@ -1,17 +1,18 @@
 // Module cấu hình: điện & nước
 window.AppDienNuocModules = window.AppDienNuocModules || {};
+const _dnLookups = () => window.lookups || { phong: [] };
 window.AppDienNuocModules.dien = {
     title: 'Chỉ Số Điện',
     endpoint: '/api/ChiSoDien',
     pk: 'maDien',
     headers: [
-        { label: 'Phòng', key: 'maPhong', render: v => lookups.phong.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
+        { label: 'Phòng', key: 'maPhong', render: v => _dnLookups().phong?.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
         { label: 'Chỉ số cũ', key: 'soDienCu', render: v => `${v} kWh` },
         { label: 'Chỉ số mới', key: 'soDienMoi', render: v => `${v} kWh` },
         { label: 'Tiêu thụ', key: null, render: (_, row) => `${(row.soDienMoi || 0) - (row.soDienCu || 0)} kWh` },
-        { label: 'Giá điện/kWh', key: 'giaDien', render: fmtCurrency },
-        { label: 'Tiền điện', key: 'tienDien', render: v => `<strong>${fmtCurrency(v)}</strong>` },
-        { label: 'Ngày ghi', key: 'ngayThangDien', render: fmtDate }
+        { label: 'Giá điện/kWh', key: 'giaDien', render: v => window.AppFormat.currency(v) },
+        { label: 'Tiền điện', key: 'tienDien', render: v => `<strong>${window.AppFormat.currency(v)}</strong>` },
+        { label: 'Ngày ghi', key: 'ngayThangDien', render: v => window.AppFormat.date(v) }
     ],
     fields: [
         { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },
@@ -26,13 +27,13 @@ window.AppDienNuocModules.nuoc = {
     endpoint: '/api/ChiSoNuoc',
     pk: 'maNuoc',
     headers: [
-        { label: 'Phòng', key: 'maPhong', render: v => lookups.phong.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
+        { label: 'Phòng', key: 'maPhong', render: v => _dnLookups().phong?.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
         { label: 'Chỉ số cũ', key: 'soNuocCu', render: v => `${v} m³` },
         { label: 'Chỉ số mới', key: 'soNuocMoi', render: v => `${v} m³` },
         { label: 'Tiêu thụ', key: null, render: (_, row) => `${(row.soNuocMoi || 0) - (row.soNuocCu || 0)} m³` },
-        { label: 'Giá nước/m³', key: 'giaNuoc', render: fmtCurrency },
-        { label: 'Tiền nước', key: 'tienNuoc', render: v => `<strong>${fmtCurrency(v)}</strong>` },
-        { label: 'Ngày ghi', key: 'ngayThangNuoc', render: fmtDate }
+        { label: 'Giá nước/m³', key: 'giaNuoc', render: v => window.AppFormat.currency(v) },
+        { label: 'Tiền nước', key: 'tienNuoc', render: v => `<strong>${window.AppFormat.currency(v)}</strong>` },
+        { label: 'Ngày ghi', key: 'ngayThangNuoc', render: v => window.AppFormat.date(v) }
     ],
     fields: [
         { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },

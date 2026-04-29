@@ -4,7 +4,7 @@
 // ==========================================
 
 (function () {
-    const VERSION = '3.1';
+    const VERSION = '4.0';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
@@ -40,6 +40,10 @@
     window.AppHtmlModules = window.AppHtmlModules || {};
     window.AppModules = window.AppModules || {};
     window.AppDienNuocModules = window.AppDienNuocModules || {};
+    window.AppFormat = window.AppFormat || {
+        currency: v => (v != null && v !== '') ? new Intl.NumberFormat('vi-VN').format(v) + 'đ' : '---',
+        date: v => v ? new Date(v).toLocaleDateString('vi-VN') : '---'
+    };
 
     async function loadHtmlModule(item) {
         const res = await fetch(item.path, { cache: 'force-cache' });
@@ -76,8 +80,8 @@
             // 2) api.js load trước.
             await loadScript(apiScript, false);
 
-            // 3) Các module cấu hình nghiệp vụ độc lập nên load song song.
-            await Promise.all(businessScripts.map(src => loadScript(src, true)));
+            // 3) Load module nghiệp vụ theo thứ tự để tránh lỗi phụ thuộc ngầm khi trình duyệt chạy async.
+            await loadScriptsSequential(businessScripts);
 
             // 4) dashboard.js và account.js cần chạy sau khi module cấu hình đã có.
             await loadScriptsSequential(appScripts);
