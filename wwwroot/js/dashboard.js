@@ -1255,36 +1255,53 @@ async function openHoaDonModal(id = null) {
     const now = new Date();
     const todayStr = now.toISOString().substring(0, 10);
     const kyDefault = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const editingItem = id ? (currentData || []).find(h => h.maHoaDon == id) : null;
+    const loaiDefault = editingItem?.loaiHoaDon || 'HangThang';
 
     document.getElementById('modalFields').innerHTML = `
+        <div class="form-group">
+            <label>Loại hóa đơn <span style="color:var(--error)">*</span></label>
+            <select id="f_loaiHoaDon" class="form-control" required onchange="onHoaDonTypeChanged()">
+                <option value="HangThang" ${loaiDefault === 'HangThang' ? 'selected' : ''}>Hóa đơn hằng tháng</option>
+                <option value="ThuePhong" ${loaiDefault === 'ThuePhong' ? 'selected' : ''}>Hóa đơn thuê phòng</option>
+            </select>
+            <small style="color:var(--text-light);display:block;margin-top:.35rem;">
+                Hằng tháng chỉ tính điện, nước, dịch vụ đã chọn và phát sinh khác. Thuê phòng chỉ tính tiền phòng và phát sinh khác.
+            </small>
+        </div>
         <div class="form-group">
             <label>Chọn phòng <span style="color:var(--error)">*</span></label>
             <select id="f_maPhong" class="form-control" required onchange="loadPhongInfo(this.value)">
                 <option value="">-- Chọn phòng --</option>
-                ${lookups.phong.map(p => `<option value="${p.maPhong}">${p.tenPhong}</option>`).join('')}
+                ${lookups.phong.map(p => `<option value="${p.maPhong}" ${editingItem?.maPhong == p.maPhong ? 'selected' : ''}>${p.tenPhong}</option>`).join('')}
             </select>
         </div>
         <div class="form-group">
             <label>Kỳ hóa đơn (YYYY-MM) <span style="color:var(--error)">*</span></label>
-            <input type="month" id="f_kyHoaDon" class="form-control" value="${kyDefault}" required>
+            <input type="month" id="f_kyHoaDon" class="form-control" value="${editingItem?.kyHoaDon || kyDefault}" required>
         </div>
         <div id="phongInfoBox" style="grid-column:1/-1;display:none;">
             <div class="info-grid">
                 <div class="info-item"><label>Khách thuê</label><span id="infoNguoiThue">---</span></div>
                 <div class="info-item"><label>Tiền phòng</label><span id="infoTienPhong">---</span></div>
-                <div class="info-item"><label>Tiền điện</label><span id="infoTienDien">---</span></div>
-                <div class="info-item"><label>Tiền nước</label><span id="infoTienNuoc">---</span></div>
-                <div class="info-item"><label>Tiền dịch vụ</label><span id="infoTienDichVu">---</span></div>
+                <div class="info-item hang-thang-only"><label>Tiền điện</label><span id="infoTienDien">---</span></div>
+                <div class="info-item hang-thang-only"><label>Tiền nước</label><span id="infoTienNuoc">---</span></div>
+                <div class="info-item hang-thang-only"><label>Tiền dịch vụ đã chọn</label><span id="infoTienDichVu">---</span></div>
                 <div class="info-item info-total"><label>Dự tính tổng tiền</label><span id="infoTongTien">---</span></div>
+            </div>
+            <div id="dichVuHoaDonBox" class="hang-thang-only" style="margin-top:1rem;display:none;">
+                <label style="font-weight:700;margin-bottom:.5rem;display:block;">Dịch vụ phòng đã sử dụng trong kỳ</label>
+                <div id="dichVuHoaDonList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.65rem;"></div>
+                <small style="color:var(--text-light);display:block;margin-top:.5rem;">Chỉ các dịch vụ được tick mới được cộng vào hóa đơn hằng tháng.</small>
             </div>
         </div>
         <div class="form-group">
             <label>Phát sinh khác (đ)</label>
-            <input type="number" id="f_tienPhatSinhKhac" class="form-control" value="0" min="0" oninput="recalcTotal()">
+            <input type="number" id="f_tienPhatSinhKhac" class="form-control" value="${editingItem?.tienPhatSinhKhac || 0}" min="0" oninput="recalcTotal()">
         </div>
         <div class="form-group">
             <label>Ngày lập <span style="color:var(--error)">*</span></label>
-            <input type="date" id="f_ngayLap" class="form-control" value="${todayStr}" required>
+            <input type="date" id="f_ngayLap" class="form-control" value="${editingItem?.ngayLap ? editingItem.ngayLap.substring(0, 10) : todayStr}" required>
         </div>`;
 
     document.getElementById('modalForm').onsubmit = async (e) => {
@@ -1292,16 +1309,25 @@ async function openHoaDonModal(id = null) {
         const info = window._hoaDonInfo;
         if (!info) { showToast('Vui lòng chọn phòng có hợp đồng hợp lệ!', 'error'); return; }
 
+        const loaiHoaDon = document.getElementById('f_loaiHoaDon').value || 'HangThang';
         const phatSinh = Number(document.getElementById('f_tienPhatSinhKhac').value) || 0;
+        const selectedServices = Array.from(document.querySelectorAll('.hoa-don-dich-vu:checked')).map(x => Number(x.value));
+        const tienDichVu = loaiHoaDon === 'HangThang' ? calcSelectedServiceTotal() : 0;
+        const tienPhong = loaiHoaDon === 'ThuePhong' ? Number(info.phong?.giaPhong || 0) : 0;
+        const tienDien = loaiHoaDon === 'HangThang' ? Number(info.tienDien || 0) : 0;
+        const tienNuoc = loaiHoaDon === 'HangThang' ? Number(info.tienNuoc || 0) : 0;
+
         const payload = {
+            loaiHoaDon,
             maNguoiThue: info.nguoiThue.maNguoiThue,
             maPhong: info.phong.maPhong,
-            tienPhong: info.phong.giaPhong,
-            tienDien: info.tienDien,
-            tienNuoc: info.tienNuoc,
-            tienDichVu: info.tongTienDichVu,
+            tienPhong,
+            tienDien,
+            tienNuoc,
+            tienDichVu,
             tienPhatSinhKhac: phatSinh,
-            tongTien: info.phong.giaPhong + info.tienDien + info.tienNuoc + info.tongTienDichVu + phatSinh,
+            maDichVuSuDung: loaiHoaDon === 'HangThang' ? selectedServices : [],
+            tongTien: tienPhong + tienDien + tienNuoc + tienDichVu + phatSinh,
             ngayLap: document.getElementById('f_ngayLap').value,
             kyHoaDon: document.getElementById('f_kyHoaDon').value
         };
@@ -1322,6 +1348,11 @@ async function openHoaDonModal(id = null) {
     };
 
     document.getElementById('universalModal').style.display = 'flex';
+
+    if (editingItem?.maPhong) {
+        await loadPhongInfo(editingItem.maPhong);
+        onHoaDonTypeChanged();
+    }
 }
 
 async function loadPhongInfo(phongId) {
@@ -1334,8 +1365,33 @@ async function loadPhongInfo(phongId) {
         document.getElementById('infoTienPhong').textContent = fmtCurrency(info.phong?.giaPhong);
         document.getElementById('infoTienDien').textContent = fmtCurrency(info.tienDien);
         document.getElementById('infoTienNuoc').textContent = fmtCurrency(info.tienNuoc);
-        document.getElementById('infoTienDichVu').textContent = fmtCurrency(info.tongTienDichVu);
-        document.getElementById('infoTongTien').textContent = fmtCurrency(info.tongTienHoaDon);
+
+        const services = info.danhSachDichVu || info.DanhSachDichVu || [];
+        const serviceBox = document.getElementById('dichVuHoaDonBox');
+        const serviceList = document.getElementById('dichVuHoaDonList');
+        if (serviceList) {
+            if (services.length) {
+                serviceList.innerHTML = services.map(dv => {
+                    const id = dv.maDichVu ?? dv.MaDichVu;
+                    const name = dv.tenDichVu ?? dv.TenDichVu ?? 'Dịch vụ';
+                    const price = Number(dv.tienDichVu ?? dv.TienDichVu ?? 0);
+                    return `
+                        <label style="display:flex;gap:.65rem;align-items:flex-start;padding:.75rem;border:1px solid #e5e7eb;border-radius:.75rem;background:white;cursor:pointer;">
+                            <input type="checkbox" class="hoa-don-dich-vu" value="${id}" data-price="${price}" onchange="recalcTotal()" style="margin-top:.2rem;">
+                            <span style="flex:1;">
+                                <strong>${escapeHtmlDashboard(name)}</strong><br>
+                                <small style="color:var(--text-light);">${fmtCurrency(price)}</small>
+                            </span>
+                        </label>`;
+                }).join('');
+            } else {
+                serviceList.innerHTML = `<div style="color:var(--text-light);">Chủ trọ chưa khai báo dịch vụ nào.</div>`;
+            }
+        }
+        if (serviceBox) serviceBox.style.display = services.length ? 'block' : 'none';
+
+        onHoaDonTypeChanged();
+        recalcTotal();
     } catch (e) {
         window._hoaDonInfo = null;
         document.getElementById('phongInfoBox').style.display = 'none';
@@ -1343,12 +1399,34 @@ async function loadPhongInfo(phongId) {
     }
 }
 
+function calcSelectedServiceTotal() {
+    return Array.from(document.querySelectorAll('.hoa-don-dich-vu:checked'))
+        .reduce((sum, el) => sum + (Number(el.dataset.price) || 0), 0);
+}
+
+function onHoaDonTypeChanged() {
+    const loai = document.getElementById('f_loaiHoaDon')?.value || 'HangThang';
+    const isMonthly = loai === 'HangThang';
+    document.querySelectorAll('.hang-thang-only').forEach(el => {
+        el.style.display = isMonthly ? '' : 'none';
+    });
+    recalcTotal();
+}
+
 function recalcTotal() {
     if (!window._hoaDonInfo) return;
     const info = window._hoaDonInfo;
+    const loai = document.getElementById('f_loaiHoaDon')?.value || 'HangThang';
     const ps = Number(document.getElementById('f_tienPhatSinhKhac')?.value) || 0;
-    const total = (info.phong?.giaPhong || 0) + (info.tienDien || 0) + (info.tienNuoc || 0) + (info.tongTienDichVu || 0) + ps;
-    document.getElementById('infoTongTien').textContent = fmtCurrency(total);
+    const serviceTotal = loai === 'HangThang' ? calcSelectedServiceTotal() : 0;
+    const total = loai === 'ThuePhong'
+        ? (Number(info.phong?.giaPhong || 0) + ps)
+        : (Number(info.tienDien || 0) + Number(info.tienNuoc || 0) + serviceTotal + ps);
+
+    const dvEl = document.getElementById('infoTienDichVu');
+    if (dvEl) dvEl.textContent = fmtCurrency(serviceTotal);
+    const totalEl = document.getElementById('infoTongTien');
+    if (totalEl) totalEl.textContent = fmtCurrency(total);
 }
 
 

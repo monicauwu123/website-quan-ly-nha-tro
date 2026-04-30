@@ -153,17 +153,22 @@ namespace DoAnSE104.Migrations
                         .HasMaxLength(7)
                         .HasColumnType("nvarchar(7)");
 
-                    b.Property<int>("MaDien")
+                    b.Property<int?>("MaDien")
                         .HasColumnType("int");
 
                     b.Property<int>("MaNguoiThue")
                         .HasColumnType("int");
 
-                    b.Property<int>("MaNuoc")
+                    b.Property<int?>("MaNuoc")
                         .HasColumnType("int");
 
                     b.Property<int>("MaPhong")
                         .HasColumnType("int");
+
+                    b.Property<string>("LoaiHoaDon")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime>("NgayLap")
                         .HasColumnType("datetime2");

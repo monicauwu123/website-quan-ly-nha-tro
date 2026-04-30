@@ -12,7 +12,12 @@ namespace DoAnSE104.Models.Dtos
         [Required]
         public int MaPhong { get; set; }
 
+        // "ThuePhong" = hóa đơn thuê phòng, chỉ tính tiền phòng + phát sinh khác.
+        // "HangThang" = hóa đơn hằng tháng, chỉ tính điện/nước/dịch vụ/phát sinh khác.
         [Required]
+        [MaxLength(20)]
+        public string LoaiHoaDon { get; set; } = "HangThang";
+
         [Range(0, double.MaxValue)]
         public decimal TienPhong { get; set; }
 

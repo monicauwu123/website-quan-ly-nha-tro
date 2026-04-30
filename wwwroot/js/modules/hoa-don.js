@@ -8,6 +8,7 @@ window.AppModules.hoadon = {
         headers: [
             { label: 'Phòng', key: 'tenPhong' },
             { label: 'Khách thuê', key: 'tenNguoiThue' },
+            { label: 'Loại hóa đơn', key: 'tenLoaiHoaDon', render: v => `<span class="badge ${v === 'Hóa đơn thuê phòng' ? 'badge-amber' : 'badge-blue'}">${v || 'Hóa đơn hằng tháng'}</span>` },
             { label: 'Kỳ hóa đơn', key: 'kyHoaDon' },
             { label: 'Tiền phòng', key: 'tienPhong', render: v => window.AppFormat.currency(v) },
             { label: 'Tiền điện', key: 'tienDien', render: v => window.AppFormat.currency(v) },

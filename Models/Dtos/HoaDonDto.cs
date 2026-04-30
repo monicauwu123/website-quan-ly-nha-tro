@@ -10,6 +10,8 @@ namespace DoAnSE104.Models.Dtos
         public int MaPhong { get; set; }
         public string TenPhong { get; set; }
         public string TenNguoiThue { get; set; }
+        public string LoaiHoaDon { get; set; } = "HangThang";
+        public string TenLoaiHoaDon { get; set; } = "Hóa đơn hằng tháng";
         public decimal TienDichVu { get; set; } = 0;
         public decimal TienNuoc { get; set; }
         public decimal TienDien { get; set; }

@@ -27,6 +27,22 @@ namespace DoAnSE104.Controllers
         private string GetCurrentRole()
             => User.FindFirstValue(ClaimTypes.Role)!;
 
+        private const string LoaiHoaDonThuePhong = "ThuePhong";
+        private const string LoaiHoaDonHangThang = "HangThang";
+
+        private static string ChuanHoaLoaiHoaDon(string? loaiHoaDon)
+        {
+            if (string.Equals(loaiHoaDon, LoaiHoaDonThuePhong, StringComparison.OrdinalIgnoreCase))
+                return LoaiHoaDonThuePhong;
+
+            return LoaiHoaDonHangThang;
+        }
+
+        private static string LayTenLoaiHoaDon(string? loaiHoaDon)
+            => ChuanHoaLoaiHoaDon(loaiHoaDon) == LoaiHoaDonThuePhong
+                ? "Hóa đơn thuê phòng"
+                : "Hóa đơn hằng tháng";
+
         private async Task<bool> ChuTroCoQuyenPhong(int maPhong)
         {
             var userId = GetCurrentUserId();
@@ -62,7 +78,7 @@ namespace DoAnSE104.Controllers
             return nam >= 1900 && nam <= 9999 && thang >= 1 && thang <= 12;
         }
 
-        private async Task<string?> ValidateHoaDon(int maHoaDon, int maPhong, string kyHoaDon, decimal tongTien)
+        private async Task<string?> ValidateHoaDon(int maHoaDon, int maPhong, string kyHoaDon, string loaiHoaDon, decimal tongTien)
         {
             if (!TryParseKyHoaDon(kyHoaDon, out _, out _))
                 return "Kỳ hóa đơn không hợp lệ. Vui lòng nhập theo định dạng yyyy-MM, ví dụ: 2026-05";
@@ -70,13 +86,16 @@ namespace DoAnSE104.Controllers
             if (tongTien < 0)
                 return "Tổng tiền hóa đơn phải lớn hơn hoặc bằng 0";
 
+            var loai = ChuanHoaLoaiHoaDon(loaiHoaDon);
+
             var trungHoaDon = await _context.HoaDon.AnyAsync(hd =>
                 hd.MaPhong == maPhong &&
                 hd.KyHoaDon == kyHoaDon &&
+                hd.LoaiHoaDon == loai &&
                 hd.MaHoaDon != maHoaDon);
 
             if (trungHoaDon)
-                return $"Đã tồn tại hóa đơn cho phòng này trong kỳ {kyHoaDon}";
+                return $"Đã tồn tại {LayTenLoaiHoaDon(loai).ToLower()} cho phòng này trong kỳ {kyHoaDon}";
 
             return null;
         }
@@ -230,11 +249,13 @@ namespace DoAnSE104.Controllers
                     MaPhong = h.MaPhong,
                     TenPhong = h.Phong?.TenPhong ?? "---",
                     TenNguoiThue = h.NguoiThue?.HoTen ?? "---",
+                    LoaiHoaDon = ChuanHoaLoaiHoaDon(h.LoaiHoaDon),
+                    TenLoaiHoaDon = LayTenLoaiHoaDon(h.LoaiHoaDon),
                     NgayLap = h.NgayLap,
                     KyHoaDon = h.KyHoaDon,
-                    TienPhong = h.Phong?.GiaPhong ?? 0m,
-                    TienDien = h.ChiSoDien?.TienDien ?? 0m,
-                    TienNuoc = h.ChiSoNuoc?.TienNuoc ?? 0m,
+                    TienPhong = ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonThuePhong ? (h.Phong?.GiaPhong ?? 0m) : 0m,
+                    TienDien = ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonHangThang ? (h.ChiSoDien?.TienDien ?? 0m) : 0m,
+                    TienNuoc = ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonHangThang ? (h.ChiSoNuoc?.TienNuoc ?? 0m) : 0m,
                     TienDichVu = chiTietDichVu.Sum(ct => ct.SoTien),
                     TienPhatSinhKhac = h.TienPhatSinhKhac,
                     TongTien = h.TongTien,
@@ -289,16 +310,10 @@ namespace DoAnSE104.Controllers
                 .OrderByDescending(cd => cd.NgayThangDien)
                 .FirstOrDefaultAsync();
 
-            if (chiSoDien == null)
-                return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số điện cho phòng này"));
-
             var chiSoNuoc = await _context.ChiSoNuoc
                 .Where(cn => cn.MaPhong == phongId)
                 .OrderByDescending(cn => cn.NgayThangNuoc)
                 .FirstOrDefaultAsync();
-
-            if (chiSoNuoc == null)
-                return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số nước cho phòng này"));
 
             var danhSachDichVu = await _context.DichVu
                 .Where(dv => dv.MaChuTro == phong.NhaTro.MaChuTro || dv.MaChuTro == null)
@@ -311,34 +326,38 @@ namespace DoAnSE104.Controllers
                 })
                 .ToListAsync();
 
-            decimal tongTienHoaDon = phong.GiaPhong + chiSoDien.TienDien + chiSoNuoc.TienNuoc;
+            decimal tongTienThuePhong = phong.GiaPhong;
+            decimal tongTienHangThang = (chiSoDien?.TienDien ?? 0m) + (chiSoNuoc?.TienNuoc ?? 0m);
 
             return Ok(new
             {
                 Phong = new { phong.MaPhong, phong.TenPhong, GiaPhong = phong.GiaPhong },
                 NguoiThue = new { nguoiThue.MaNguoiThue, nguoiThue.HoTen },
-                TienDien = chiSoDien.TienDien,
-                TienNuoc = chiSoNuoc.TienNuoc,
+                TienDien = chiSoDien?.TienDien ?? 0m,
+                TienNuoc = chiSoNuoc?.TienNuoc ?? 0m,
                 DanhSachDichVu = danhSachDichVu,
                 TongTienDichVu = 0m,
-                TongTienHoaDon = tongTienHoaDon,
-                MaDien = chiSoDien.MaDien,
-                MaNuoc = chiSoNuoc.MaNuoc
+                TongTienThuePhong = tongTienThuePhong,
+                TongTienHangThang = tongTienHangThang,
+                TongTienHoaDon = tongTienHangThang,
+                MaDien = chiSoDien?.MaDien,
+                MaNuoc = chiSoNuoc?.MaNuoc
             });
         }
 
         // GET: api/HoaDon/GetPhongChuaCoHoaDonTrongThang
         [HttpGet("GetPhongChuaCoHoaDonTrongThang")]
         [Authorize(Roles = "Admin,ChuTro")]
-        public async Task<IActionResult> GetPhongChuaCoHoaDonTrongThang([FromQuery] int thang, [FromQuery] int nam)
+        public async Task<IActionResult> GetPhongChuaCoHoaDonTrongThang([FromQuery] int thang, [FromQuery] int nam, [FromQuery] string? loaiHoaDon = null)
         {
             if (thang < 1 || thang > 12 || nam < 1900 || nam > 9999)
                 return BadRequest(ApiResponse<object>.Loi("Tháng năm không hợp lệ"));
 
             var kyHoaDon = $"{nam:D4}-{thang:D2}";
+            var loai = ChuanHoaLoaiHoaDon(loaiHoaDon);
 
             var phongDaCoHoaDon = await _context.HoaDon
-                .Where(hd => hd.KyHoaDon == kyHoaDon)
+                .Where(hd => hd.KyHoaDon == kyHoaDon && hd.LoaiHoaDon == loai)
                 .Select(hd => hd.MaPhong)
                 .ToListAsync();
 
@@ -388,31 +407,49 @@ namespace DoAnSE104.Controllers
                 if (hopDong == null)
                     return BadRequest(ApiResponse<object>.Loi("Không tìm thấy hợp đồng thuê hợp lệ cho phòng này"));
 
+                var loaiHoaDon = ChuanHoaLoaiHoaDon(request.LoaiHoaDon);
+
                 var chiSoDien = await _context.ChiSoDien
                     .Where(cd => cd.MaPhong == request.MaPhong)
                     .OrderByDescending(cd => cd.NgayThangDien)
                     .FirstOrDefaultAsync();
-
-                if (chiSoDien == null)
-                    return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số điện cho phòng này"));
 
                 var chiSoNuoc = await _context.ChiSoNuoc
                     .Where(cn => cn.MaPhong == request.MaPhong)
                     .OrderByDescending(cn => cn.NgayThangNuoc)
                     .FirstOrDefaultAsync();
 
-                if (chiSoNuoc == null)
-                    return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số nước cho phòng này"));
+                var dichVuSuDung = new List<DichVu>();
+                decimal tongTienDichVu = 0m;
+                decimal tienDien = 0m;
+                decimal tienNuoc = 0m;
+                decimal tienPhong = 0m;
 
-                var dichVuSuDung = await LayDichVuHopLeTheoPhongAsync(request.MaPhong, request.MaDichVuSuDung);
-                var soLuongDichVuGuiLen = request.MaDichVuSuDung?.Distinct().Count() ?? 0;
-                if (dichVuSuDung.Count != soLuongDichVuGuiLen)
-                    return BadRequest(ApiResponse<object>.Loi("Có dịch vụ không tồn tại hoặc không thuộc chủ trọ của phòng này"));
+                if (loaiHoaDon == LoaiHoaDonHangThang)
+                {
+                    if (chiSoDien == null)
+                        return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số điện cho phòng này"));
 
-                decimal tongTienDichVu = dichVuSuDung.Sum(dv => (decimal)dv.Tiendichvu);
-                decimal tongTien = phong.GiaPhong + chiSoDien.TienDien + chiSoNuoc.TienNuoc + tongTienDichVu + request.TienPhatSinhKhac;
+                    if (chiSoNuoc == null)
+                        return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số nước cho phòng này"));
 
-                var loiValidation = await ValidateHoaDon(0, request.MaPhong, request.KyHoaDon, tongTien);
+                    dichVuSuDung = await LayDichVuHopLeTheoPhongAsync(request.MaPhong, request.MaDichVuSuDung);
+                    var soLuongDichVuGuiLen = request.MaDichVuSuDung?.Distinct().Count() ?? 0;
+                    if (dichVuSuDung.Count != soLuongDichVuGuiLen)
+                        return BadRequest(ApiResponse<object>.Loi("Có dịch vụ không tồn tại hoặc không thuộc chủ trọ của phòng này"));
+
+                    tongTienDichVu = dichVuSuDung.Sum(dv => (decimal)dv.Tiendichvu);
+                    tienDien = chiSoDien.TienDien;
+                    tienNuoc = chiSoNuoc.TienNuoc;
+                }
+                else
+                {
+                    tienPhong = phong.GiaPhong;
+                }
+
+                decimal tongTien = tienPhong + tienDien + tienNuoc + tongTienDichVu + request.TienPhatSinhKhac;
+
+                var loiValidation = await ValidateHoaDon(0, request.MaPhong, request.KyHoaDon, loaiHoaDon, tongTien);
                 if (loiValidation != null)
                     return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
@@ -420,8 +457,9 @@ namespace DoAnSE104.Controllers
                 {
                     MaPhong = request.MaPhong,
                     MaNguoiThue = request.MaNguoiThue,
-                    MaDien = chiSoDien.MaDien,
-                    MaNuoc = chiSoNuoc.MaNuoc,
+                    MaDien = loaiHoaDon == LoaiHoaDonHangThang ? chiSoDien?.MaDien : null,
+                    MaNuoc = loaiHoaDon == LoaiHoaDonHangThang ? chiSoNuoc?.MaNuoc : null,
+                    LoaiHoaDon = loaiHoaDon,
                     NgayLap = request.NgayLap,
                     KyHoaDon = request.KyHoaDon,
                     TongTien = tongTien,
@@ -488,38 +526,57 @@ namespace DoAnSE104.Controllers
                 if (hopDong == null)
                     return BadRequest(ApiResponse<object>.Loi("Không tìm thấy hợp đồng thuê hợp lệ cho phòng này"));
 
+                var loaiHoaDon = ChuanHoaLoaiHoaDon(dto.LoaiHoaDon);
+
                 var chiSoDien = await _context.ChiSoDien
                     .Where(cd => cd.MaPhong == dto.MaPhong)
                     .OrderByDescending(cd => cd.NgayThangDien)
                     .FirstOrDefaultAsync();
-
-                if (chiSoDien == null)
-                    return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số điện cho phòng này"));
 
                 var chiSoNuoc = await _context.ChiSoNuoc
                     .Where(cn => cn.MaPhong == dto.MaPhong)
                     .OrderByDescending(cn => cn.NgayThangNuoc)
                     .FirstOrDefaultAsync();
 
-                if (chiSoNuoc == null)
-                    return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số nước cho phòng này"));
+                var dichVuSuDung = new List<DichVu>();
+                decimal tongTienDichVu = 0m;
+                decimal tienDien = 0m;
+                decimal tienNuoc = 0m;
+                decimal tienPhong = 0m;
 
-                var dichVuSuDung = await LayDichVuHopLeTheoPhongAsync(dto.MaPhong, dto.MaDichVuSuDung);
-                var soLuongDichVuGuiLen = dto.MaDichVuSuDung?.Distinct().Count() ?? 0;
-                if (dichVuSuDung.Count != soLuongDichVuGuiLen)
-                    return BadRequest(ApiResponse<object>.Loi("Có dịch vụ không tồn tại hoặc không thuộc chủ trọ của phòng này"));
+                if (loaiHoaDon == LoaiHoaDonHangThang)
+                {
+                    if (chiSoDien == null)
+                        return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số điện cho phòng này"));
 
-                decimal tongTienDichVu = dichVuSuDung.Sum(dv => (decimal)dv.Tiendichvu);
-                decimal tongTien = phong.GiaPhong + chiSoDien.TienDien + chiSoNuoc.TienNuoc + tongTienDichVu + dto.TienPhatSinhKhac;
+                    if (chiSoNuoc == null)
+                        return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số nước cho phòng này"));
 
-                var loiValidation = await ValidateHoaDon(id, dto.MaPhong, dto.KyHoaDon, tongTien);
+                    dichVuSuDung = await LayDichVuHopLeTheoPhongAsync(dto.MaPhong, dto.MaDichVuSuDung);
+                    var soLuongDichVuGuiLen = dto.MaDichVuSuDung?.Distinct().Count() ?? 0;
+                    if (dichVuSuDung.Count != soLuongDichVuGuiLen)
+                        return BadRequest(ApiResponse<object>.Loi("Có dịch vụ không tồn tại hoặc không thuộc chủ trọ của phòng này"));
+
+                    tongTienDichVu = dichVuSuDung.Sum(dv => (decimal)dv.Tiendichvu);
+                    tienDien = chiSoDien.TienDien;
+                    tienNuoc = chiSoNuoc.TienNuoc;
+                }
+                else
+                {
+                    tienPhong = phong.GiaPhong;
+                }
+
+                decimal tongTien = tienPhong + tienDien + tienNuoc + tongTienDichVu + dto.TienPhatSinhKhac;
+
+                var loiValidation = await ValidateHoaDon(id, dto.MaPhong, dto.KyHoaDon, loaiHoaDon, tongTien);
                 if (loiValidation != null)
                     return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
                 hoaDon.MaNguoiThue = dto.MaNguoiThue;
                 hoaDon.MaPhong = dto.MaPhong;
-                hoaDon.MaDien = chiSoDien.MaDien;
-                hoaDon.MaNuoc = chiSoNuoc.MaNuoc;
+                hoaDon.MaDien = loaiHoaDon == LoaiHoaDonHangThang ? chiSoDien?.MaDien : null;
+                hoaDon.MaNuoc = loaiHoaDon == LoaiHoaDonHangThang ? chiSoNuoc?.MaNuoc : null;
+                hoaDon.LoaiHoaDon = loaiHoaDon;
                 hoaDon.NgayLap = dto.NgayLap;
                 hoaDon.KyHoaDon = dto.KyHoaDon;
                 hoaDon.TienPhatSinhKhac = dto.TienPhatSinhKhac;

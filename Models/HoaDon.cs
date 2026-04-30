@@ -18,19 +18,23 @@ namespace DoAnSE104.Models
         public int MaPhong { get; set; }
         public Phong Phong { get; set; }
 
-        [Required]
-        public int MaDien { get; set; }
-        public ChiSoDien ChiSoDien { get; set; }
+        public int? MaDien { get; set; }
+        public ChiSoDien? ChiSoDien { get; set; }
 
-        [Required]
-        public int MaNuoc { get; set; }
-        public ChiSoNuoc ChiSoNuoc { get; set; }
+        public int? MaNuoc { get; set; }
+        public ChiSoNuoc? ChiSoNuoc { get; set; }
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal TienPhatSinhKhac { get; set; } = 0;
 
-        // Tá»•ng tiá»n pháº£i tráº£ cho hÃ³a Ä‘Æ¡n: tiá»n phÃ²ng + tiá»n Ä‘iá»‡n + tiá»n nÆ°á»›c + tiá»n dá»‹ch vá»¥
+        [Required]
+        [MaxLength(20)]
+        public string LoaiHoaDon { get; set; } = "HangThang";
+
+        // Tổng tiền phải trả cho hóa đơn.
+        // Hóa đơn thuê phòng: tiền phòng + phát sinh khác.
+        // Hóa đơn hằng tháng: tiền điện + tiền nước + dịch vụ đã chọn + phát sinh khác.
         [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal TongTien { get; set; }
