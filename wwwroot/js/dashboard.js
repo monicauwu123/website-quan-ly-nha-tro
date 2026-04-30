@@ -45,6 +45,15 @@ window.lookups = lookups;
 // --- FORMATTERS ---
 const fmtCurrency = v => (v != null && v !== '') ? new Intl.NumberFormat('vi-VN').format(v) + 'đ' : '---';
 const fmtDate = v => v ? new Date(v).toLocaleDateString('vi-VN') : '---';
+window.AppFormat = window.AppFormat || {
+    currency: fmtCurrency,
+    date: fmtDate,
+    escapeHtml: v => v === null || v === undefined ? '' : String(v)
+        .replaceAll('&', '&amp;')
+        .replaceAll('\"', '&quot;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+};
 function escapeHtmlDashboard(v) {
     return v === null || v === undefined ? '' : String(v)
         .replaceAll('&', '&amp;')
@@ -104,6 +113,19 @@ function extractApiErrorMessage(json) {
     return '';
 }
 
+
+function normalizeArrayResponse(value) {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (Array.isArray(value.duLieu)) return value.duLieu;
+    if (Array.isArray(value.data)) return value.data;
+    if (Array.isArray(value.$values)) return value.$values;
+    if (value.duLieu && Array.isArray(value.duLieu.$values)) return value.duLieu.$values;
+    if (value.data && Array.isArray(value.data.$values)) return value.data.$values;
+    return [];
+}
+window.normalizeArrayResponse = normalizeArrayResponse;
+
 // ==========================================
 // TOAST NOTIFICATIONS
 // ==========================================
@@ -128,19 +150,19 @@ async function loadLookups() {
         apiFetch('/api/Phong'),
         apiFetch('/api/NguoiThue'),
     ]);
-    lookups.nhatro = results[0].value || [];
-    lookups.loaiphong = results[1].value || [];
-    lookups.trangthai = results[2].value || [];
+    lookups.nhatro = normalizeArrayResponse(results[0].value);
+    lookups.loaiphong = normalizeArrayResponse(results[1].value);
+    lookups.trangthai = normalizeArrayResponse(results[2].value);
     if (lookups.trangthai.length === 0) {
         console.warn('Không tải được danh sách trạng thái từ API /api/TrangThai');
     }
-    lookups.phong = results[3].value || [];
-    lookups.nguoithue = results[4].value || [];
+    lookups.phong = normalizeArrayResponse(results[3].value);
+    lookups.nguoithue = normalizeArrayResponse(results[4].value);
 
     // Bổ sung lookups cho Thanh toán
     try {
         const hd = await apiFetch('/api/HoaDon');
-        lookups.hoadon = hd || [];
+        lookups.hoadon = normalizeArrayResponse(hd);
     } catch (e) { console.warn('Load hoadon lookup failed'); }
 
     lookups.hinhthuc = [
@@ -555,7 +577,8 @@ async function loadGenericSection(section) {
         </div>`;
 
     try {
-        currentData = await apiFetch(cfg.endpoint);
+        const rawData = await apiFetch(cfg.endpoint);
+        currentData = normalizeArrayResponse(rawData);
         renderTable(cfg, currentData, section);
     } catch (e) {
         const tbody = document.getElementById('genericTableBody');
@@ -567,13 +590,17 @@ async function loadGenericSection(section) {
 function renderTable(cfg, data, section) {
     const tbody = document.getElementById('genericTableBody');
     if (!tbody) return;
-    if (!data?.length) {
+
+    const safeData = normalizeArrayResponse(data);
+    const displayData = section === 'nguoithue' ? mergeNguoiThueDisplayRows(safeData) : safeData;
+
+    if (!displayData?.length) {
         tbody.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;color:var(--text-light);">Không có dữ liệu</td></tr>`;
         return;
     }
     const canWrite = (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro');
 
-    tbody.innerHTML = data.map(item => {
+    tbody.innerHTML = displayData.map(item => {
         let actionHtml = '';
 
         if (section === 'yeucauthue') {
@@ -590,10 +617,10 @@ function renderTable(cfg, data, section) {
             if (CURRENT_ROLE === 'Admin') {
                 actionHtml += `
                     <button class="btn-action btn-edit" onclick="editItem('nguoithue',${item.maNguoiThue})"><i class="fas fa-edit"></i> Sửa</button>
-                    <button class="btn-action btn-delete" onclick="deleteItem('nguoithue',${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
+                    <button class="btn-action btn-delete" onclick="deleteNguoiThueDisplayGroup(${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
             } else if (CURRENT_ROLE === 'ChuTro') {
                 actionHtml += `
-                    <button class="btn-action btn-delete" onclick="deleteItem('nguoithue',${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
+                    <button class="btn-action btn-delete" onclick="deleteNguoiThueDisplayGroup(${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
             }
         } else if (section === 'hoadon') {
             actionHtml = `<button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>`;
@@ -623,10 +650,10 @@ async function searchNguoiThue(q) {
     if (!q) { renderTable(modules.nguoithue, currentData, 'nguoithue'); return; }
     try {
         const results = await apiFetch(`/api/NguoiThue/Search?keyword=${encodeURIComponent(q)}`);
-        renderTable(modules.nguoithue, results || [], 'nguoithue');
+        renderTable(modules.nguoithue, normalizeArrayResponse(results), 'nguoithue');
     } catch {
         const lower = q.toLowerCase();
-        const filtered = currentData.filter(n =>
+        const filtered = normalizeArrayResponse(currentData).filter(n =>
             (n.hoTen || '').toLowerCase().includes(lower) ||
             (n.cccd || '').includes(q) ||
             (n.sdt || '').includes(q) ||
@@ -634,6 +661,87 @@ async function searchNguoiThue(q) {
         );
         renderTable(modules.nguoithue, filtered, 'nguoithue');
     }
+}
+
+
+// Gộp danh sách khách thuê theo cùng tài khoản/người thật để chủ trọ không thấy lặp
+// khi một người thuê nhiều phòng. Dữ liệu gốc vẫn giữ nguyên trong currentData/lookups để các form nghiệp vụ dùng đúng hồ sơ phòng.
+let nguoiThueGroupMap = {};
+window.nguoiThueGroupMap = nguoiThueGroupMap;
+
+function getNguoiThueGroupKey(item) {
+    if (item.maNguoiDung) return `user_${item.maNguoiDung}`;
+
+    const identity = [item.cccd, item.email, item.sdt]
+        .filter(v => v !== null && v !== undefined && String(v).trim() !== '')
+        .map(v => String(v).trim().toLowerCase())
+        .join('|');
+
+    return identity ? `identity_${identity}` : `profile_${item.maNguoiThue}`;
+}
+
+function mergeNguoiThueDisplayRows(data) {
+    const source = normalizeArrayResponse(data);
+    const groups = new Map();
+
+    source.forEach(item => {
+        const key = getNguoiThueGroupKey(item);
+        if (!groups.has(key)) {
+            groups.set(key, {
+                ...item,
+                _nguoiThueItems: [],
+                danhSachMaNguoiThue: [],
+                danhSachPhongText: '',
+                soPhongDangThue: 0
+            });
+        }
+
+        const group = groups.get(key);
+        group._nguoiThueItems.push(item);
+        group.danhSachMaNguoiThue.push(item.maNguoiThue);
+
+        ['hoTen', 'cccd', 'sdt', 'email', 'ngaySinh', 'gioiTinh', 'quocTich', 'diaChi', 'noiCongTac', 'anhCccdMatTruoc', 'anhCccdMatSau'].forEach(k => {
+            if ((group[k] === null || group[k] === undefined || group[k] === '') && item[k]) group[k] = item[k];
+        });
+    });
+
+    const rows = Array.from(groups.values()).map(group => {
+        const rooms = [];
+        const seen = new Set();
+
+        group._nguoiThueItems.forEach(nt => {
+            const phong = lookups.phong.find(p => Number(p.maPhong) === Number(nt.maPhong));
+            const nhaTro = phong ? lookups.nhatro.find(n => Number(n.maNhaTro) === Number(phong.maNhaTro)) : null;
+            const label = `${phong?.tenPhong || ('Phòng #' + nt.maPhong)}${nhaTro?.tenNhaTro ? ' - ' + nhaTro.tenNhaTro : ''}`;
+            const roomKey = String(nt.maPhong || label);
+            if (!seen.has(roomKey)) {
+                seen.add(roomKey);
+                rooms.push({
+                    maNguoiThue: nt.maNguoiThue,
+                    maPhong: nt.maPhong,
+                    tenPhong: phong?.tenPhong || ('Phòng #' + nt.maPhong),
+                    tenNhaTro: nhaTro?.tenNhaTro || '',
+                    label
+                });
+            }
+        });
+
+        return {
+            ...group,
+            danhSachPhong: rooms,
+            soPhongDangThue: rooms.length || 1,
+            danhSachPhongText: rooms.length ? rooms.map(r => r.label).join('<br>') : (lookups.phong.find(p => Number(p.maPhong) === Number(group.maPhong))?.tenPhong || ('#' + group.maPhong)),
+            _isNguoiThueGroup: true
+        };
+    });
+
+    nguoiThueGroupMap = {};
+    rows.forEach(row => {
+        nguoiThueGroupMap[row.maNguoiThue] = row;
+    });
+    window.nguoiThueGroupMap = nguoiThueGroupMap;
+
+    return rows;
 }
 
 // ==========================================
@@ -1473,8 +1581,16 @@ function imageBox(url, label) {
 async function viewNguoiThueDetail(id) {
     try {
         const nt = await apiFetch(`/api/NguoiThue/${id}`);
-        const phong = lookups.phong.find(p => p.maPhong === nt.maPhong);
-        const nhaTro = phong ? lookups.nhatro.find(n => n.maNhaTro === phong.maNhaTro) : null;
+        const group = window.nguoiThueGroupMap?.[id];
+        const phong = lookups.phong.find(p => Number(p.maPhong) === Number(nt.maPhong));
+        const nhaTro = phong ? lookups.nhatro.find(n => Number(n.maNhaTro) === Number(phong.maNhaTro)) : null;
+        const rooms = group?.danhSachPhong?.length ? group.danhSachPhong : [{
+            maNguoiThue: nt.maNguoiThue,
+            maPhong: nt.maPhong,
+            tenPhong: phong?.tenPhong || ('Phòng #' + nt.maPhong),
+            tenNhaTro: nhaTro?.tenNhaTro || '',
+            label: `${phong?.tenPhong || ('Phòng #' + nt.maPhong)}${nhaTro?.tenNhaTro ? ' - ' + nhaTro.tenNhaTro : ''}`
+        }];
 
         document.getElementById('modalTitle').textContent = 'Thông tin chi tiết khách thuê';
         document.getElementById('modalFields').innerHTML = `
@@ -1497,9 +1613,12 @@ async function viewNguoiThueDetail(id) {
                 <div>
                     <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-home"></i> Thông tin thuê phòng</h3>
                     <div class="info-grid">
-                        <div class="info-item"><label>Nhà trọ</label><span>${safeText(nhaTro?.tenNhaTro)}</span></div>
-                        <div class="info-item"><label>Phòng</label><span>${safeText(phong?.tenPhong || ('#' + nt.maPhong))}</span></div>
+                        <div class="info-item"><label>Số phòng thuê</label><span>${rooms.length}</span></div>
                         <div class="info-item"><label>Mã tài khoản liên kết</label><span>${safeText(nt.maNguoiDung)}</span></div>
+                        <div class="info-item" style="grid-column:1/-1;">
+                            <label>Danh sách phòng</label>
+                            <span>${rooms.map(r => `• ${safeText(r.label)} <small style="color:var(--text-light);">(Hồ sơ #${safeText(r.maNguoiThue)})</small>`).join('<br>')}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -1527,6 +1646,35 @@ async function viewNguoiThueDetail(id) {
     } catch (e) {
         showToast(e.message || 'Không tải được chi tiết khách thuê', 'error');
     }
+}
+
+async function deleteNguoiThueDisplayGroup(id) {
+    const group = window.nguoiThueGroupMap?.[id];
+    const ids = group?.danhSachMaNguoiThue?.length ? group.danhSachMaNguoiThue : [id];
+
+    const message = ids.length > 1
+        ? `Khách thuê này đang có ${ids.length} hồ sơ thuê phòng trong danh sách của bạn. Bạn có muốn xóa các hồ sơ có thể xóa không?`
+        : 'Bạn có chắc chắn muốn xóa khách thuê này?';
+
+    if (!confirm(message)) return;
+
+    let success = 0;
+    const errors = [];
+
+    for (const maNguoiThue of ids) {
+        try {
+            await apiFetch(`/api/NguoiThue/${maNguoiThue}`, 'DELETE');
+            success++;
+        } catch (e) {
+            errors.push(e.message || `Không xóa được hồ sơ #${maNguoiThue}`);
+        }
+    }
+
+    if (success > 0) showToast(`Đã xóa ${success} hồ sơ khách thuê`, 'success');
+    if (errors.length > 0) showToast(errors[0], 'error');
+
+    await loadLookups();
+    refreshData();
 }
 
 // ==========================================

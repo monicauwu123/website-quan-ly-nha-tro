@@ -4,7 +4,7 @@
 // ==========================================
 
 (function () {
-    const VERSION = '3.4';
+    const VERSION = '4.5';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
@@ -52,7 +52,7 @@
     window.AppDienNuocModules = window.AppDienNuocModules || {};
 
     async function loadHtmlModule(item) {
-        const res = await fetch(item.path, { cache: 'force-cache' });
+        const res = await fetch(item.path, { cache: 'no-store' });
         if (!res.ok) throw new Error('Không tải được module: ' + item.path);
         const html = await res.text();
         window.AppHtmlModules[item.name] = html;

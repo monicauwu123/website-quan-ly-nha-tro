@@ -38,6 +38,45 @@ namespace DoAnSE104.Controllers
                 .AnyAsync(p => p.MaPhong == maPhong && p.NhaTro.MaChuTro == maChuTro);
         }
 
+        private void DongBoThongTinHienThiTuTaiKhoan(NguoiThue nguoiThue, User? user)
+        {
+            if (user == null) return;
+
+            // Thông tin cá nhân/CCCD lấy theo tài khoản mới nhất để chủ trọ luôn thấy dữ liệu người dùng vừa cập nhật.
+            nguoiThue.HoTen = string.IsNullOrWhiteSpace(user.HoTen) ? nguoiThue.HoTen : user.HoTen;
+            nguoiThue.CCCD = user.CCCD ?? nguoiThue.CCCD;
+            nguoiThue.SDT = string.IsNullOrWhiteSpace(user.SoDienThoai) ? nguoiThue.SDT : user.SoDienThoai;
+            nguoiThue.Email = string.IsNullOrWhiteSpace(user.Email) ? nguoiThue.Email : user.Email;
+            nguoiThue.NgaySinh = user.NgaySinh ?? nguoiThue.NgaySinh;
+            nguoiThue.GioiTinh = user.GioiTinh ?? nguoiThue.GioiTinh;
+            nguoiThue.QuocTich = user.QuocTich ?? nguoiThue.QuocTich;
+            nguoiThue.DiaChi = user.DiaChi ?? nguoiThue.DiaChi;
+            nguoiThue.NoiCongTac = user.NoiCongTac ?? nguoiThue.NoiCongTac;
+            nguoiThue.AnhCccdMatTruoc = user.AnhCccdMatTruoc ?? nguoiThue.AnhCccdMatTruoc;
+            nguoiThue.AnhCccdMatSau = user.AnhCccdMatSau ?? nguoiThue.AnhCccdMatSau;
+        }
+
+        private async Task DongBoDanhSachHienThiTuTaiKhoan(List<NguoiThue> danhSach)
+        {
+            var userIds = danhSach
+                .Where(nt => nt.MaNguoiDung.HasValue)
+                .Select(nt => nt.MaNguoiDung!.Value)
+                .Distinct()
+                .ToList();
+
+            if (!userIds.Any()) return;
+
+            var users = await _context.Users
+                .Where(u => userIds.Contains(u.MaNguoiDung))
+                .ToDictionaryAsync(u => u.MaNguoiDung);
+
+            foreach (var nt in danhSach)
+            {
+                if (nt.MaNguoiDung.HasValue && users.TryGetValue(nt.MaNguoiDung.Value, out var user))
+                    DongBoThongTinHienThiTuTaiKhoan(nt, user);
+            }
+        }
+
         private async Task<string?> ValidateNguoiThue(NguoiThue nguoiThue)
         {
             if (string.IsNullOrWhiteSpace(nguoiThue.HoTen))
@@ -61,21 +100,20 @@ namespace DoAnSE104.Controllers
                 var role = GetCurrentRole();
                 var userId = GetCurrentUserId();
 
-                IQueryable<NguoiThue> query = _context.NguoiThue;
+                IQueryable<NguoiThue> query = _context.NguoiThue.AsNoTracking();
 
                 if (role == VaiTroConst.ChuTro)
                 {
-                    var maNhaTroList = await _context.NhaTro
-                        .Where(n => n.MaChuTro == userId)
-                        .Select(n => n.MaNhaTro)
-                        .ToListAsync();
-
                     var maPhongList = await _context.Phong
-                        .Where(p => maNhaTroList.Contains(p.MaNhaTro))
+                        .Where(p => p.NhaTro.MaChuTro == userId)
                         .Select(p => p.MaPhong)
                         .ToListAsync();
 
-                    query = query.Where(nt => maPhongList.Contains(nt.MaPhong));
+                    // Lấy cả hồ sơ đang gắn MaPhong và hồ sơ có hợp đồng thuộc phòng của chủ trọ.
+                    // Cách này tránh bị mất khách thuê nếu dữ liệu cũ chỉ còn liên kết qua hợp đồng.
+                    query = query.Where(nt =>
+                        maPhongList.Contains(nt.MaPhong) ||
+                        _context.HopDong.Any(h => h.MaNguoiThue == nt.MaNguoiThue && maPhongList.Contains(h.MaPhong)));
                 }
                 else if (role == VaiTroConst.NguoiDung)
                 {
@@ -83,6 +121,7 @@ namespace DoAnSE104.Controllers
                 }
 
                 var data = await query.ToListAsync();
+                await DongBoDanhSachHienThiTuTaiKhoan(data);
                 return Ok(ApiResponse<List<NguoiThue>>.Ok(data));
             }
             catch (Exception ex)
@@ -155,6 +194,12 @@ namespace DoAnSE104.Controllers
                         return Forbid();
                 }
 
+                if (nguoiThue.MaNguoiDung.HasValue)
+                {
+                    var linkedUser = await _context.Users.FindAsync(nguoiThue.MaNguoiDung.Value);
+                    DongBoThongTinHienThiTuTaiKhoan(nguoiThue, linkedUser);
+                }
+
                 return Ok(ApiResponse<NguoiThue>.Ok(nguoiThue));
             }
             catch (Exception ex)
@@ -173,19 +218,18 @@ namespace DoAnSE104.Controllers
                 var role = GetCurrentRole();
                 var userId = GetCurrentUserId();
 
-                IQueryable<NguoiThue> query = _context.NguoiThue;
+                IQueryable<NguoiThue> query = _context.NguoiThue.AsNoTracking();
 
                 if (role == VaiTroConst.ChuTro)
                 {
-                    var maNhaTroList = await _context.NhaTro
-                        .Where(n => n.MaChuTro == userId)
-                        .Select(n => n.MaNhaTro)
-                        .ToListAsync();
                     var maPhongList = await _context.Phong
-                        .Where(p => maNhaTroList.Contains(p.MaNhaTro))
+                        .Where(p => p.NhaTro.MaChuTro == userId)
                         .Select(p => p.MaPhong)
                         .ToListAsync();
-                    query = query.Where(nt => maPhongList.Contains(nt.MaPhong));
+
+                    query = query.Where(nt =>
+                        maPhongList.Contains(nt.MaPhong) ||
+                        _context.HopDong.Any(h => h.MaNguoiThue == nt.MaNguoiThue && maPhongList.Contains(h.MaPhong)));
                 }
 
                 if (!string.IsNullOrEmpty(keyword))
@@ -198,6 +242,7 @@ namespace DoAnSE104.Controllers
                 }
 
                 var data = await query.ToListAsync();
+                await DongBoDanhSachHienThiTuTaiKhoan(data);
                 return Ok(ApiResponse<List<NguoiThue>>.Ok(data));
             }
             catch (Exception ex)

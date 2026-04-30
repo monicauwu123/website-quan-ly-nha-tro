@@ -48,11 +48,11 @@ function formatDateDisplay(v) {
 
 function renderCccdPreview(url, label) {
     if (!url) {
-        return `<div style="padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;color:var(--text-light);text-align:center;">Chưa có ${label.toLowerCase()}</div>`;
+        return `<div class="account-empty-state"><i class="fas fa-image"></i> Chưa có ${label.toLowerCase()}</div>`;
     }
 
     const safeUrl = escapeHtml(url);
-    return `<a href="${safeUrl}" target="_blank"><img src="${safeUrl}" alt="${escapeHtml(label)}" style="width:100%;max-height:220px;object-fit:contain;border-radius:.75rem;background:#f8fafc;border:1px solid #e5e7eb;"></a>`;
+    return `<a href="${safeUrl}" target="_blank"><img src="${safeUrl}" alt="${escapeHtml(label)}" style="width:100%;max-height:220px;object-fit:contain;border-radius:1rem;background:#f8fafc;border:1px solid #e5e7eb;box-shadow:0 8px 20px rgba(15,23,42,.06);"></a>`;
 }
 
 async function uploadAccountCccdFile(inputId, hiddenId, previewId, label) {
@@ -139,7 +139,7 @@ function checkStrength(val) {
 // ─── Load & render profile ────────────────────────────────────────────────────
 async function loadProfile() {
     const body = document.getElementById('profileInfoBody');
-    body.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--text-light);"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+    body.innerHTML = '<div class="account-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
 
     try {
         const res  = await apiFetch('/api/Account/thong-tin');
@@ -188,24 +188,34 @@ async function loadProfile() {
             { icon: 'fa-circle',      label: 'Trạng thái',       value: data.trangThai ? '✅ Đang hoạt động' : '🔒 Bị khóa' }
         );
 
-        body.innerHTML = rows.map(r => `
-            <div class="profile-row">
-                <div class="pr-icon"><i class="fas ${r.icon}"></i></div>
-                <div>
-                    <div class="pr-label">${escapeHtml(r.label)}</div>
-                    <div class="pr-value">${displayValue(r.value)}</div>
-                </div>
-            </div>`).join('') + (data.vaiTro === 'NguoiDung' ? `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem;">
-                <div>
-                    <div class="pr-label" style="margin-bottom:.35rem;">Ảnh CCCD mặt trước</div>
-                    ${renderCccdPreview(data.anhCccdMatTruoc, 'CCCD mặt trước')}
-                </div>
-                <div>
-                    <div class="pr-label" style="margin-bottom:.35rem;">Ảnh CCCD mặt sau</div>
-                    ${renderCccdPreview(data.anhCccdMatSau, 'CCCD mặt sau')}
-                </div>
-            </div>` : '');
+        body.innerHTML = `
+            <div class="account-profile-grid">
+                ${rows.map(r => `
+                    <div class="profile-row">
+                        <div class="pr-icon"><i class="fas ${r.icon}"></i></div>
+                        <div>
+                            <div class="pr-label">${escapeHtml(r.label)}</div>
+                            <div class="pr-value">${displayValue(r.value)}</div>
+                        </div>
+                    </div>`).join('')}
+            </div>
+            ${data.vaiTro === 'NguoiDung' ? `
+                <div class="account-cccd-block">
+                    <div class="account-cccd-title"><i class="fas fa-address-card"></i> Ảnh căn cước công dân</div>
+                    <div class="account-cccd-grid">
+                        <div class="account-cccd-item">
+                            <div class="account-cccd-label">Mặt trước</div>
+                            ${renderCccdPreview(data.anhCccdMatTruoc, 'CCCD mặt trước')}
+                        </div>
+                        <div class="account-cccd-item">
+                            <div class="account-cccd-label">Mặt sau</div>
+                            ${renderCccdPreview(data.anhCccdMatSau, 'CCCD mặt sau')}
+                        </div>
+                    </div>
+                </div>` : ''}`;
+
+        const tenantCard = document.getElementById('tenantProfileCard');
+        if (tenantCard) tenantCard.style.display = data.vaiTro === 'NguoiDung' ? '' : 'none';
 
         document.getElementById('editHoTen').value = data.hoTen || '';
         document.getElementById('editEmail').value  = data.email || '';
@@ -351,34 +361,35 @@ async function loadTenantProfiles() {
     const box = document.getElementById('tenantProfileBody');
     if (!box) return;
 
+    const tenantCard = document.getElementById('tenantProfileCard');
     if (CURRENT_ROLE !== 'NguoiDung') {
-        box.innerHTML = '<div style="padding:1rem;color:var(--text-light);">Mục này chỉ áp dụng cho tài khoản người dùng/khách thuê.</div>';
+        if (tenantCard) tenantCard.style.display = 'none';
         return;
     }
+    if (tenantCard) tenantCard.style.display = '';
 
-    box.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--text-light);"><i class="fas fa-spinner fa-spin"></i> Đang tải danh sách phòng...</div>';
+    box.innerHTML = '<div class="account-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải danh sách phòng...</div>';
 
     try {
         const profiles = await apiFetch('/api/NguoiThue/cua-toi') || [];
         const list = Array.isArray(profiles) ? profiles : [];
 
         if (!list.length) {
-            box.innerHTML = '<div style="padding:1rem;color:var(--text-light);">Bạn chưa có phòng đang thuê. Khi chủ trọ duyệt yêu cầu thuê/lập hợp đồng, phòng sẽ xuất hiện tại đây.</div>';
+            box.innerHTML = '<div class="account-empty-state"><i class="fas fa-home"></i> Bạn chưa có phòng đang thuê. Khi chủ trọ duyệt yêu cầu thuê/lập hợp đồng, phòng sẽ xuất hiện tại đây.</div>';
             return;
         }
 
         box.innerHTML = `
-            <div style="font-size:.85rem;color:var(--text-light);margin-bottom:1rem;">
-                Thông tin cá nhân và ảnh CCCD được quản lý ở phần <b>Cập nhật thông tin</b> bên trên. Danh sách dưới đây chỉ thể hiện các phòng bạn đang/từng thuê.
+            <div class="account-tenant-note">
+                <i class="fas fa-circle-info"></i>
+                Thông tin cá nhân và ảnh CCCD được quản lý ở phần <b>Cập nhật thông tin</b>. Danh sách dưới đây chỉ thể hiện các phòng bạn đang/từng thuê.
             </div>
-            <div style="display:grid;gap:.75rem;">
+            <div class="account-tenant-grid">
                 ${list.map((p, idx) => `
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.85rem 1rem;border:1px solid #e5e7eb;border-radius:.75rem;background:#f8fafc;">
-                        <div>
-                            <div style="font-weight:700;color:var(--text);">${idx + 1}. ${displayValue(p.tenPhong || ('Phòng #' + p.maPhong))}</div>
-                            <div style="font-size:.85rem;color:var(--text-light);"><i class="fas fa-building"></i> ${displayValue(p.tenNhaTro)}</div>
-                        </div>
-                        <span class="badge badge-teal">Hồ sơ #${displayValue(p.maNguoiThue)}</span>
+                    <div class="account-tenant-item">
+                        <div class="account-tenant-title">${idx + 1}. ${displayValue(p.tenPhong || ('Phòng #' + p.maPhong))}</div>
+                        <div class="account-tenant-sub"><i class="fas fa-building"></i> ${displayValue(p.tenNhaTro)}</div>
+                        <span class="account-tenant-badge"><i class="fas fa-id-card"></i> Hồ sơ #${displayValue(p.maNguoiThue)}</span>
                     </div>`).join('')}
             </div>`;
     } catch (err) {

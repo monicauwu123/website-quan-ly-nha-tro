@@ -1,199 +1,199 @@
-<div id="taikhoanSection" style="display:none;" class="animate-fade-in">
-            <!-- header avatar -->
-            <div class="data-card" style="margin-bottom:1.5rem;padding:2rem;text-align:center;">
-                <div id="profileAvatarBig" class="profile-avatar-big">A</div>
-                <div style="font-size:1.25rem;font-weight:800;color:var(--text);" id="profileDisplayName">—</div>
-                <div style="margin-top:.35rem;" id="profileDisplayRole"><span class="badge badge-teal">—</span></div>
-                <div style="margin-top:.5rem;font-size:.85rem;color:var(--text-light);" id="profileDisplayEmail">—</div>
+<div id="taikhoanSection" style="display:none;" class="animate-fade-in account-page">
+    <div class="account-hero-card">
+        <div class="account-hero-left">
+            <div id="profileAvatarBig" class="profile-avatar-big">A</div>
+            <div class="account-hero-text">
+                <div class="account-kicker">Tài khoản của tôi</div>
+                <div id="profileDisplayName" class="account-hero-name">—</div>
+                <div class="account-hero-meta">
+                    <span id="profileDisplayRole"><span class="badge badge-teal">—</span></span>
+                    <span><i class="fas fa-envelope"></i> <span id="profileDisplayEmail">—</span></span>
+                </div>
+            </div>
+        </div>
+        <div class="account-hero-actions">
+            <button type="button" class="btn btn-primary" onclick="toggleAccountPanel('profileEditPanel', document.getElementById('btnToggleProfileEdit'))" id="quickEditProfileBtn">
+                <i class="fas fa-user-pen"></i> Cập nhật hồ sơ
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="toggleAccountPanel('changePasswordPanel', document.getElementById('btnTogglePassword'))">
+                <i class="fas fa-key"></i> Đổi mật khẩu
+            </button>
+        </div>
+    </div>
+
+    <div class="account-shell">
+        <div class="account-main-column">
+            <div class="account-card account-profile-card">
+                <div class="account-card-header clean-header">
+                    <div>
+                        <div class="account-section-eyebrow">Hồ sơ</div>
+                        <h3>Thông tin cá nhân</h3>
+                    </div>
+                    <div class="card-icon icon-teal"><i class="fas fa-id-badge"></i></div>
+                </div>
+                <div class="account-card-body" id="profileInfoBody">
+                    <div class="account-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+                </div>
             </div>
 
-            <div class="account-layout">
-                <!-- Thông tin tài khoản -->
-                <div class="account-card">
-                    <div class="account-card-header">
-                        <div class="card-icon icon-teal"><i class="fas fa-id-badge"></i></div>
-                        <h3>Thông tin tài khoản</h3>
-                    </div>
-                    <div class="account-card-body" id="profileInfoBody">
-                        <div style="text-align:center;padding:1.5rem;color:var(--text-light);"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
-                    </div>
-                </div>
-
-                <!-- Chỉnh sửa thông tin -->
-                <div class="account-card">
-                    <div class="account-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-                        <div style="display:flex;align-items:center;gap:.75rem;">
-                            <div class="card-icon icon-teal"><i class="fas fa-pencil-alt"></i></div>
-                            <h3>Cập nhật thông tin</h3>
-                        </div>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAccountPanel('profileEditPanel', this)">
-                            <i class="fas fa-chevron-down"></i> Mở
-                        </button>
-                    </div>
-                    <div class="account-card-body" id="profileEditPanel" style="display:none;">
-                        <form id="profileEditForm">
-                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;">
-                                <div class="form-group">
-                                    <label>Họ tên</label>
-                                    <input type="text" id="editHoTen" class="form-control" placeholder="Nguyễn Văn A" required maxlength="50">
-                                </div>
-                                <div class="form-group">
-                                    <label>Email</label>
-                                    <input type="email" id="editEmail" class="form-control" placeholder="email@example.com" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Số điện thoại</label>
-                                    <input type="text" id="editPhone" class="form-control" placeholder="0912345678" maxlength="15">
-                                </div>
-                                <div class="form-group account-owner-payment" style="display:none;">
-                                    <label>Tên ngân hàng</label>
-                                    <input type="text" id="editTenNganHang" class="form-control" placeholder="VD: Vietcombank" maxlength="100">
-                                </div>
-                                <div class="form-group account-owner-payment" style="display:none;">
-                                    <label>Mã ngân hàng VietQR</label>
-                                    <input type="text" id="editMaNganHang" class="form-control" placeholder="VD: VCB, BIDV, MB, TCB..." maxlength="50">
-                                    <small style="color:var(--text-light);">Dùng mã ngân hàng VietQR để tạo mã QR thanh toán.</small>
-                                </div>
-                                <div class="form-group account-owner-payment" style="display:none;">
-                                    <label>Số tài khoản</label>
-                                    <input type="text" id="editSoTaiKhoan" class="form-control" placeholder="Nhập số tài khoản nhận tiền" maxlength="50">
-                                </div>
-                                <div class="form-group account-owner-payment" style="display:none;">
-                                    <label>Tên chủ tài khoản</label>
-                                    <input type="text" id="editTenChuTaiKhoan" class="form-control" placeholder="Tên trên tài khoản ngân hàng" maxlength="100">
-                                </div>
-                                <div class="form-group account-owner-payment" style="display:none;grid-column:1/-1;">
-                                    <label>Nội dung chuyển khoản mặc định</label>
-                                    <input type="text" id="editNoiDungChuyenKhoanMacDinh" class="form-control" placeholder="VD: Thanh toán hóa đơn {MaHoaDon} phòng {TenPhong}" maxlength="255">
-                                    <small style="color:var(--text-light);">Có thể dùng: {MaHoaDon}, {KyHoaDon}, {TenPhong}</small>
-                                </div>
-                                <div class="form-group account-user-extra">
-                                    <label>CCCD/CMND</label>
-                                    <input type="text" id="editCCCD" class="form-control" placeholder="Nhập số CCCD/CMND" maxlength="20">
-                                </div>
-                                <div class="form-group account-user-extra">
-                                    <label>Ngày sinh</label>
-                                    <input type="date" id="editNgaySinh" class="form-control">
-                                </div>
-                                <div class="form-group account-user-extra">
-                                    <label>Giới tính</label>
-                                    <select id="editGioiTinh" class="form-control">
-                                        <option value="">-- Chọn --</option>
-                                        <option value="Nam">Nam</option>
-                                        <option value="Nữ">Nữ</option>
-                                        <option value="Khác">Khác</option>
-                                    </select>
-                                </div>
-                                <div class="form-group account-user-extra">
-                                    <label>Quốc tịch</label>
-                                    <input type="text" id="editQuocTich" class="form-control" placeholder="Việt Nam" maxlength="50">
-                                </div>
-                                <div class="form-group account-user-extra">
-                                    <label>Nơi công tác</label>
-                                    <input type="text" id="editNoiCongTac" class="form-control" maxlength="100">
-                                </div>
-                                <div class="form-group account-user-extra" style="grid-column:1/-1;">
-                                    <label>Địa chỉ</label>
-                                    <input type="text" id="editDiaChi" class="form-control" maxlength="255">
-                                </div>
-                                <div class="form-group account-user-extra">
-                                    <label>Ảnh CCCD mặt trước</label>
-                                    <input type="file" id="editAnhCccdMatTruocFile" class="form-control" accept="image/*">
-                                    <input type="hidden" id="editAnhCccdMatTruoc">
-                                    <div id="editAnhCccdMatTruocPreview" style="margin-top:.5rem;"></div>
-                                </div>
-                                <div class="form-group account-user-extra">
-                                    <label>Ảnh CCCD mặt sau</label>
-                                    <input type="file" id="editAnhCccdMatSauFile" class="form-control" accept="image/*">
-                                    <input type="hidden" id="editAnhCccdMatSau">
-                                    <div id="editAnhCccdMatSauPreview" style="margin-top:.5rem;"></div>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-primary" style="margin-top:.5rem;">
-                                <i class="fas fa-save"></i> Lưu thay đổi
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Đổi mật khẩu -->
-                <div class="account-card">
-                    <div class="account-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-                        <div style="display:flex;align-items:center;gap:.75rem;">
-                            <div class="card-icon icon-amber"><i class="fas fa-key"></i></div>
-                            <h3>Đổi mật khẩu</h3>
-                        </div>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAccountPanel('changePasswordPanel', this)">
-                            <i class="fas fa-chevron-down"></i> Mở
-                        </button>
-                    </div>
-                    <div class="account-card-body" id="changePasswordPanel" style="display:none;">
-                        <form id="changePasswordForm">
-                            <div class="form-group">
-                                <label>Mật khẩu cũ</label>
-                                <div style="position:relative;">
-                                    <input type="password" id="oldPassword" class="form-control" placeholder="••••••••" required style="padding-right:2.5rem;">
-                                    <button type="button" onclick="togglePasswordField('oldPassword', this)" style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-light);"><i class="fas fa-eye"></i></button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>Mật khẩu mới</label>
-                                <div style="position:relative;">
-                                    <input type="password" id="newPassword" class="form-control" placeholder="Tối thiểu 6 ký tự" required minlength="6" style="padding-right:2.5rem;" oninput="checkStrength(this.value)">
-                                    <button type="button" onclick="togglePasswordField('newPassword', this)" style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-light);"><i class="fas fa-eye"></i></button>
-                                </div>
-                                <div class="strength-bar"><div id="strengthFill" class="bar-fill" style="width:0%;"></div></div>
-                                <div id="strengthLabel" style="font-size:.75rem;margin-top:.25rem;color:var(--text-light);"></div>
-                            </div>
-                            <div class="form-group">
-                                <label>Nhập lại mật khẩu mới</label>
-                                <input type="password" id="confirmPassword" class="form-control" placeholder="Nhập lại..." required>
-                            </div>
-                            <button type="submit" class="btn btn-warning" style="margin-top:.5rem;color:#78350f;">
-                                <i class="fas fa-shield-alt"></i> Đổi mật khẩu
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-
-                <!-- Thông tin khách thuê / CCCD -->
-                <div class="account-card" style="grid-column:1/-1;">
-                    <div class="account-card-header">
-                        <div class="card-icon icon-teal"><i class="fas fa-users"></i></div>
+            <div class="account-card account-card-full" id="tenantProfileCard">
+                <div class="account-card-header clean-header">
+                    <div>
+                        <div class="account-section-eyebrow">Phòng thuê</div>
                         <h3>Danh sách phòng đang thuê</h3>
                     </div>
-                    <div class="account-card-body" id="tenantProfileBody">
-                        <div style="text-align:center;padding:1.5rem;color:var(--text-light);"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
-                    </div>
+                    <div class="card-icon icon-teal"><i class="fas fa-house-user"></i></div>
                 </div>
-
-                <!-- Thông tin bảo mật (ẩn khỏi giao diện) -->
-                <div class="account-card" style="display:none;">
-                    <div class="account-card-header">
-                        <div class="card-icon icon-red"><i class="fas fa-lock"></i></div>
-                        <h3>Thông tin bảo mật</h3>
-                    </div>
-                    <div class="account-card-body">
-                        <p style="font-size:.82rem;color:var(--text-light);margin-bottom:1rem;">Các thông tin này do hệ thống quản lý, không thể chỉnh sửa.</p>
-                        <div class="form-group">
-                            <label>Tên đăng nhập</label>
-                            <input type="text" id="readUsername" class="form-control" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Vai trò</label>
-                            <input type="text" id="readVaiTro" class="form-control" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Trạng thái tài khoản</label>
-                            <input type="text" id="readTrangThai" class="form-control" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Ngày tạo tài khoản</label>
-                            <input type="text" id="readNgayTao" class="form-control" readonly>
-                        </div>
-                    </div>
+                <div class="account-card-body" id="tenantProfileBody">
+                    <div class="account-loading"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
                 </div>
+            </div>
+        </div>
 
-            </div><!-- end account-layout -->
-        </div><!-- end taikhoanSection -->
+        <div class="account-side-column">
+            <div class="account-card account-action-card">
+                <button type="button" class="account-collapse-head" onclick="toggleAccountPanel('profileEditPanel', document.getElementById('btnToggleProfileEdit'))">
+                    <span class="account-action-title">
+                        <span class="card-icon icon-teal"><i class="fas fa-pencil-alt"></i></span>
+                        <span>
+                            <strong>Cập nhật thông tin</strong>
+                            <small>Chỉnh sửa hồ sơ cá nhân và thông tin thanh toán</small>
+                        </span>
+                    </span>
+                    <span class="account-collapse-btn" id="btnToggleProfileEdit"><i class="fas fa-chevron-down"></i> Mở</span>
+                </button>
+
+                <div class="account-card-body account-collapse-body" id="profileEditPanel" style="display:none;">
+                    <form id="profileEditForm">
+                        <div class="account-form-grid">
+                            <div class="form-group">
+                                <label>Họ tên</label>
+                                <input type="text" id="editHoTen" class="form-control" placeholder="Nguyễn Văn A" required maxlength="50">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="editEmail" class="form-control" placeholder="email@example.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Số điện thoại</label>
+                                <input type="text" id="editPhone" class="form-control" placeholder="0912345678" maxlength="15">
+                            </div>
+
+                            <div class="account-mini-divider account-owner-payment" style="display:none;">Thông tin nhận thanh toán</div>
+                            <div class="form-group account-owner-payment" style="display:none;">
+                                <label>Tên ngân hàng</label>
+                                <input type="text" id="editTenNganHang" class="form-control" placeholder="VD: Vietcombank" maxlength="100">
+                            </div>
+                            <div class="form-group account-owner-payment" style="display:none;">
+                                <label>Mã ngân hàng VietQR</label>
+                                <input type="text" id="editMaNganHang" class="form-control" placeholder="VD: VCB, BIDV, MB, TCB..." maxlength="50">
+                                <small class="account-help-text">Dùng mã ngân hàng VietQR để tạo mã QR thanh toán.</small>
+                            </div>
+                            <div class="form-group account-owner-payment" style="display:none;">
+                                <label>Số tài khoản</label>
+                                <input type="text" id="editSoTaiKhoan" class="form-control" placeholder="Nhập số tài khoản nhận tiền" maxlength="50">
+                            </div>
+                            <div class="form-group account-owner-payment" style="display:none;">
+                                <label>Tên chủ tài khoản</label>
+                                <input type="text" id="editTenChuTaiKhoan" class="form-control" placeholder="Tên trên tài khoản ngân hàng" maxlength="100">
+                            </div>
+                            <div class="form-group account-owner-payment account-span-2" style="display:none;">
+                                <label>Nội dung chuyển khoản mặc định</label>
+                                <input type="text" id="editNoiDungChuyenKhoanMacDinh" class="form-control" placeholder="VD: Thanh toán hóa đơn {MaHoaDon} phòng {TenPhong}" maxlength="255">
+                                <small class="account-help-text">Có thể dùng: {MaHoaDon}, {KyHoaDon}, {TenPhong}</small>
+                            </div>
+
+                            <div class="account-mini-divider account-user-extra">Thông tin định danh</div>
+                            <div class="form-group account-user-extra">
+                                <label>CCCD/CMND</label>
+                                <input type="text" id="editCCCD" class="form-control" placeholder="Nhập số CCCD/CMND" maxlength="20">
+                            </div>
+                            <div class="form-group account-user-extra">
+                                <label>Ngày sinh</label>
+                                <input type="date" id="editNgaySinh" class="form-control">
+                            </div>
+                            <div class="form-group account-user-extra">
+                                <label>Giới tính</label>
+                                <select id="editGioiTinh" class="form-control">
+                                    <option value="">-- Chọn --</option>
+                                    <option value="Nam">Nam</option>
+                                    <option value="Nữ">Nữ</option>
+                                    <option value="Khác">Khác</option>
+                                </select>
+                            </div>
+                            <div class="form-group account-user-extra">
+                                <label>Quốc tịch</label>
+                                <input type="text" id="editQuocTich" class="form-control" placeholder="Việt Nam" maxlength="50">
+                            </div>
+                            <div class="form-group account-user-extra">
+                                <label>Nơi công tác</label>
+                                <input type="text" id="editNoiCongTac" class="form-control" maxlength="100">
+                            </div>
+                            <div class="form-group account-user-extra account-span-2">
+                                <label>Địa chỉ</label>
+                                <input type="text" id="editDiaChi" class="form-control" maxlength="255">
+                            </div>
+                            <div class="form-group account-user-extra">
+                                <label>Ảnh CCCD mặt trước</label>
+                                <input type="file" id="editAnhCccdMatTruocFile" class="form-control" accept="image/*">
+                                <input type="hidden" id="editAnhCccdMatTruoc">
+                                <div id="editAnhCccdMatTruocPreview" class="account-image-preview"></div>
+                            </div>
+                            <div class="form-group account-user-extra">
+                                <label>Ảnh CCCD mặt sau</label>
+                                <input type="file" id="editAnhCccdMatSauFile" class="form-control" accept="image/*">
+                                <input type="hidden" id="editAnhCccdMatSau">
+                                <div id="editAnhCccdMatSauPreview" class="account-image-preview"></div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary account-submit-btn">
+                            <i class="fas fa-save"></i> Lưu thay đổi
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="account-card account-action-card">
+                <button type="button" class="account-collapse-head" onclick="toggleAccountPanel('changePasswordPanel', document.getElementById('btnTogglePassword'))">
+                    <span class="account-action-title">
+                        <span class="card-icon icon-amber"><i class="fas fa-key"></i></span>
+                        <span>
+                            <strong>Đổi mật khẩu</strong>
+                            <small>Cập nhật mật khẩu đăng nhập hệ thống</small>
+                        </span>
+                    </span>
+                    <span class="account-collapse-btn" id="btnTogglePassword"><i class="fas fa-chevron-down"></i> Mở</span>
+                </button>
+
+                <div class="account-card-body account-collapse-body" id="changePasswordPanel" style="display:none;">
+                    <form id="changePasswordForm">
+                        <div class="form-group">
+                            <label>Mật khẩu cũ</label>
+                            <div style="position:relative;">
+                                <input type="password" id="oldPassword" class="form-control" placeholder="••••••••" required style="padding-right:2.5rem;">
+                                <button type="button" onclick="togglePasswordField('oldPassword', this)" class="account-eye-btn"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Mật khẩu mới</label>
+                            <div style="position:relative;">
+                                <input type="password" id="newPassword" class="form-control" placeholder="Tối thiểu 6 ký tự" required minlength="6" style="padding-right:2.5rem;" oninput="checkStrength(this.value)">
+                                <button type="button" onclick="togglePasswordField('newPassword', this)" class="account-eye-btn"><i class="fas fa-eye"></i></button>
+                            </div>
+                            <div class="strength-bar"><div id="strengthFill" class="bar-fill" style="width:0%;"></div></div>
+                            <div id="strengthLabel" class="account-help-text"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Nhập lại mật khẩu mới</label>
+                            <input type="password" id="confirmPassword" class="form-control" placeholder="Nhập lại..." required>
+                        </div>
+                        <button type="submit" class="btn btn-warning account-submit-btn" style="color:#78350f;">
+                            <i class="fas fa-shield-alt"></i> Đổi mật khẩu
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

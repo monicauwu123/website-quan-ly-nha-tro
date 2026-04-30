@@ -10,7 +10,8 @@ window.AppModules.nguoithue = {
         { label: 'CCCD', key: 'cccd' },
         { label: 'Số điện thoại', key: 'sdt' },
         { label: 'Email', key: 'email' },
-        { label: 'Phòng', key: 'maPhong', render: v => _ktLookups().phong?.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
+        { label: 'Phòng đang thuê', key: 'danhSachPhongText', render: (v, row) => v || (_ktLookups().phong?.find(p => p.maPhong === row.maPhong)?.tenPhong || `#${row.maPhong}`) },
+        { label: 'Số phòng', key: 'soPhongDangThue', render: v => v || 1 },
         { label: 'Ảnh CCCD', key: 'anhCccdMatTruoc', render: (v, row) => {
             const hasFront = !!row.anhCccdMatTruoc;
             const hasBack = !!row.anhCccdMatSau;
