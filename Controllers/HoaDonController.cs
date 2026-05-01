@@ -100,6 +100,35 @@ namespace DoAnSE104.Controllers
             return null;
         }
 
+
+        private async Task<ChiSoDien?> LayChiSoDienTheoKyAsync(int maPhong, string kyHoaDon)
+        {
+            if (!TryParseKyHoaDon(kyHoaDon, out var nam, out var thang))
+                return null;
+
+            return await _context.ChiSoDien
+                .Where(cd => cd.MaPhong == maPhong
+                    && cd.NgayThangDien.Year == nam
+                    && cd.NgayThangDien.Month == thang)
+                .OrderByDescending(cd => cd.NgayThangDien)
+                .ThenByDescending(cd => cd.MaDien)
+                .FirstOrDefaultAsync();
+        }
+
+        private async Task<ChiSoNuoc?> LayChiSoNuocTheoKyAsync(int maPhong, string kyHoaDon)
+        {
+            if (!TryParseKyHoaDon(kyHoaDon, out var nam, out var thang))
+                return null;
+
+            return await _context.ChiSoNuoc
+                .Where(cn => cn.MaPhong == maPhong
+                    && cn.NgayThangNuoc.Year == nam
+                    && cn.NgayThangNuoc.Month == thang)
+                .OrderByDescending(cn => cn.NgayThangNuoc)
+                .ThenByDescending(cn => cn.MaNuoc)
+                .FirstOrDefaultAsync();
+        }
+
         private async Task<List<DichVu>> LayDichVuHopLeTheoPhongAsync(int maPhong, List<int>? maDichVuSuDung)
         {
             if (maDichVuSuDung == null || maDichVuSuDung.Count == 0)
@@ -280,7 +309,7 @@ namespace DoAnSE104.Controllers
         // GET: api/HoaDon/GetThongTinPhong/5
         [HttpGet("GetThongTinPhong/{phongId}")]
         [Authorize(Roles = "Admin,ChuTro")]
-        public async Task<IActionResult> GetThongTinPhong(int phongId)
+        public async Task<IActionResult> GetThongTinPhong(int phongId, [FromQuery] string? kyHoaDon = null)
         {
             var phong = await _context.Phong
                 .Include(p => p.NhaTro)
@@ -305,15 +334,14 @@ namespace DoAnSE104.Controllers
             if (nguoiThue == null)
                 return BadRequest(ApiResponse<object>.Loi("Không tìm thấy người thuê"));
 
-            var chiSoDien = await _context.ChiSoDien
-                .Where(cd => cd.MaPhong == phongId)
-                .OrderByDescending(cd => cd.NgayThangDien)
-                .FirstOrDefaultAsync();
+            if (string.IsNullOrWhiteSpace(kyHoaDon))
+            {
+                var now = DateTime.Now;
+                kyHoaDon = $"{now.Year:D4}-{now.Month:D2}";
+            }
 
-            var chiSoNuoc = await _context.ChiSoNuoc
-                .Where(cn => cn.MaPhong == phongId)
-                .OrderByDescending(cn => cn.NgayThangNuoc)
-                .FirstOrDefaultAsync();
+            var chiSoDien = await LayChiSoDienTheoKyAsync(phongId, kyHoaDon);
+            var chiSoNuoc = await LayChiSoNuocTheoKyAsync(phongId, kyHoaDon);
 
             var danhSachDichVu = await _context.DichVu
                 .Where(dv => dv.MaChuTro == phong.NhaTro.MaChuTro || dv.MaChuTro == null)
@@ -341,7 +369,19 @@ namespace DoAnSE104.Controllers
                 TongTienHangThang = tongTienHangThang,
                 TongTienHoaDon = tongTienHangThang,
                 MaDien = chiSoDien?.MaDien,
-                MaNuoc = chiSoNuoc?.MaNuoc
+                MaNuoc = chiSoNuoc?.MaNuoc,
+                CanhBaoDienNuoc = new
+                {
+                    ThieuChiSoDien = chiSoDien == null,
+                    ThieuChiSoNuoc = chiSoNuoc == null,
+                    ThongBao = chiSoDien == null && chiSoNuoc == null
+                        ? $"Kỳ {kyHoaDon} chưa có chỉ số điện/nước. Hóa đơn hằng tháng vẫn có thể lập với tiền điện/nước = 0."
+                        : chiSoDien == null
+                            ? $"Kỳ {kyHoaDon} chưa có chỉ số điện. Tiền điện sẽ tính là 0."
+                            : chiSoNuoc == null
+                                ? $"Kỳ {kyHoaDon} chưa có chỉ số nước. Tiền nước sẽ tính là 0."
+                                : ""
+                }
             });
         }
 
@@ -409,15 +449,8 @@ namespace DoAnSE104.Controllers
 
                 var loaiHoaDon = ChuanHoaLoaiHoaDon(request.LoaiHoaDon);
 
-                var chiSoDien = await _context.ChiSoDien
-                    .Where(cd => cd.MaPhong == request.MaPhong)
-                    .OrderByDescending(cd => cd.NgayThangDien)
-                    .FirstOrDefaultAsync();
-
-                var chiSoNuoc = await _context.ChiSoNuoc
-                    .Where(cn => cn.MaPhong == request.MaPhong)
-                    .OrderByDescending(cn => cn.NgayThangNuoc)
-                    .FirstOrDefaultAsync();
+                var chiSoDien = await LayChiSoDienTheoKyAsync(request.MaPhong, request.KyHoaDon);
+                var chiSoNuoc = await LayChiSoNuocTheoKyAsync(request.MaPhong, request.KyHoaDon);
 
                 var dichVuSuDung = new List<DichVu>();
                 decimal tongTienDichVu = 0m;
@@ -427,20 +460,14 @@ namespace DoAnSE104.Controllers
 
                 if (loaiHoaDon == LoaiHoaDonHangThang)
                 {
-                    if (chiSoDien == null)
-                        return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số điện cho phòng này"));
-
-                    if (chiSoNuoc == null)
-                        return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số nước cho phòng này"));
-
                     dichVuSuDung = await LayDichVuHopLeTheoPhongAsync(request.MaPhong, request.MaDichVuSuDung);
                     var soLuongDichVuGuiLen = request.MaDichVuSuDung?.Distinct().Count() ?? 0;
                     if (dichVuSuDung.Count != soLuongDichVuGuiLen)
                         return BadRequest(ApiResponse<object>.Loi("Có dịch vụ không tồn tại hoặc không thuộc chủ trọ của phòng này"));
 
                     tongTienDichVu = dichVuSuDung.Sum(dv => (decimal)dv.Tiendichvu);
-                    tienDien = chiSoDien.TienDien;
-                    tienNuoc = chiSoNuoc.TienNuoc;
+                    tienDien = chiSoDien?.TienDien ?? 0m;
+                    tienNuoc = chiSoNuoc?.TienNuoc ?? 0m;
                 }
                 else
                 {
@@ -528,15 +555,8 @@ namespace DoAnSE104.Controllers
 
                 var loaiHoaDon = ChuanHoaLoaiHoaDon(dto.LoaiHoaDon);
 
-                var chiSoDien = await _context.ChiSoDien
-                    .Where(cd => cd.MaPhong == dto.MaPhong)
-                    .OrderByDescending(cd => cd.NgayThangDien)
-                    .FirstOrDefaultAsync();
-
-                var chiSoNuoc = await _context.ChiSoNuoc
-                    .Where(cn => cn.MaPhong == dto.MaPhong)
-                    .OrderByDescending(cn => cn.NgayThangNuoc)
-                    .FirstOrDefaultAsync();
+                var chiSoDien = await LayChiSoDienTheoKyAsync(dto.MaPhong, dto.KyHoaDon);
+                var chiSoNuoc = await LayChiSoNuocTheoKyAsync(dto.MaPhong, dto.KyHoaDon);
 
                 var dichVuSuDung = new List<DichVu>();
                 decimal tongTienDichVu = 0m;
@@ -546,20 +566,14 @@ namespace DoAnSE104.Controllers
 
                 if (loaiHoaDon == LoaiHoaDonHangThang)
                 {
-                    if (chiSoDien == null)
-                        return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số điện cho phòng này"));
-
-                    if (chiSoNuoc == null)
-                        return BadRequest(ApiResponse<object>.Loi("Chưa có chỉ số nước cho phòng này"));
-
                     dichVuSuDung = await LayDichVuHopLeTheoPhongAsync(dto.MaPhong, dto.MaDichVuSuDung);
                     var soLuongDichVuGuiLen = dto.MaDichVuSuDung?.Distinct().Count() ?? 0;
                     if (dichVuSuDung.Count != soLuongDichVuGuiLen)
                         return BadRequest(ApiResponse<object>.Loi("Có dịch vụ không tồn tại hoặc không thuộc chủ trọ của phòng này"));
 
                     tongTienDichVu = dichVuSuDung.Sum(dv => (decimal)dv.Tiendichvu);
-                    tienDien = chiSoDien.TienDien;
-                    tienNuoc = chiSoNuoc.TienNuoc;
+                    tienDien = chiSoDien?.TienDien ?? 0m;
+                    tienNuoc = chiSoNuoc?.TienNuoc ?? 0m;
                 }
                 else
                 {

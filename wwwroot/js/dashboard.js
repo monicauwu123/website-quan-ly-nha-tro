@@ -1278,7 +1278,7 @@ async function openHoaDonModal(id = null) {
         </div>
         <div class="form-group">
             <label>Kỳ hóa đơn (YYYY-MM) <span style="color:var(--error)">*</span></label>
-            <input type="month" id="f_kyHoaDon" class="form-control" value="${editingItem?.kyHoaDon || kyDefault}" required>
+            <input type="month" id="f_kyHoaDon" class="form-control" value="${editingItem?.kyHoaDon || kyDefault}" required onchange="reloadHoaDonPhongInfo()">
         </div>
         <div id="phongInfoBox" style="grid-column:1/-1;display:none;">
             <div class="info-grid">
@@ -1289,6 +1289,7 @@ async function openHoaDonModal(id = null) {
                 <div class="info-item hang-thang-only"><label>Tiền dịch vụ đã chọn</label><span id="infoTienDichVu">---</span></div>
                 <div class="info-item info-total"><label>Dự tính tổng tiền</label><span id="infoTongTien">---</span></div>
             </div>
+            <div id="hoaDonReadingWarning" class="hang-thang-only" style="display:none;margin-top:1rem;padding:.75rem 1rem;border-radius:.75rem;background:#fffbeb;color:#92400e;border:1px solid #fde68a;"></div>
             <div id="dichVuHoaDonBox" class="hang-thang-only" style="margin-top:1rem;display:none;">
                 <label style="font-weight:700;margin-bottom:.5rem;display:block;">Dịch vụ phòng đã sử dụng trong kỳ</label>
                 <div id="dichVuHoaDonList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.65rem;"></div>
@@ -1313,14 +1314,16 @@ async function openHoaDonModal(id = null) {
         const phatSinh = Number(document.getElementById('f_tienPhatSinhKhac').value) || 0;
         const selectedServices = Array.from(document.querySelectorAll('.hoa-don-dich-vu:checked')).map(x => Number(x.value));
         const tienDichVu = loaiHoaDon === 'HangThang' ? calcSelectedServiceTotal() : 0;
-        const tienPhong = loaiHoaDon === 'ThuePhong' ? Number(info.phong?.giaPhong || 0) : 0;
-        const tienDien = loaiHoaDon === 'HangThang' ? Number(info.tienDien || 0) : 0;
-        const tienNuoc = loaiHoaDon === 'HangThang' ? Number(info.tienNuoc || 0) : 0;
+        const phongInfo = getProp(info, 'phong', 'Phong', {});
+        const nguoiThueInfo = getProp(info, 'nguoiThue', 'NguoiThue', {});
+        const tienPhong = loaiHoaDon === 'ThuePhong' ? Number(getProp(phongInfo, 'giaPhong', 'GiaPhong', 0)) : 0;
+        const tienDien = loaiHoaDon === 'HangThang' ? Number(getProp(info, 'tienDien', 'TienDien', 0)) : 0;
+        const tienNuoc = loaiHoaDon === 'HangThang' ? Number(getProp(info, 'tienNuoc', 'TienNuoc', 0)) : 0;
 
         const payload = {
             loaiHoaDon,
-            maNguoiThue: info.nguoiThue.maNguoiThue,
-            maPhong: info.phong.maPhong,
+            maNguoiThue: Number(getProp(nguoiThueInfo, 'maNguoiThue', 'MaNguoiThue')),
+            maPhong: Number(getProp(phongInfo, 'maPhong', 'MaPhong')),
             tienPhong,
             tienDien,
             tienNuoc,
@@ -1355,26 +1358,68 @@ async function openHoaDonModal(id = null) {
     }
 }
 
-async function loadPhongInfo(phongId) {
-    if (!phongId) { document.getElementById('phongInfoBox').style.display = 'none'; return; }
-    try {
-        const info = await apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}`);
-        window._hoaDonInfo = info;
-        document.getElementById('phongInfoBox').style.display = 'block';
-        document.getElementById('infoNguoiThue').textContent = info.nguoiThue?.hoTen || '---';
-        document.getElementById('infoTienPhong').textContent = fmtCurrency(info.phong?.giaPhong);
-        document.getElementById('infoTienDien').textContent = fmtCurrency(info.tienDien);
-        document.getElementById('infoTienNuoc').textContent = fmtCurrency(info.tienNuoc);
+function getProp(obj, camelName, pascalName, fallback = undefined) {
+    if (!obj) return fallback;
+    if (Object.prototype.hasOwnProperty.call(obj, camelName)) return obj[camelName];
+    if (Object.prototype.hasOwnProperty.call(obj, pascalName)) return obj[pascalName];
+    return fallback;
+}
 
-        const services = info.danhSachDichVu || info.DanhSachDichVu || [];
+function unwrapHoaDonInfo(raw) {
+    const value = raw && raw.duLieu ? raw.duLieu : raw;
+    return value || null;
+}
+
+function reloadHoaDonPhongInfo() {
+    const phongId = document.getElementById('f_maPhong')?.value;
+    if (phongId) loadPhongInfo(phongId);
+}
+
+async function loadPhongInfo(phongId) {
+    const infoBox = document.getElementById('phongInfoBox');
+    if (!phongId) {
+        if (infoBox) infoBox.style.display = 'none';
+        window._hoaDonInfo = null;
+        return;
+    }
+
+    try {
+        const kyHoaDon = document.getElementById('f_kyHoaDon')?.value || '';
+        const raw = await apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}?kyHoaDon=${encodeURIComponent(kyHoaDon)}`);
+        const info = unwrapHoaDonInfo(raw);
+        if (!info) throw new Error('Không có dữ liệu phòng');
+
+        window._hoaDonInfo = info;
+        if (infoBox) infoBox.style.display = 'block';
+
+        const phong = getProp(info, 'phong', 'Phong', {});
+        const nguoiThue = getProp(info, 'nguoiThue', 'NguoiThue', {});
+        const tienDien = Number(getProp(info, 'tienDien', 'TienDien', 0)) || 0;
+        const tienNuoc = Number(getProp(info, 'tienNuoc', 'TienNuoc', 0)) || 0;
+
+        document.getElementById('infoNguoiThue').textContent = getProp(nguoiThue, 'hoTen', 'HoTen', '---');
+        document.getElementById('infoTienPhong').textContent = fmtCurrency(getProp(phong, 'giaPhong', 'GiaPhong', 0));
+        document.getElementById('infoTienDien').textContent = fmtCurrency(tienDien);
+        document.getElementById('infoTienNuoc').textContent = fmtCurrency(tienNuoc);
+
+        const warning = getProp(info, 'canhBaoDienNuoc', 'CanhBaoDienNuoc', null);
+        const warningMsg = getProp(warning, 'thongBao', 'ThongBao', '');
+        const warningBox = document.getElementById('hoaDonReadingWarning');
+        if (warningBox) {
+            warningBox.style.display = warningMsg ? 'block' : 'none';
+            warningBox.innerHTML = warningMsg ? `<i class="fas fa-triangle-exclamation"></i> ${escapeHtmlDashboard(warningMsg)}` : '';
+        }
+
+        const servicesRaw = getProp(info, 'danhSachDichVu', 'DanhSachDichVu', []);
+        const services = normalizeArrayResponse(servicesRaw);
         const serviceBox = document.getElementById('dichVuHoaDonBox');
         const serviceList = document.getElementById('dichVuHoaDonList');
         if (serviceList) {
             if (services.length) {
                 serviceList.innerHTML = services.map(dv => {
-                    const id = dv.maDichVu ?? dv.MaDichVu;
-                    const name = dv.tenDichVu ?? dv.TenDichVu ?? 'Dịch vụ';
-                    const price = Number(dv.tienDichVu ?? dv.TienDichVu ?? 0);
+                    const id = getProp(dv, 'maDichVu', 'MaDichVu');
+                    const name = getProp(dv, 'tenDichVu', 'TenDichVu', 'Dịch vụ');
+                    const price = Number(getProp(dv, 'tienDichVu', 'TienDichVu', 0)) || 0;
                     return `
                         <label style="display:flex;gap:.65rem;align-items:flex-start;padding:.75rem;border:1px solid #e5e7eb;border-radius:.75rem;background:white;cursor:pointer;">
                             <input type="checkbox" class="hoa-don-dich-vu" value="${id}" data-price="${price}" onchange="recalcTotal()" style="margin-top:.2rem;">
@@ -1394,7 +1439,7 @@ async function loadPhongInfo(phongId) {
         recalcTotal();
     } catch (e) {
         window._hoaDonInfo = null;
-        document.getElementById('phongInfoBox').style.display = 'none';
+        if (infoBox) infoBox.style.display = 'none';
         showToast('Lỗi: ' + (e.message || 'Không tải được thông tin phòng'), 'error');
     }
 }
@@ -1419,9 +1464,10 @@ function recalcTotal() {
     const loai = document.getElementById('f_loaiHoaDon')?.value || 'HangThang';
     const ps = Number(document.getElementById('f_tienPhatSinhKhac')?.value) || 0;
     const serviceTotal = loai === 'HangThang' ? calcSelectedServiceTotal() : 0;
+    const phong = getProp(info, 'phong', 'Phong', {});
     const total = loai === 'ThuePhong'
-        ? (Number(info.phong?.giaPhong || 0) + ps)
-        : (Number(info.tienDien || 0) + Number(info.tienNuoc || 0) + serviceTotal + ps);
+        ? (Number(getProp(phong, 'giaPhong', 'GiaPhong', 0)) + ps)
+        : (Number(getProp(info, 'tienDien', 'TienDien', 0)) + Number(getProp(info, 'tienNuoc', 'TienNuoc', 0)) + serviceTotal + ps);
 
     const dvEl = document.getElementById('infoTienDichVu');
     if (dvEl) dvEl.textContent = fmtCurrency(serviceTotal);
