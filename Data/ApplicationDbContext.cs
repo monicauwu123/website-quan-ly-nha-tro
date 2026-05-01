@@ -26,6 +26,7 @@ namespace DoAnSE104.Data
         public DbSet<ThanhToan> ThanhToan { get; set; }
         public DbSet<YeuCauThue> YeuCauThue { get; set; }
         public DbSet<BaoCaoSuCo> BaoCaoSuCo { get; set; }
+        public DbSet<DangKyDichVu> DangKyDichVu { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -197,6 +198,34 @@ namespace DoAnSE104.Data
 
             modelBuilder.Entity<BaoCaoSuCo>()
                 .HasIndex(b => new { b.MaNguoiDung, b.NgayGui });
+
+            modelBuilder.Entity<DangKyDichVu>()
+                .HasOne(dk => dk.NguoiDung)
+                .WithMany()
+                .HasForeignKey(dk => dk.MaNguoiDung)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<DangKyDichVu>()
+                .HasOne(dk => dk.Phong)
+                .WithMany()
+                .HasForeignKey(dk => dk.MaPhong)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<DangKyDichVu>()
+                .HasOne(dk => dk.DichVu)
+                .WithMany()
+                .HasForeignKey(dk => dk.MaDichVu)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<DangKyDichVu>()
+                .HasOne(dk => dk.NguoiThue)
+                .WithMany()
+                .HasForeignKey(dk => dk.MaNguoiThue)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<DangKyDichVu>()
+                .HasIndex(dk => new { dk.MaNguoiDung, dk.MaPhong, dk.MaDichVu, dk.TrangThai });
         }
     }
 }

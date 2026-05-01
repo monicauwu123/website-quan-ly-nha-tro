@@ -193,6 +193,7 @@ function normalizeSectionFromHash() {
         'phong-tro': 'phong',
         'loai-phong': 'loaiphong',
         'dich-vu': 'dichvu',
+        'dang-ky-dich-vu': 'dangkydichvu',
         'khach-thue': 'nguoithue',
         'hop-dong': 'hopdong',
         'hoa-don': 'hoadon',
@@ -213,6 +214,7 @@ function sectionToHash(section) {
         phong: 'phong',
         loaiphong: 'loai-phong',
         dichvu: 'dich-vu',
+        dangkydichvu: 'dang-ky-dich-vu',
         nguoithue: 'khach-thue',
         hopdong: 'hop-dong',
         hoadon: 'hoa-don',
@@ -264,7 +266,7 @@ function showSection(section, el, skipHashUpdate = false) {
 
     // NguoiDung chỉ xem, không được tạo/sửa/xóa
     const canCreate = ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && section !== 'yeucauthue')
-        || (CURRENT_ROLE === 'NguoiDung' && section === 'yeucauthue');
+        || (CURRENT_ROLE === 'NguoiDung' && (section === 'yeucauthue' || section === 'dangkydichvu'));
     const canWrite = canCreate;
 
     const overviewEl = document.getElementById('overviewSection');
@@ -628,6 +630,10 @@ function renderTable(cfg, data, section) {
                 actionHtml += `
                     <button class="btn-action btn-edit" onclick="editItem('hoadon',${item.maHoaDon})"><i class="fas fa-edit"></i> Sửa</button>
                     <button class="btn-action btn-delete" onclick="deleteItem('hoadon',${item.maHoaDon})"><i class="fas fa-trash"></i> Xóa</button>`;
+            }
+        } else if (section === 'dangkydichvu') {
+            if (item.trangThai === 'DangSuDung') {
+                actionHtml = `<button class="btn-action btn-delete" onclick="huyDangKyDichVu(${item.maDangKyDichVu})"><i class="fas fa-times"></i> Hủy</button>`;
             }
         } else if (canWrite) {
             actionHtml = `
@@ -1008,6 +1014,7 @@ function openModal(id = null) {
         if (section === 'hopdong') return openHopDongModal(id);
         if (section === 'yeucauthue') return openYeuCauThueModal(id);
         if (section === 'hoadon') return openHoaDonModal(id);
+        if (section === 'dangkydichvu') return openDangKyDichVuModal(id);
         if (section === 'user') return openUserModal(id);
         return;
     }
@@ -1266,7 +1273,7 @@ async function openHoaDonModal(id = null) {
                 <option value="ThuePhong" ${loaiDefault === 'ThuePhong' ? 'selected' : ''}>Hóa đơn thuê phòng</option>
             </select>
             <small style="color:var(--text-light);display:block;margin-top:.35rem;">
-                Hằng tháng chỉ tính điện, nước, dịch vụ đã chọn và phát sinh khác. Thuê phòng chỉ tính tiền phòng và phát sinh khác.
+                Hằng tháng tự tính điện, nước, dịch vụ người thuê đã đăng ký và phát sinh khác. Thuê phòng chỉ tính tiền phòng và phát sinh khác.
             </small>
         </div>
         <div class="form-group">
@@ -1283,17 +1290,16 @@ async function openHoaDonModal(id = null) {
         <div id="phongInfoBox" style="grid-column:1/-1;display:none;">
             <div class="info-grid">
                 <div class="info-item"><label>Khách thuê</label><span id="infoNguoiThue">---</span></div>
-                <div class="info-item"><label>Tiền phòng</label><span id="infoTienPhong">---</span></div>
+                <div class="info-item thue-phong-only"><label>Tiền phòng</label><span id="infoTienPhong">---</span></div>
                 <div class="info-item hang-thang-only"><label>Tiền điện</label><span id="infoTienDien">---</span></div>
                 <div class="info-item hang-thang-only"><label>Tiền nước</label><span id="infoTienNuoc">---</span></div>
-                <div class="info-item hang-thang-only"><label>Tiền dịch vụ đã chọn</label><span id="infoTienDichVu">---</span></div>
+                <div class="info-item hang-thang-only"><label>Tiền dịch vụ đã đăng ký</label><span id="infoTienDichVu">---</span></div>
                 <div class="info-item info-total"><label>Dự tính tổng tiền</label><span id="infoTongTien">---</span></div>
             </div>
-            <div id="hoaDonReadingWarning" class="hang-thang-only" style="display:none;margin-top:1rem;padding:.75rem 1rem;border-radius:.75rem;background:#fffbeb;color:#92400e;border:1px solid #fde68a;"></div>
             <div id="dichVuHoaDonBox" class="hang-thang-only" style="margin-top:1rem;display:none;">
-                <label style="font-weight:700;margin-bottom:.5rem;display:block;">Dịch vụ phòng đã sử dụng trong kỳ</label>
+                <label style="font-weight:700;margin-bottom:.5rem;display:block;">Dịch vụ người thuê đã đăng ký</label>
                 <div id="dichVuHoaDonList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.65rem;"></div>
-                <small style="color:var(--text-light);display:block;margin-top:.5rem;">Chỉ các dịch vụ được tick mới được cộng vào hóa đơn hằng tháng.</small>
+                <small style="color:var(--text-light);display:block;margin-top:.5rem;">Chỉ hiển thị các dịch vụ mà người thuê đã đăng ký. Các dịch vụ này sẽ tự động cộng vào hóa đơn hằng tháng.</small>
             </div>
         </div>
         <div class="form-group">
@@ -1314,16 +1320,14 @@ async function openHoaDonModal(id = null) {
         const phatSinh = Number(document.getElementById('f_tienPhatSinhKhac').value) || 0;
         const selectedServices = Array.from(document.querySelectorAll('.hoa-don-dich-vu:checked')).map(x => Number(x.value));
         const tienDichVu = loaiHoaDon === 'HangThang' ? calcSelectedServiceTotal() : 0;
-        const phongInfo = getProp(info, 'phong', 'Phong', {});
-        const nguoiThueInfo = getProp(info, 'nguoiThue', 'NguoiThue', {});
-        const tienPhong = loaiHoaDon === 'ThuePhong' ? Number(getProp(phongInfo, 'giaPhong', 'GiaPhong', 0)) : 0;
-        const tienDien = loaiHoaDon === 'HangThang' ? Number(getProp(info, 'tienDien', 'TienDien', 0)) : 0;
-        const tienNuoc = loaiHoaDon === 'HangThang' ? Number(getProp(info, 'tienNuoc', 'TienNuoc', 0)) : 0;
+        const tienPhong = loaiHoaDon === 'ThuePhong' ? Number(info.phong?.giaPhong || 0) : 0;
+        const tienDien = loaiHoaDon === 'HangThang' ? Number(info.tienDien || 0) : 0;
+        const tienNuoc = loaiHoaDon === 'HangThang' ? Number(info.tienNuoc || 0) : 0;
 
         const payload = {
             loaiHoaDon,
-            maNguoiThue: Number(getProp(nguoiThueInfo, 'maNguoiThue', 'MaNguoiThue')),
-            maPhong: Number(getProp(phongInfo, 'maPhong', 'MaPhong')),
+            maNguoiThue: info.nguoiThue.maNguoiThue,
+            maPhong: info.phong.maPhong,
             tienPhong,
             tienDien,
             tienNuoc,
@@ -1358,71 +1362,34 @@ async function openHoaDonModal(id = null) {
     }
 }
 
-function getProp(obj, camelName, pascalName, fallback = undefined) {
-    if (!obj) return fallback;
-    if (Object.prototype.hasOwnProperty.call(obj, camelName)) return obj[camelName];
-    if (Object.prototype.hasOwnProperty.call(obj, pascalName)) return obj[pascalName];
-    return fallback;
-}
-
-function unwrapHoaDonInfo(raw) {
-    const value = raw && raw.duLieu ? raw.duLieu : raw;
-    return value || null;
-}
-
-function reloadHoaDonPhongInfo() {
-    const phongId = document.getElementById('f_maPhong')?.value;
-    if (phongId) loadPhongInfo(phongId);
-}
-
 async function loadPhongInfo(phongId) {
-    const infoBox = document.getElementById('phongInfoBox');
-    if (!phongId) {
-        if (infoBox) infoBox.style.display = 'none';
-        window._hoaDonInfo = null;
-        return;
-    }
-
+    if (!phongId) { document.getElementById('phongInfoBox').style.display = 'none'; return; }
     try {
         const kyHoaDon = document.getElementById('f_kyHoaDon')?.value || '';
-        const raw = await apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}?kyHoaDon=${encodeURIComponent(kyHoaDon)}`);
-        const info = unwrapHoaDonInfo(raw);
-        if (!info) throw new Error('Không có dữ liệu phòng');
-
+        const qs = kyHoaDon ? `?kyHoaDon=${encodeURIComponent(kyHoaDon)}` : '';
+        const info = await apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}${qs}`);
         window._hoaDonInfo = info;
-        if (infoBox) infoBox.style.display = 'block';
+        document.getElementById('phongInfoBox').style.display = 'block';
+        document.getElementById('infoNguoiThue').textContent = info.nguoiThue?.hoTen || '---';
+        document.getElementById('infoTienPhong').textContent = fmtCurrency(info.phong?.giaPhong);
+        document.getElementById('infoTienDien').textContent = Number(info.tienDien || 0) > 0 ? fmtCurrency(info.tienDien) : '0đ';
+        document.getElementById('infoTienNuoc').textContent = Number(info.tienNuoc || 0) > 0 ? fmtCurrency(info.tienNuoc) : '0đ';
 
-        const phong = getProp(info, 'phong', 'Phong', {});
-        const nguoiThue = getProp(info, 'nguoiThue', 'NguoiThue', {});
-        const tienDien = Number(getProp(info, 'tienDien', 'TienDien', 0)) || 0;
-        const tienNuoc = Number(getProp(info, 'tienNuoc', 'TienNuoc', 0)) || 0;
-
-        document.getElementById('infoNguoiThue').textContent = getProp(nguoiThue, 'hoTen', 'HoTen', '---');
-        document.getElementById('infoTienPhong').textContent = fmtCurrency(getProp(phong, 'giaPhong', 'GiaPhong', 0));
-        document.getElementById('infoTienDien').textContent = fmtCurrency(tienDien);
-        document.getElementById('infoTienNuoc').textContent = fmtCurrency(tienNuoc);
-
-        const warning = getProp(info, 'canhBaoDienNuoc', 'CanhBaoDienNuoc', null);
-        const warningMsg = getProp(warning, 'thongBao', 'ThongBao', '');
-        const warningBox = document.getElementById('hoaDonReadingWarning');
-        if (warningBox) {
-            warningBox.style.display = warningMsg ? 'block' : 'none';
-            warningBox.innerHTML = warningMsg ? `<i class="fas fa-triangle-exclamation"></i> ${escapeHtmlDashboard(warningMsg)}` : '';
-        }
-
-        const servicesRaw = getProp(info, 'danhSachDichVu', 'DanhSachDichVu', []);
-        const services = normalizeArrayResponse(servicesRaw);
+        const rawServices = info.dichVuDaDangKy || info.DichVuDaDangKy || info.danhSachDichVu || info.DanhSachDichVu || [];
+        const services = Array.isArray(rawServices)
+            ? rawServices
+            : (rawServices?.$values || []);
         const serviceBox = document.getElementById('dichVuHoaDonBox');
         const serviceList = document.getElementById('dichVuHoaDonList');
         if (serviceList) {
             if (services.length) {
                 serviceList.innerHTML = services.map(dv => {
-                    const id = getProp(dv, 'maDichVu', 'MaDichVu');
-                    const name = getProp(dv, 'tenDichVu', 'TenDichVu', 'Dịch vụ');
-                    const price = Number(getProp(dv, 'tienDichVu', 'TienDichVu', 0)) || 0;
+                    const id = dv.maDichVu ?? dv.MaDichVu;
+                    const name = dv.tenDichVu ?? dv.TenDichVu ?? 'Dịch vụ';
+                    const price = Number(dv.tienDichVu ?? dv.TienDichVu ?? 0);
                     return `
-                        <label style="display:flex;gap:.65rem;align-items:flex-start;padding:.75rem;border:1px solid #e5e7eb;border-radius:.75rem;background:white;cursor:pointer;">
-                            <input type="checkbox" class="hoa-don-dich-vu" value="${id}" data-price="${price}" onchange="recalcTotal()" style="margin-top:.2rem;">
+                        <label style="display:flex;gap:.65rem;align-items:flex-start;padding:.75rem;border:1px solid #bbf7d0;border-radius:.75rem;background:#f0fdf4;cursor:default;">
+                            <input type="checkbox" class="hoa-don-dich-vu" value="${id}" data-price="${price}" checked disabled style="margin-top:.2rem;">
                             <span style="flex:1;">
                                 <strong>${escapeHtmlDashboard(name)}</strong><br>
                                 <small style="color:var(--text-light);">${fmtCurrency(price)}</small>
@@ -1430,17 +1397,25 @@ async function loadPhongInfo(phongId) {
                         </label>`;
                 }).join('');
             } else {
-                serviceList.innerHTML = `<div style="color:var(--text-light);">Chủ trọ chưa khai báo dịch vụ nào.</div>`;
+                serviceList.innerHTML = `<div style="color:var(--text-light);padding:.75rem;border:1px dashed #d1d5db;border-radius:.75rem;">Phòng này chưa đăng ký dịch vụ nào.</div>`;
             }
         }
-        if (serviceBox) serviceBox.style.display = services.length ? 'block' : 'none';
+        if (serviceBox) serviceBox.style.display = 'block';
 
         onHoaDonTypeChanged();
         recalcTotal();
     } catch (e) {
         window._hoaDonInfo = null;
-        if (infoBox) infoBox.style.display = 'none';
+        document.getElementById('phongInfoBox').style.display = 'none';
         showToast('Lỗi: ' + (e.message || 'Không tải được thông tin phòng'), 'error');
+    }
+}
+
+
+function reloadHoaDonPhongInfo() {
+    const phongId = document.getElementById('f_maPhong')?.value;
+    if (phongId) {
+        loadPhongInfo(phongId);
     }
 }
 
@@ -1455,6 +1430,11 @@ function onHoaDonTypeChanged() {
     document.querySelectorAll('.hang-thang-only').forEach(el => {
         el.style.display = isMonthly ? '' : 'none';
     });
+
+    document.querySelectorAll('.thue-phong-only').forEach(el => {
+        el.style.display = isMonthly ? 'none' : '';
+    });
+
     recalcTotal();
 }
 
@@ -1464,10 +1444,9 @@ function recalcTotal() {
     const loai = document.getElementById('f_loaiHoaDon')?.value || 'HangThang';
     const ps = Number(document.getElementById('f_tienPhatSinhKhac')?.value) || 0;
     const serviceTotal = loai === 'HangThang' ? calcSelectedServiceTotal() : 0;
-    const phong = getProp(info, 'phong', 'Phong', {});
     const total = loai === 'ThuePhong'
-        ? (Number(getProp(phong, 'giaPhong', 'GiaPhong', 0)) + ps)
-        : (Number(getProp(info, 'tienDien', 'TienDien', 0)) + Number(getProp(info, 'tienNuoc', 'TienNuoc', 0)) + serviceTotal + ps);
+        ? (Number(info.phong?.giaPhong || 0) + ps)
+        : (Number(info.tienDien || 0) + Number(info.tienNuoc || 0) + serviceTotal + ps);
 
     const dvEl = document.getElementById('infoTienDichVu');
     if (dvEl) dvEl.textContent = fmtCurrency(serviceTotal);
@@ -1475,6 +1454,132 @@ function recalcTotal() {
     if (totalEl) totalEl.textContent = fmtCurrency(total);
 }
 
+
+
+// ==========================================
+// ĐĂNG KÝ DỊCH VỤ
+// ==========================================
+async function openDangKyDichVuModal(id = null) {
+    if (CURRENT_ROLE !== 'NguoiDung') {
+        showToast('Chỉ người dùng mới được đăng ký dịch vụ', 'error');
+        return;
+    }
+
+    resetModalFooter();
+    document.getElementById('modalTitle').textContent = 'Đăng ký dịch vụ sử dụng';
+    document.getElementById('modalFields').innerHTML = `
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Chọn phòng đang thuê <span style="color:var(--error)">*</span></label>
+            <select id="f_dkdv_maPhong" class="form-control" required onchange="loadDichVuDangKyTheoPhong(this.value)">
+                <option value="">-- Đang tải phòng đang thuê --</option>
+            </select>
+            <small style="color:var(--text-light);display:block;margin-top:.35rem;">Bạn chỉ đăng ký được dịch vụ cho các phòng đang thuê còn hợp đồng hiệu lực.</small>
+        </div>
+        <div style="grid-column:1/-1;">
+            <label style="font-weight:700;margin-bottom:.5rem;display:block;">Dịch vụ có thể đăng ký</label>
+            <div id="dichVuDangKyList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.75rem;">
+                <div style="color:var(--text-light);padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;">Vui lòng chọn phòng trước.</div>
+            </div>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Ghi chú</label>
+            <textarea id="f_dkdv_ghiChu" class="form-control" placeholder="Ví dụ: đăng ký internet từ tháng này..."></textarea>
+        </div>`;
+
+    const footer = document.querySelector('#universalModal .modal-footer');
+    if (footer) {
+        footer.innerHTML = `
+            <button type="button" class="btn btn-secondary" style="width:auto;" onclick="closeModal()">Đóng</button>
+            <button type="submit" class="btn btn-primary" style="width:auto;"><i class="fas fa-plus"></i> Đăng ký dịch vụ</button>`;
+    }
+
+    try {
+        const rooms = normalizeArrayResponse(await apiFetch('/api/DangKyDichVu/PhongDangThue'));
+        const select = document.getElementById('f_dkdv_maPhong');
+        if (!select) return;
+        select.innerHTML = `<option value="">-- Chọn phòng --</option>` + rooms.map(p => `
+            <option value="${p.maPhong}">${escapeHtmlDashboard(p.tenPhong || ('Phòng #' + p.maPhong))}${p.tenNhaTro ? ' - ' + escapeHtmlDashboard(p.tenNhaTro) : ''}</option>`).join('');
+        if (rooms.length === 1) {
+            select.value = rooms[0].maPhong;
+            await loadDichVuDangKyTheoPhong(rooms[0].maPhong);
+        }
+        if (!rooms.length) {
+            document.getElementById('dichVuDangKyList').innerHTML = `<div style="color:var(--text-light);padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;">Bạn chưa có phòng đang thuê hợp lệ.</div>`;
+        }
+    } catch (e) {
+        showToast(e.message || 'Không tải được phòng đang thuê', 'error');
+    }
+
+    document.getElementById('modalForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const maPhong = Number(document.getElementById('f_dkdv_maPhong')?.value || 0);
+        const maDichVu = Number(document.querySelector('input[name="dkdv_service"]:checked')?.value || 0);
+        if (!maPhong) { showToast('Vui lòng chọn phòng', 'error'); return; }
+        if (!maDichVu) { showToast('Vui lòng chọn dịch vụ muốn đăng ký', 'error'); return; }
+
+        try {
+            await apiFetch('/api/DangKyDichVu', 'POST', {
+                maPhong,
+                maDichVu,
+                ghiChu: document.getElementById('f_dkdv_ghiChu')?.value || ''
+            });
+            showToast('Đăng ký dịch vụ thành công! Dịch vụ này sẽ tự động được cộng vào hóa đơn hằng tháng.');
+            closeModal();
+            refreshData();
+        } catch (err) {
+            showToast(err.message || 'Lỗi đăng ký dịch vụ', 'error');
+        }
+    };
+
+    document.getElementById('universalModal').style.display = 'flex';
+}
+
+async function loadDichVuDangKyTheoPhong(maPhong) {
+    const list = document.getElementById('dichVuDangKyList');
+    if (!list) return;
+    if (!maPhong) {
+        list.innerHTML = `<div style="color:var(--text-light);padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;">Vui lòng chọn phòng trước.</div>`;
+        return;
+    }
+
+    list.innerHTML = `<div style="color:var(--text-light);"><i class="fas fa-spinner fa-spin"></i> Đang tải dịch vụ...</div>`;
+    try {
+        const services = normalizeArrayResponse(await apiFetch(`/api/DangKyDichVu/DichVuTheoPhong/${maPhong}`));
+        if (!services.length) {
+            list.innerHTML = `<div style="color:var(--text-light);padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;">Chủ trọ chưa khai báo dịch vụ nào cho phòng này.</div>`;
+            return;
+        }
+
+        list.innerHTML = services.map(dv => {
+            const id = dv.maDichVu ?? dv.MaDichVu;
+            const name = dv.tenDichVu ?? dv.TenDichVu ?? 'Dịch vụ';
+            const price = Number(dv.tienDichVu ?? dv.TienDichVu ?? 0);
+            const registered = Boolean(dv.daDangKy ?? dv.DaDangKy);
+            return `
+                <label style="display:flex;gap:.65rem;align-items:flex-start;padding:.85rem;border:1px solid ${registered ? '#bbf7d0' : '#e5e7eb'};border-radius:.9rem;background:${registered ? '#f0fdf4' : 'white'};${registered ? 'opacity:.75;' : 'cursor:pointer;'}">
+                    <input type="radio" name="dkdv_service" value="${id}" ${registered ? 'disabled' : ''} style="margin-top:.25rem;">
+                    <span style="flex:1;">
+                        <strong>${escapeHtmlDashboard(name)}</strong><br>
+                        <small style="color:var(--text-light);">${fmtCurrency(price)} / tháng</small><br>
+                        <small style="color:${registered ? 'var(--success)' : 'var(--primary)'};font-weight:700;">${registered ? 'Đã đăng ký' : 'Có thể đăng ký'}</small>
+                    </span>
+                </label>`;
+        }).join('');
+    } catch (e) {
+        list.innerHTML = `<div style="color:var(--error);padding:1rem;border:1px dashed #fecaca;border-radius:.75rem;">${escapeHtmlDashboard(e.message || 'Không tải được dịch vụ')}</div>`;
+    }
+}
+
+async function huyDangKyDichVu(id) {
+    if (!confirm('Bạn có chắc muốn hủy đăng ký dịch vụ này? Dịch vụ đã hủy sẽ không tự động cộng vào các hóa đơn hằng tháng lập sau đó.')) return;
+    try {
+        await apiFetch(`/api/DangKyDichVu/${id}`, 'DELETE');
+        showToast('Đã hủy đăng ký dịch vụ');
+        refreshData();
+    } catch (e) {
+        showToast(e.message || 'Lỗi hủy đăng ký dịch vụ', 'error');
+    }
+}
 
 // ==========================================
 // THANH TOÁN HÓA ĐƠN

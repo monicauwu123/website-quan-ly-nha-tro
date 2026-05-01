@@ -4,7 +4,7 @@
 // ==========================================
 
 (function () {
-    const VERSION = '4.5';
+    const VERSION = '5.1';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
@@ -25,6 +25,7 @@
         `js/modules/hop-dong.js?v=${VERSION}`,
         `js/modules/yeu-cau-thue.js?v=${VERSION}`,
         `js/modules/hoa-don.js?v=${VERSION}`,
+        `js/modules/dang-ky-dich-vu.js?v=${VERSION}`,
         `js/modules/thanh-toan.js?v=${VERSION}`,
         `js/modules/dich-vu.js?v=${VERSION}`,
         `js/modules/nguoi-dung.js?v=${VERSION}`,

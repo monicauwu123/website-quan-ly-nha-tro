@@ -28,16 +28,18 @@ BEGIN
 END
 ");
 
-            // Drop mọi foreign key đang trỏ vào HoaDon.MaDien / HoaDon.MaNuoc, kể cả khi tên FK khác nhau giữa các máy.
             migrationBuilder.Sql(@"
-DECLARE @sql nvarchar(max) = N'';
-SELECT @sql = @sql + N'ALTER TABLE [HoaDon] DROP CONSTRAINT [' + fk.name + N'];' + CHAR(13)
-FROM sys.foreign_keys fk
-JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
-JOIN sys.tables t ON fk.parent_object_id = t.object_id
-JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id
-WHERE t.name = N'HoaDon' AND c.name IN (N'MaDien', N'MaNuoc');
-IF LEN(@sql) > 0 EXEC sp_executesql @sql;
+IF OBJECT_ID(N'FK_HoaDon_ChiSoDien_MaDien', N'F') IS NOT NULL
+BEGIN
+    ALTER TABLE [HoaDon] DROP CONSTRAINT [FK_HoaDon_ChiSoDien_MaDien];
+END
+");
+
+            migrationBuilder.Sql(@"
+IF OBJECT_ID(N'FK_HoaDon_ChiSoNuoc_MaNuoc', N'F') IS NOT NULL
+BEGIN
+    ALTER TABLE [HoaDon] DROP CONSTRAINT [FK_HoaDon_ChiSoNuoc_MaNuoc];
+END
 ");
 
             migrationBuilder.Sql(@"
