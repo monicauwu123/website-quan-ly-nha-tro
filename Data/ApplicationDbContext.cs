@@ -25,6 +25,7 @@ namespace DoAnSE104.Data
         public DbSet<ChiTietHoaDon> ChiTietHoaDon { get; set; }
         public DbSet<ThanhToan> ThanhToan { get; set; }
         public DbSet<YeuCauThue> YeuCauThue { get; set; }
+        public DbSet<YeuCauGiaHan> YeuCauGiaHan { get; set; }
         public DbSet<BaoCaoSuCo> BaoCaoSuCo { get; set; }
         public DbSet<DangKyDichVu> DangKyDichVu { get; set; }
 
@@ -180,6 +181,21 @@ namespace DoAnSE104.Data
 
             modelBuilder.Entity<YeuCauThue>()
                 .HasIndex(y => new { y.MaNguoiDung, y.MaPhong, y.TrangThai });
+
+            modelBuilder.Entity<YeuCauGiaHan>()
+                .HasOne(y => y.HopDong)
+                .WithMany()
+                .HasForeignKey(y => y.MaHopDong)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<YeuCauGiaHan>()
+                .HasOne(y => y.NguoiDung)
+                .WithMany()
+                .HasForeignKey(y => y.MaNguoiDung)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<YeuCauGiaHan>()
+                .HasIndex(y => new { y.MaNguoiDung, y.MaHopDong, y.TrangThai });
 
             modelBuilder.Entity<BaoCaoSuCo>()
                 .HasOne(b => b.NguoiDung)

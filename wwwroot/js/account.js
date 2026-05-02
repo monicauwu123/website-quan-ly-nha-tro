@@ -260,7 +260,6 @@ async function loadProfile() {
         document.getElementById('userAvatar').textContent  = initial;
         document.getElementById('userName').textContent    = data.hoTen || data.tenDangNhap;
 
-        loadTenantProfiles();
 
     } catch (e) {
         body.innerHTML = `<div style="color:var(--error);padding:1rem;"><i class="fas fa-exclamation-circle"></i> ${e.message || 'Lỗi tải thông tin'}</div>`;

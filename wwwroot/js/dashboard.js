@@ -264,9 +264,11 @@ function showSection(section, el, skipHashUpdate = false) {
     if (section === 'account') section = 'taikhoan';
     currentSection = section;
 
-    // NguoiDung chỉ xem, không được tạo/sửa/xóa
-    const canCreate = ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && section !== 'yeucauthue')
-        || (CURRENT_ROLE === 'NguoiDung' && (section === 'yeucauthue' || section === 'dangkydichvu'));
+    // Quyền hiển thị nút "Thêm mới" theo từng nghiệp vụ.
+    // Báo cáo sự cố: chỉ Người dùng/khách thuê được tạo; Chủ trọ/Admin chỉ xem và xử lý.
+    const canCreate =
+        ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu'].includes(section))
+        || (CURRENT_ROLE === 'NguoiDung' && ['yeucauthue', 'dangkydichvu', 'baocaosuco'].includes(section));
     const canWrite = canCreate;
 
     const overviewEl = document.getElementById('overviewSection');
@@ -634,6 +636,16 @@ function renderTable(cfg, data, section) {
         } else if (section === 'dangkydichvu') {
             if (item.trangThai === 'DangSuDung') {
                 actionHtml = `<button class="btn-action btn-delete" onclick="huyDangKyDichVu(${item.maDangKyDichVu})"><i class="fas fa-times"></i> Hủy</button>`;
+            }
+        } else if (section === 'baocaosuco') {
+            if (CURRENT_ROLE === 'NguoiDung') {
+                if (item.trangThai === 'Moi') {
+                    actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('baocaosuco',${item.maBaoCao})"><i class="fas fa-times"></i> Hủy</button>`;
+                } else {
+                    actionHtml = `<span style="color:var(--text-light);font-size:.85rem;">---</span>`;
+                }
+            } else if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
+                actionHtml = `<button class="btn-action btn-edit" onclick="openBaoCaoSuCoXuLyModal(${item.maBaoCao})"><i class="fas fa-clipboard-check"></i> Xử lý</button>`;
             }
         } else if (canWrite) {
             actionHtml = `
@@ -1015,6 +1027,7 @@ function openModal(id = null) {
         if (section === 'yeucauthue') return openYeuCauThueModal(id);
         if (section === 'hoadon') return openHoaDonModal(id);
         if (section === 'dangkydichvu') return openDangKyDichVuModal(id);
+        if (section === 'baocaosuco') return openBaoCaoSuCoModal(id);
         if (section === 'user') return openUserModal(id);
         return;
     }
@@ -1166,6 +1179,146 @@ async function rejectYeuCauThue(maYeuCau) {
     } catch (e) {
         showToast(e.message || 'Lỗi từ chối yêu cầu thuê', 'error');
     }
+}
+
+
+// ==========================================
+// BÁO CÁO SỰ CỐ CUSTOM MODAL
+// ==========================================
+async function openBaoCaoSuCoModal(id = null) {
+    if (CURRENT_ROLE !== 'NguoiDung') {
+        showToast('Chỉ người dùng/khách thuê mới được gửi báo cáo sự cố', 'error');
+        return;
+    }
+
+    resetModalFooter();
+    document.getElementById('modalTitle').textContent = 'Gửi báo cáo sự cố';
+
+    let taoMoiData = { phongDangThue: [], mucDo: ['Bình thường', 'Gấp', 'Rất gấp'] };
+    try {
+        taoMoiData = await apiFetch('/api/BaoCaoSuCo/TaoMoi') || taoMoiData;
+    } catch (e) {
+        showToast(e.message || 'Không tải được danh sách phòng đang thuê', 'error');
+    }
+
+    const phongDangThue = normalizeArrayResponse(taoMoiData.phongDangThue || taoMoiData.phong || taoMoiData.rooms);
+    const mucDoList = normalizeArrayResponse(taoMoiData.mucDo).length
+        ? normalizeArrayResponse(taoMoiData.mucDo)
+        : ['Bình thường', 'Gấp', 'Rất gấp'];
+
+    document.getElementById('modalFields').innerHTML = `
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Phòng đang thuê <span style="color:var(--error)">*</span></label>
+            <select id="f_maPhongSuCo" class="form-control" required>
+                <option value="">-- Chọn phòng cần báo cáo --</option>
+                ${phongDangThue.map(p => `<option value="${p.maPhong}">${escapeHtmlDashboard(p.tenPhong || ('Phòng #' + p.maPhong))}${p.nhaTro?.tenNhaTro ? ' - ' + escapeHtmlDashboard(p.nhaTro.tenNhaTro) : ''}</option>`).join('')}
+            </select>
+            ${!phongDangThue.length ? '<small style="color:var(--error);">Bạn chưa có phòng đang thuê còn hiệu lực nên chưa thể gửi báo cáo sự cố.</small>' : ''}
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Tiêu đề sự cố <span style="color:var(--error)">*</span></label>
+            <input type="text" id="f_tieuDeSuCo" class="form-control" maxlength="150" placeholder="Ví dụ: Hỏng bóng đèn, rò nước..." required>
+        </div>
+        <div class="form-group">
+            <label>Mức độ</label>
+            <select id="f_mucDoSuCo" class="form-control">
+                ${mucDoList.map(m => `<option value="${escapeHtmlDashboard(m)}">${escapeHtmlDashboard(m)}</option>`).join('')}
+            </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Nội dung chi tiết <span style="color:var(--error)">*</span></label>
+            <textarea id="f_noiDungSuCo" class="form-control" maxlength="1000" rows="5" placeholder="Mô tả rõ sự cố để chủ trọ xử lý..." required></textarea>
+        </div>`;
+
+    document.getElementById('modalForm').onsubmit = async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            maPhong: Number(document.getElementById('f_maPhongSuCo').value),
+            tieuDe: document.getElementById('f_tieuDeSuCo').value.trim(),
+            noiDung: document.getElementById('f_noiDungSuCo').value.trim(),
+            mucDo: document.getElementById('f_mucDoSuCo').value
+        };
+
+        if (!payload.maPhong) {
+            showToast('Vui lòng chọn phòng cần báo cáo', 'error');
+            return;
+        }
+
+        try {
+            await apiFetch('/api/BaoCaoSuCo', 'POST', payload);
+            showToast('Gửi báo cáo sự cố thành công!');
+            closeModal();
+            if (currentSection === 'baocaosuco') refreshData();
+        } catch (e) {
+            showToast(e.message || 'Lỗi gửi báo cáo sự cố', 'error');
+        }
+    };
+
+    document.getElementById('universalModal').style.display = 'flex';
+}
+
+async function openBaoCaoSuCoXuLyModal(maBaoCao) {
+    if (!(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
+        showToast('Bạn không có quyền xử lý báo cáo sự cố', 'error');
+        return;
+    }
+
+    resetModalFooter();
+
+    let baoCao = currentData.find(x => Number(x.maBaoCao) === Number(maBaoCao));
+    try {
+        baoCao = await apiFetch(`/api/BaoCaoSuCo/${maBaoCao}`) || baoCao;
+    } catch (e) {
+        if (!baoCao) {
+            showToast(e.message || 'Không tải được báo cáo sự cố', 'error');
+            return;
+        }
+    }
+
+    document.getElementById('modalTitle').textContent = 'Xử lý báo cáo sự cố';
+    document.getElementById('modalFields').innerHTML = `
+        <div style="grid-column:1/-1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.85rem;padding:1rem;margin-bottom:.25rem;">
+            <div style="font-weight:800;font-size:1rem;margin-bottom:.35rem;">${escapeHtmlDashboard(baoCao?.tieuDe || 'Báo cáo sự cố')}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem;color:var(--text-light);font-size:.9rem;">
+                <div><strong>Người gửi:</strong> ${escapeHtmlDashboard(baoCao?.nguoiDung?.hoTen || baoCao?.nguoiDung?.email || '---')}</div>
+                <div><strong>Phòng:</strong> ${escapeHtmlDashboard(baoCao?.phong?.tenPhong || '---')}</div>
+                <div><strong>Nhà trọ:</strong> ${escapeHtmlDashboard(baoCao?.phong?.nhaTro?.tenNhaTro || '---')}</div>
+                <div><strong>Mức độ:</strong> ${escapeHtmlDashboard(baoCao?.mucDo || 'Bình thường')}</div>
+            </div>
+            <div style="margin-top:.75rem;white-space:pre-wrap;">${escapeHtmlDashboard(baoCao?.noiDung || '')}</div>
+        </div>
+        <div class="form-group">
+            <label>Trạng thái xử lý <span style="color:var(--error)">*</span></label>
+            <select id="f_trangThaiSuCo" class="form-control" required>
+                <option value="Moi" ${baoCao?.trangThai === 'Moi' ? 'selected' : ''}>Mới gửi</option>
+                <option value="DangXuLy" ${baoCao?.trangThai === 'DangXuLy' ? 'selected' : ''}>Đang xử lý</option>
+                <option value="DaXuLy" ${baoCao?.trangThai === 'DaXuLy' ? 'selected' : ''}>Đã xử lý</option>
+            </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Phản hồi cho khách thuê</label>
+            <textarea id="f_phanHoiSuCo" class="form-control" maxlength="1000" rows="4" placeholder="Nhập phản hồi hoặc hướng xử lý...">${escapeHtmlDashboard(baoCao?.phanHoiChuTro || '')}</textarea>
+        </div>`;
+
+    document.getElementById('modalForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const payload = {
+            trangThai: document.getElementById('f_trangThaiSuCo').value,
+            phanHoiChuTro: document.getElementById('f_phanHoiSuCo').value.trim()
+        };
+
+        try {
+            await apiFetch(`/api/BaoCaoSuCo/${maBaoCao}`, 'PUT', payload);
+            showToast('Cập nhật báo cáo sự cố thành công!');
+            closeModal();
+            refreshData();
+        } catch (e) {
+            showToast(e.message || 'Lỗi cập nhật báo cáo sự cố', 'error');
+        }
+    };
+
+    document.getElementById('universalModal').style.display = 'flex';
 }
 
 // ==========================================
