@@ -21,6 +21,7 @@
         `js/modules/nha-tro.js?v=${VERSION}`,
         `js/modules/loai-phong.js?v=${VERSION}`,
         `js/modules/phong.js?v=${VERSION}`,
+        `js/modules/phong-dang-thue.js?v=${VERSION}`,
         `js/modules/khach-thue.js?v=${VERSION}`,
         `js/modules/hop-dong.js?v=${VERSION}`,
         `js/modules/yeu-cau-thue.js?v=${VERSION}`,

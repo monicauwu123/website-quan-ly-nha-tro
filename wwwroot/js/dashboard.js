@@ -198,6 +198,8 @@ function normalizeSectionFromHash() {
     const aliases = {
         'nha-tro': 'nhatro',
         'phong-tro': 'phong',
+        'phong-cua-toi': 'phongdangthue',
+        'phong-dang-thue': 'phongdangthue',
         'loai-phong': 'loaiphong',
         'dich-vu': 'dichvu',
         'dang-ky-dich-vu': 'dangkydichvu',
@@ -219,6 +221,7 @@ function sectionToHash(section) {
     const map = {
         nhatro: 'nha-tro',
         phong: 'phong',
+        phongdangthue: 'phong-cua-toi',
         loaiphong: 'loai-phong',
         dichvu: 'dich-vu',
         dangkydichvu: 'dang-ky-dich-vu',
@@ -274,7 +277,7 @@ function showSection(section, el, skipHashUpdate = false) {
     // Quyền hiển thị nút "Thêm mới" theo từng nghiệp vụ.
     // Báo cáo sự cố: chỉ Người dùng/khách thuê được tạo; Chủ trọ/Admin chỉ xem và xử lý.
     const canCreate =
-        ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu'].includes(section))
+        ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu', 'phongdangthue'].includes(section))
         || (CURRENT_ROLE === 'NguoiDung' && ['yeucauthue', 'dangkydichvu', 'baocaosuco'].includes(section));
     const canWrite = canCreate;
 
@@ -638,6 +641,11 @@ function renderTable(cfg, data, section) {
                 actionHtml += `
                     <button class="btn-action btn-edit" onclick="editItem('hoadon',${item.maHoaDon})"><i class="fas fa-edit"></i> Sửa</button>
                     <button class="btn-action btn-delete" onclick="deleteItem('hoadon',${item.maHoaDon})"><i class="fas fa-trash"></i> Xóa</button>`;
+            }
+        } else if (section === 'phongdangthue') {
+            if (CURRENT_ROLE === 'NguoiDung') {
+                actionHtml = `
+                    <button class="btn-action btn-edit" onclick="openDangKyDichVuModal(null, ${item.maPhong})"><i class="fas fa-concierge-bell"></i> Yêu cầu dịch vụ</button>`;
             }
         } else if (section === 'dangkydichvu') {
             if (item.trangThai === 'DangSuDung') {
@@ -1677,7 +1685,7 @@ function recalcTotal() {
 // ==========================================
 // ĐĂNG KÝ DỊCH VỤ
 // ==========================================
-async function openDangKyDichVuModal(id = null) {
+async function openDangKyDichVuModal(id = null, maPhongChon = null) {
     if (CURRENT_ROLE !== 'NguoiDung') {
         showToast('Chỉ người dùng mới được đăng ký dịch vụ', 'error');
         return;
@@ -1717,9 +1725,10 @@ async function openDangKyDichVuModal(id = null) {
         if (!select) return;
         select.innerHTML = `<option value="">-- Chọn phòng --</option>` + rooms.map(p => `
             <option value="${p.maPhong}">${escapeHtmlDashboard(p.tenPhong || ('Phòng #' + p.maPhong))}${p.tenNhaTro ? ' - ' + escapeHtmlDashboard(p.tenNhaTro) : ''}</option>`).join('');
-        if (rooms.length === 1) {
-            select.value = rooms[0].maPhong;
-            await loadDichVuDangKyTheoPhong(rooms[0].maPhong);
+        const phongMacDinh = maPhongChon || (rooms.length === 1 ? rooms[0].maPhong : null);
+        if (phongMacDinh) {
+            select.value = phongMacDinh;
+            await loadDichVuDangKyTheoPhong(phongMacDinh);
         }
         if (!rooms.length) {
             document.getElementById('dichVuDangKyList').innerHTML = `<div style="color:var(--text-light);padding:1rem;border:1px dashed #d1d5db;border-radius:.75rem;">Bạn chưa có phòng đang thuê hợp lệ.</div>`;
