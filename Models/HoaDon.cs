@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -50,6 +50,13 @@ namespace DoAnSE104.Models
 
         // Bá»™ sÆ°u táº­p chi tiáº¿t cÃ¡c khoáº£n tiá»n trong hÃ³a Ä‘Æ¡n (tiá»n phÃ²ng, tiá»n Ä‘iá»‡n, tiá»n nÆ°á»›c, dá»‹ch vá»¥...)
         public ICollection<ChiTietHoaDon> ChiTietHoaDon { get; set; }
+
+        /// <summary>
+        /// Trạng thái hóa đơn: ChuaThanhToan | DaThanhToan | Huy
+        /// </summary>
+        [Required]
+        [MaxLength(20)]
+        public string TrangThai { get; set; } = "ChuaThanhToan";
     }
 }
 

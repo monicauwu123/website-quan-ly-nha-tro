@@ -106,6 +106,38 @@ namespace DoAnSE104.Controllers
             return chiSoNuoc;
         }
 
+
+        [HttpGet("nha-tro/{maNhaTro}")]
+        public async Task<ActionResult<IEnumerable<ChiSoNuoc>>> GetChiSoNuocByNhaTro(int maNhaTro)
+        {
+            var role = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            var nhaTroTonTai = await _context.NhaTro.AnyAsync(n => n.MaNhaTro == maNhaTro);
+            if (!nhaTroTonTai)
+                return NotFound(ApiResponse<object>.Loi("Nhà trọ không tồn tại"));
+
+            if (role == VaiTroConst.ChuTro)
+            {
+                var coQuyen = await _context.NhaTro.AnyAsync(n => n.MaNhaTro == maNhaTro && n.MaChuTro == userId);
+                if (!coQuyen) return Forbid();
+            }
+            else if (role == VaiTroConst.NguoiDung)
+            {
+                var coQuyen = await _context.NguoiThue.AnyAsync(nt =>
+                    nt.MaNguoiDung == userId &&
+                    _context.Phong.Any(p => p.MaPhong == nt.MaPhong && p.MaNhaTro == maNhaTro));
+                if (!coQuyen) return Forbid();
+            }
+
+            return await ApplyRoleFilter(_context.ChiSoNuoc
+                    .Include(c => c.Phong)
+                    .AsQueryable())
+                .Where(c => c.Phong.MaNhaTro == maNhaTro)
+                .OrderByDescending(c => c.NgayThangNuoc)
+                .ToListAsync();
+        }
+
         [HttpGet("phong/{maPhong}")]
         public async Task<ActionResult<IEnumerable<ChiSoNuoc>>> GetChiSoNuocByPhong(int maPhong)
         {

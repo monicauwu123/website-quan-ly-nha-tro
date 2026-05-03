@@ -58,8 +58,11 @@ namespace DoAnSE104.Controllers
             return null;
         }
 
-        private string GetTrangThaiText(DateTime? ngayKetThuc)
+        private string GetTrangThaiText(string? trangThai, DateTime? ngayKetThuc)
         {
+            if (trangThai == "Huy") return "Đã hủy";
+            if (trangThai == "KetThuc") return "Kết thúc hợp đồng";
+
             if (ngayKetThuc == null) return "Đang còn hiệu lực";
 
             var days = (ngayKetThuc.Value - DateTime.Today).TotalDays;
@@ -108,7 +111,8 @@ namespace DoAnSE104.Controllers
                 h.NoiDung,
                 NguoiThue = new { h.NguoiThue.HoTen },
                 Phong = new { h.Phong.TenPhong },
-                TrangThaiText = GetTrangThaiText(h.NgayKetThuc)
+                h.TrangThai,
+                TrangThaiText = GetTrangThaiText(h.TrangThai, h.NgayKetThuc)
             });
 
             return Ok(result);
@@ -135,7 +139,8 @@ namespace DoAnSE104.Controllers
                 h.NgayKetThuc,
                 h.TienCoc,
                 h.NoiDung,
-                TrangThaiText = GetTrangThaiText(h.NgayKetThuc)
+                h.TrangThai,
+                TrangThaiText = GetTrangThaiText(h.TrangThai, h.NgayKetThuc)
             });
         }
 
@@ -158,7 +163,8 @@ namespace DoAnSE104.Controllers
                 h.NgayKetThuc,
                 h.TienCoc,
                 h.NoiDung,
-                TrangThaiText = GetTrangThaiText(h.NgayKetThuc)
+                h.TrangThai,
+                TrangThaiText = GetTrangThaiText(h.TrangThai, h.NgayKetThuc)
             });
 
             return Ok(result);
@@ -183,7 +189,8 @@ namespace DoAnSE104.Controllers
                 h.NgayKetThuc,
                 h.TienCoc,
                 h.NoiDung,
-                TrangThaiText = GetTrangThaiText(h.NgayKetThuc)
+                h.TrangThai,
+                TrangThaiText = GetTrangThaiText(h.TrangThai, h.NgayKetThuc)
             });
 
             return Ok(result);
@@ -286,8 +293,10 @@ namespace DoAnSE104.Controllers
             {
                 phongCanCapNhat.SoNguoiHienTai = Math.Min(phongCanCapNhat.SoNguoiHienTai + 1, phongCanCapNhat.SucChua);
 
-                var trangThaiDaThue = await _context.TrangThai
-                    .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("Đã thuê") || t.TenTrangThai.Contains("Da thue") || t.TenTrangThai.Contains("thuê"));
+                var trangThaiDaThue = _context.TrangThai
+                    .AsEnumerable()
+                    .FirstOrDefault(t => t.TenTrangThai.Contains("thuê", StringComparison.OrdinalIgnoreCase)
+                                      || t.TenTrangThai.Contains("thue", StringComparison.OrdinalIgnoreCase));
                 if (trangThaiDaThue != null)
                     phongCanCapNhat.MaTrangThai = trangThaiDaThue.MaTrangThai;
             }
@@ -358,17 +367,83 @@ namespace DoAnSE104.Controllers
 
         // DELETE: api/HopDong/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> DeleteHopDong(int id)
         {
-            var hopDong = await _context.HopDong.FindAsync(id);
-            if (hopDong == null)
-                return NotFound(ApiResponse<object>.Loi("Không tìm thấy dữ liệu"));
+            var hopDong = await _context.HopDong
+                .Include(h => h.Phong).ThenInclude(p => p.NhaTro)
+                .FirstOrDefaultAsync(h => h.MaHopDong == id);
+            if (hopDong == null || hopDong.TrangThai == "Huy")
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy hợp đồng"));
 
-            _context.HopDong.Remove(hopDong);
-            await _context.SaveChangesAsync();
+            // Kiểm tra quyền: ChuTro chỉ được xử lý hợp đồng của phòng mình
+            var role = GetCurrentRole();
+            if (role == VaiTroConst.ChuTro)
+            {
+                var userId = GetCurrentUserId();
+                if (hopDong.Phong?.NhaTro?.MaChuTro != userId)
+                    return Forbid();
+            }
 
-            return NoContent();
+            // Kiểm tra hóa đơn liên quan
+            var dangConHieuLuc = hopDong.TrangThai == "DangHieuLuc"
+                && hopDong.NgayBatDau <= DateTime.Now
+                && (hopDong.NgayKetThuc == null || hopDong.NgayKetThuc >= DateTime.Now);
+
+            var coHoaDon = await _context.HoaDon.AnyAsync(hd => hd.MaNguoiThue == hopDong.MaNguoiThue
+                && hd.MaPhong == hopDong.MaPhong);
+
+            if (dangConHieuLuc)
+            {
+                hopDong.TrangThai = (role == VaiTroConst.Admin) ? "Huy" : "KetThuc";
+                hopDong.NgayKetThuc = DateTime.Now;
+
+                var conHopDongKhac = await _context.HopDong.AnyAsync(h =>
+                    h.MaHopDong != hopDong.MaHopDong &&
+                    h.MaPhong == hopDong.MaPhong &&
+                    h.TrangThai == "DangHieuLuc" &&
+                    h.NgayBatDau <= DateTime.Now &&
+                    (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
+
+                if (!conHopDongKhac && hopDong.Phong != null)
+                {
+                    var trangThaiTrong = _context.TrangThai
+                        .AsEnumerable()
+                        .FirstOrDefault(t => t.TenTrangThai.Contains("trống", StringComparison.OrdinalIgnoreCase)
+                                          || t.TenTrangThai.Contains("trong", StringComparison.OrdinalIgnoreCase));
+
+                    if (trangThaiTrong != null)
+                        hopDong.Phong.MaTrangThai = trangThaiTrong.MaTrangThai;
+                }
+
+                await _context.SaveChangesAsync();
+
+                var tenTT = hopDong.TrangThai == "Huy" ? "Hủy hợp đồng" : "Kết thúc hợp đồng";
+                return Ok(ApiResponse<object>.Ok(null!,
+                    $"Hợp đồng đang còn hiệu lực. " +
+                    $"Đã chuyển sang trạng thái \"{tenTT}\"."));
+            }
+
+            if (!coHoaDon)
+            {
+                // Chưa có hóa đơn → Xóa cứng
+                _context.HopDong.Remove(hopDong);
+                await _context.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null!, "Đã xóa hợp đồng thành công"));
+            }
+            else
+            {
+                // Đã có hóa đơn → Chuyển trạng thái KetThuc hoặc Huy
+                // Admin có thể hủy, ChuTro chỉ kết thúc
+                hopDong.TrangThai = (role == VaiTroConst.Admin) ? "Huy" : "KetThuc";
+                hopDong.NgayKetThuc = hopDong.NgayKetThuc ?? DateTime.Now;
+                await _context.SaveChangesAsync();
+
+                var tenTT = hopDong.TrangThai == "Huy" ? "Hủy hợp đồng" : "Kết thúc hợp đồng";
+                return Ok(ApiResponse<object>.Ok(null!,
+                    $"Hợp đồng đã có hóa đơn liên quan. " +
+                    $"Đã chuyển sang trạng thái \"{tenTT}\"."));
+            }
         }
 
         private bool HopDongExists(int id)
@@ -413,4 +488,3 @@ namespace DoAnSE104.Controllers
         }
     }
 }
-

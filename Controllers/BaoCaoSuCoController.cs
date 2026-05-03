@@ -321,23 +321,37 @@ namespace DoAnSE104.Controllers
                     if (baoCao.MaNguoiDung != userId)
                         return Forbid();
 
-                    if (baoCao.TrangThai != Moi)
-                        return BadRequest(ApiResponse<object>.Loi("Chỉ có thể hủy báo cáo khi chủ trọ chưa xử lý"));
+                    // Chỉ hủy được khi mới gửi (chủ trọ chưa xử lý)
+                    if (baoCao.TrangThai == Moi)
+                    {
+                        baoCao.TrangThai = Huy;
+                        baoCao.NgayXuLy = DateTime.Now;
+                        await _context.SaveChangesAsync();
+                        return Ok(ApiResponse<object>.Ok(null!, "Đã hủy báo cáo sự cố"));
+                    }
 
-                    baoCao.TrangThai = Huy;
-                    baoCao.NgayXuLy = DateTime.Now;
-                    await _context.SaveChangesAsync();
-
-                    return Ok(ApiResponse<object>.Ok(null!, "Đã hủy báo cáo sự cố"));
+                    // Đang xử lý / đã xử lý → giữ lịch sử
+                    return BadRequest(ApiResponse<object>.Loi(
+                        $"Báo cáo đang ở trạng thái \"{TrangThaiText(baoCao.TrangThai)}\", " +
+                        "không thể hủy để giữ lịch sử xử lý. Chỉ hủy được khi chủ trọ chưa tiếp nhận."));
                 }
 
-                if (role == VaiTroConst.ChuTro && baoCao.Phong.NhaTro.MaChuTro != userId)
-                    return Forbid();
+                if (role == VaiTroConst.ChuTro)
+                {
+                    if (baoCao.Phong.NhaTro.MaChuTro != userId)
+                        return Forbid();
 
+                    // ChuTro: Giữ lịch sử, không xóa cứng
+                    return BadRequest(ApiResponse<object>.Loi(
+                        "Chủ trọ không thể xóa báo cáo sự cố để giữ lịch sử. " +
+                        "Hãy cập nhật trạng thái xử lý thay vì xóa."));
+                }
+
+                // Admin: Xóa cứng
                 _context.BaoCaoSuCo.Remove(baoCao);
                 await _context.SaveChangesAsync();
 
-                return Ok(ApiResponse<object>.Ok(null!, "Xóa báo cáo sự cố thành công"));
+                return Ok(ApiResponse<object>.Ok(null!, "Đã xóa báo cáo sự cố thành công"));
             }
             catch (Exception ex)
             {

@@ -29,6 +29,12 @@ namespace DoAnSE104.Models
 
         [MaxLength(255)]
         public string? NoiDung { get; set; }
+
+        /// <summary>
+        /// Trạng thái hợp đồng: DangHieuLuc | KetThuc | Huy
+        /// </summary>
+        [MaxLength(20)]
+        public string TrangThai { get; set; } = "DangHieuLuc";
       
     }
 } 

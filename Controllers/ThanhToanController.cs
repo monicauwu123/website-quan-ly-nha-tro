@@ -228,10 +228,21 @@ namespace DoAnSE104.Controllers
             if (!await CoQuyenThanhToan(thanhToan))
                 return Forbid();
 
+            var role = GetCurrentRole();
+
+            // ChuTro không nên xóa thanh toán (đã ghi nhận thực tế)
+            if (role == VaiTroConst.ChuTro)
+                return BadRequest(ApiResponse<object>.Loi(
+                    "Chủ trọ không thể xóa thanh toán đã ghi nhận. " +
+                    "Chỉ Admin mới có quyền xóa thanh toán nhập nhầm. " +
+                    "Nếu cần điều chỉnh, vui lòng liên hệ quản trị viên."));
+
+            // Admin: chỉ cho phép xóa nếu không có xác nhận tài chính nào khác
+            // (ở đây Admin có toàn quyền, xóa cứng trực tiếp)
             _context.ThanhToan.Remove(thanhToan);
             await _context.SaveChangesAsync();
 
-            return Ok(ApiResponse<object>.Ok(null!, "Xóa thanh toán thành công"));
+            return Ok(ApiResponse<object>.Ok(null!, "Đã xóa thanh toán thành công (chỉ dùng khi nhập nhầm)"));
         }
 
         private bool ThanhToanExists(int id)

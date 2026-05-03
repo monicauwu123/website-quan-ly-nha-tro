@@ -449,7 +449,7 @@ namespace DoAnSE104.Controllers
             try
             {
                 var nguoiThue = await _context.NguoiThue.FindAsync(id);
-                if (nguoiThue == null)
+                if (nguoiThue == null || nguoiThue.TrangThai == "DaXoa")
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy người thuê"));
 
                 var role = GetCurrentRole();
@@ -458,18 +458,35 @@ namespace DoAnSE104.Controllers
                 if (role == VaiTroConst.ChuTro && !await PhongThuocChuTro(nguoiThue.MaPhong, userId))
                     return Forbid();
 
-                var coHopDong = await _context.HopDong.AnyAsync(h => h.MaNguoiThue == id);
-                var coHoaDon = await _context.HoaDon.AnyAsync(hd => hd.MaNguoiThue == id);
-                var coThanhToan = await _context.ThanhToan.AnyAsync(tt => tt.MaNguoiThue == id);
+                // Kiểm tra dữ liệu liên quan
+                var coHopDong    = await _context.HopDong.AnyAsync(h => h.MaNguoiThue == id);
+                var coHoaDon     = await _context.HoaDon.AnyAsync(hd => hd.MaNguoiThue == id);
+                var coThanhToan  = await _context.ThanhToan.AnyAsync(tt => tt.MaNguoiThue == id);
                 var coYeuCauThue = await _context.YeuCauThue.AnyAsync(y => y.MaNguoiThue == id);
 
-                if (coHopDong || coHoaDon || coThanhToan || coYeuCauThue)
-                    return BadRequest(ApiResponse<object>.Loi("Không thể xóa khách thuê đã có hợp đồng, hóa đơn, thanh toán hoặc yêu cầu thuê liên quan. Bạn chỉ nên xóa khách thuê nhập nhầm/chưa phát sinh dữ liệu."));
+                if (!coHopDong && !coHoaDon && !coThanhToan && !coYeuCauThue)
+                {
+                    // Chưa phát sinh dữ liệu → Xóa cứng
+                    _context.NguoiThue.Remove(nguoiThue);
+                    await _context.SaveChangesAsync();
+                    return Ok(ApiResponse<object>.Ok(null!, "Đã xóa khách thuê thành công"));
+                }
+                else
+                {
+                    // Đã có dữ liệu liên quan → Chuyển trạng thái KhongHoatDong
+                    nguoiThue.TrangThai = "KhongHoatDong";
+                    await _context.SaveChangesAsync();
 
-                _context.NguoiThue.Remove(nguoiThue);
-                await _context.SaveChangesAsync();
+                    var lyDo = new List<string>();
+                    if (coHopDong)    lyDo.Add("hợp đồng");
+                    if (coHoaDon)     lyDo.Add("hóa đơn");
+                    if (coThanhToan)  lyDo.Add("thanh toán");
+                    if (coYeuCauThue) lyDo.Add("yêu cầu thuê");
 
-                return Ok(ApiResponse<object>.Ok(null!, "Xóa khách thuê thành công"));
+                    return Ok(ApiResponse<object>.Ok(null!,
+                        $"Khách thuê đã có {string.Join(", ", lyDo)} liên quan. " +
+                        "Đã chuyển sang trạng thái \"Không còn hoạt động\"."));
+                }
             }
             catch (Exception ex)
             {

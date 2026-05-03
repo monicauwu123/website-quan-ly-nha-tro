@@ -15,10 +15,22 @@ namespace DoAnSE104.Models
         [Range(0, 9999999999999, ErrorMessage = "Giá dịch vụ phải là số hợp lệ")]
         public float Tiendichvu { get; set; }
 
-        /// <summary>Chủ trọ sở hữu dịch vụ này. Null chỉ dùng cho dữ liệu cũ/admin.</summary>
+        /// <summary>Nhà trọ sở hữu dịch vụ này.</summary>
+        public int? MaNhaTro { get; set; }
+
+        [ForeignKey("MaNhaTro")]
+        public virtual NhaTro? NhaTro { get; set; }
+
+        /// <summary>Giữ lại để tương thích dữ liệu cũ. Dữ liệu mới ưu tiên MaNhaTro.</summary>
         public int? MaChuTro { get; set; }
 
         [ForeignKey("MaChuTro")]
         public virtual User? ChuTro { get; set; }
+
+        /// <summary>
+        /// Trạng thái dịch vụ: DangSuDung | NgungSuDung | DaXoa
+        /// </summary>
+        [MaxLength(30)]
+        public string TrangThai { get; set; } = "DangSuDung";
     }
 }

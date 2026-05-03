@@ -127,7 +127,7 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
         window.location.href = '/index.html';
         return;
     }
-    if (method === 'DELETE' || res.status === 204) return true;
+    if (res.status === 204) return true;
 
     const text = await res.text();
     let json = {};
@@ -136,6 +136,8 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
     if (!res.ok || json.thanhCong === false) {
         throw new Error(extractApiErrorMessage(json) || 'Lỗi hệ thống');
     }
+
+    if (method === 'DELETE') return json;
 
     return json;
 }

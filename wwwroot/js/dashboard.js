@@ -38,6 +38,7 @@ applyRoleUI();
 // --- STATE ---
 let currentSection = 'overview';
 let currentSubSection = 'dien';
+let selectedDienNuocNhaTroId = null;
 let currentData = [];
 let lookups = { nhatro: [], loaiphong: [], trangthai: [], phong: [], nguoithue: [], hoadon: [], hinhthuc: [] };
 window.lookups = lookups;
@@ -74,7 +75,7 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
     try {
         const res = await fetch(endpoint, opts);
         if (res.status === 401) { logout(); return null; }
-        if (method === 'DELETE' || res.status === 204) return true;
+        if (res.status === 204) return true;
         const text = await res.text();
         if (!text) return true;
         let json;
@@ -82,6 +83,12 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
         if (!res.ok) {
             const msg = extractApiErrorMessage(json) || `Lỗi HTTP ${res.status}`;
             throw new Error(msg);
+        }
+        if (json && json.thanhCong === false) {
+            throw new Error(extractApiErrorMessage(json) || 'Lỗi xử lý yêu cầu');
+        }
+        if (method === 'DELETE') {
+            return json;
         }
         // Chuẩn hoá response kiểu ApiResponse<T>: { thanhCong, thongBao, duLieu }
         // để frontend luôn nhận trực tiếp mảng/object dữ liệu.
@@ -290,9 +297,8 @@ function showSection(section, el, skipHashUpdate = false) {
         addBtn.style.display = 'none';
         sectionTitle.textContent = 'Tổng quan hệ thống';
     } else if (section === 'diennuoc') {
-        addBtn.style.display = canWrite ? 'inline-flex' : 'none';
         sectionTitle.textContent = 'Điện & Nước';
-        addBtn.onclick = () => openDienNuocModal();
+        updateDienNuocAddButton();
     } else {
         addBtn.style.display = canWrite ? 'inline-flex' : 'none';
         sectionTitle.textContent = modules[section]?.title || section;
@@ -767,22 +773,66 @@ function mergeNguoiThueDisplayRows(data) {
 // ==========================================
 function renderDienNuocSection() {
     const container = document.getElementById('genericSection');
+    const nhaTroOptions = normalizeArrayResponse(lookups.nhatro)
+        .map(n => `<option value="${n.maNhaTro}" ${Number(selectedDienNuocNhaTroId) === Number(n.maNhaTro) ? 'selected' : ''}>${n.tenNhaTro || ('Nhà trọ #' + n.maNhaTro)}</option>`)
+        .join('');
+
     container.innerHTML = `
-        <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;">
-            <button id="tabDien" class="tab-btn tab-active" onclick="switchDienNuocTab('dien')"><i class="fas fa-bolt"></i> Chỉ số Điện</button>
-            <button id="tabNuoc" class="tab-btn" onclick="switchDienNuocTab('nuoc')"><i class="fas fa-tint"></i> Chỉ số Nước</button>
-        </div>
-        <div class="data-card">
-            <div class="table-container">
-                <table>
-                    <thead id="dienNuocHead"></thead>
-                    <tbody id="dienNuocBody">
-                        <tr><td style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i></td></tr>
-                    </tbody>
-                </table>
+        <div class="data-card" style="margin-bottom:1rem;">
+            <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+                <div class="form-group" style="min-width:280px;margin-bottom:0;">
+                    <label><i class="fas fa-building"></i> Chọn nhà trọ</label>
+                    <select id="dienNuocNhaTroSelect" class="form-control" onchange="onDienNuocNhaTroChange(this.value)">
+                        <option value="">-- Chọn nhà trọ để xem điện nước --</option>
+                        ${nhaTroOptions || '<option value="" disabled>Chưa có nhà trọ</option>'}
+                    </select>
+                </div>
+                <div style="color:var(--text-light);font-size:.9rem;padding-bottom:.7rem;">
+                    Chỉ số điện/nước sẽ được lọc theo từng nhà trọ.
+                </div>
             </div>
+        </div>
+        <div id="dienNuocContent" style="display:${selectedDienNuocNhaTroId ? 'block' : 'none'};">
+            <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;">
+                <button id="tabDien" class="tab-btn${currentSubSection === 'dien' ? ' tab-active' : ''}" onclick="switchDienNuocTab('dien')"><i class="fas fa-bolt"></i> Chỉ số Điện</button>
+                <button id="tabNuoc" class="tab-btn${currentSubSection === 'nuoc' ? ' tab-active' : ''}" onclick="switchDienNuocTab('nuoc')"><i class="fas fa-tint"></i> Chỉ số Nước</button>
+            </div>
+            <div class="data-card">
+                <div class="table-container">
+                    <table>
+                        <thead id="dienNuocHead"></thead>
+                        <tbody id="dienNuocBody">
+                            <tr><td style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div id="dienNuocEmptyGuide" class="data-card" style="display:${selectedDienNuocNhaTroId ? 'none' : 'block'};text-align:center;padding:2rem;color:var(--text-light);">
+            <i class="fas fa-building" style="font-size:2rem;margin-bottom:.75rem;color:var(--primary);"></i>
+            <div>Vui lòng chọn nhà trọ trước, sau đó danh sách chỉ số điện/nước mới xuất hiện.</div>
         </div>`;
-    loadDienNuocData('dien');
+
+    updateDienNuocAddButton();
+    if (selectedDienNuocNhaTroId) loadDienNuocData(currentSubSection || 'dien');
+}
+
+function onDienNuocNhaTroChange(value) {
+    selectedDienNuocNhaTroId = value ? Number(value) : null;
+    lookups.phongDienNuoc = selectedDienNuocNhaTroId
+        ? normalizeArrayResponse(lookups.phong).filter(p => Number(p.maNhaTro) === Number(selectedDienNuocNhaTroId))
+        : [];
+    renderDienNuocSection();
+}
+window.onDienNuocNhaTroChange = onDienNuocNhaTroChange;
+
+function updateDienNuocAddButton() {
+    const addBtn = document.getElementById('addBtn');
+    if (!addBtn) return;
+
+    const canWrite = CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro';
+    addBtn.style.display = canWrite && selectedDienNuocNhaTroId ? 'inline-flex' : 'none';
+    addBtn.onclick = () => openDienNuocModal();
 }
 
 async function switchDienNuocTab(tab) {
@@ -793,18 +843,26 @@ async function switchDienNuocTab(tab) {
 
 async function loadDienNuocData(tab) {
     currentSubSection = tab;
-    document.getElementById('addBtn').onclick = () => openDienNuocModal();
+    updateDienNuocAddButton();
     const cfg = tab === 'dien' ? dienModule : nuocModule;
 
     const head = document.getElementById('dienNuocHead');
     const body = document.getElementById('dienNuocBody');
     if (!head || !body) return;
 
+    if (!selectedDienNuocNhaTroId) {
+        currentData = [];
+        updateDienNuocAddButton();
+        return;
+    }
+
+    lookups.phongDienNuoc = normalizeArrayResponse(lookups.phong).filter(p => Number(p.maNhaTro) === Number(selectedDienNuocNhaTroId));
+
     head.innerHTML = `<tr>${cfg.headers.map(h => `<th>${h.label}</th>`).join('')}<th>Thao tác</th></tr>`;
     body.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>`;
 
     try {
-        currentData = await apiFetch(cfg.endpoint);
+        currentData = normalizeArrayResponse(await apiFetch(`${cfg.endpoint}/nha-tro/${selectedDienNuocNhaTroId}`));
         if (!currentData?.length) {
             body.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;color:var(--text-light);">Không có dữ liệu</td></tr>`;
             return;
@@ -829,6 +887,11 @@ async function loadDienNuocData(tab) {
 }
 
 function openDienNuocModal(id = null) {
+    if (!selectedDienNuocNhaTroId) {
+        showToast('Vui lòng chọn nhà trọ trước khi thêm chỉ số điện/nước', 'error');
+        return;
+    }
+    lookups.phongDienNuoc = normalizeArrayResponse(lookups.phong).filter(p => Number(p.maNhaTro) === Number(selectedDienNuocNhaTroId));
     const cfg = currentSubSection === 'dien' ? dienModule : nuocModule;
     const item = id ? currentData.find(i => i[cfg.pk] == id) : null;
     buildModal(
@@ -857,9 +920,11 @@ async function deleteDienNuoc(tab, id) {
     if (!confirm('Bạn có chắc chắn muốn xóa?')) return;
     const cfg = tab === 'dien' ? dienModule : nuocModule;
     try {
-        await apiFetch(`${cfg.endpoint}/${id}`, 'DELETE');
-        showToast('Đã xóa thành công!');
-        loadDienNuocData(tab);
+        const result = await apiFetch(`${cfg.endpoint}/${id}`, 'DELETE');
+        showToast(result?.thongBao || 'Đã xử lý yêu cầu xóa!');
+        refreshData();
+        loadLookups();
+        return;
     } catch (e) {
         showToast(e.message || 'Lỗi xóa dữ liệu', 'error');
     }
@@ -1726,7 +1791,10 @@ async function loadDichVuDangKyTheoPhong(maPhong) {
 async function huyDangKyDichVu(id) {
     if (!confirm('Bạn có chắc muốn hủy đăng ký dịch vụ này? Dịch vụ đã hủy sẽ không tự động cộng vào các hóa đơn hằng tháng lập sau đó.')) return;
     try {
-        await apiFetch(`/api/DangKyDichVu/${id}`, 'DELETE');
+        const result = await apiFetch(`/api/DangKyDichVu/${id}`, 'DELETE');
+        showToast(result?.thongBao || 'Đã hủy đăng ký dịch vụ');
+        refreshData();
+        return;
         showToast('Đã hủy đăng ký dịch vụ');
         refreshData();
     } catch (e) {
@@ -2041,18 +2109,20 @@ async function deleteNguoiThueDisplayGroup(id) {
     if (!confirm(message)) return;
 
     let success = 0;
+    const messages = [];
     const errors = [];
 
     for (const maNguoiThue of ids) {
         try {
-            await apiFetch(`/api/NguoiThue/${maNguoiThue}`, 'DELETE');
+            const result = await apiFetch(`/api/NguoiThue/${maNguoiThue}`, 'DELETE');
             success++;
+            if (result?.thongBao) messages.push(result.thongBao);
         } catch (e) {
             errors.push(e.message || `Không xóa được hồ sơ #${maNguoiThue}`);
         }
     }
 
-    if (success > 0) showToast(`Đã xóa ${success} hồ sơ khách thuê`, 'success');
+    if (success > 0) showToast(messages[0] || `Đã xử lý ${success} hồ sơ khách thuê`, 'success');
     if (errors.length > 0) showToast(errors[0], 'error');
 
     await loadLookups();
@@ -2072,8 +2142,8 @@ async function deleteItem(section, id) {
     const cfg = modules[section];
     if (!cfg) return;
     try {
-        await apiFetch(`${cfg.endpoint}/${id}`, 'DELETE');
-        showToast('Đã xóa thành công!');
+        const result = await apiFetch(`${cfg.endpoint}/${id}`, 'DELETE');
+        showToast(result?.thongBao || 'Đã xử lý yêu cầu xóa!');
         refreshData();
         loadLookups();
     } catch (e) {

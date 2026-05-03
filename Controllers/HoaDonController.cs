@@ -134,22 +134,29 @@ namespace DoAnSE104.Controllers
 
             var distinctIds = maDichVuSuDung.Distinct().ToList();
 
-            var maChuTro = await _context.Phong
+            var maNhaTro = await _context.Phong
                 .Where(p => p.MaPhong == maPhong)
-                .Select(p => p.NhaTro.MaChuTro)
+                .Select(p => (int?)p.MaNhaTro)
                 .FirstOrDefaultAsync();
 
             return await _context.DichVu
                 .Where(dv => distinctIds.Contains(dv.MaDichVu)
-                    && (dv.MaChuTro == maChuTro || dv.MaChuTro == null))
+                    && dv.MaNhaTro == maNhaTro)
                 .ToListAsync();
         }
 
         private async Task<List<DichVu>> LayDichVuDangKyTheoPhongAsync(int maPhong)
         {
+            var maNhaTro = await _context.Phong
+                .Where(p => p.MaPhong == maPhong)
+                .Select(p => (int?)p.MaNhaTro)
+                .FirstOrDefaultAsync();
+
             return await _context.DangKyDichVu
                 .Include(dk => dk.DichVu)
-                .Where(dk => dk.MaPhong == maPhong && dk.TrangThai == "DangSuDung")
+                .Where(dk => dk.MaPhong == maPhong
+                    && dk.TrangThai == "DangSuDung"
+                    && dk.DichVu.MaNhaTro == maNhaTro)
                 .Select(dk => dk.DichVu)
                 .Distinct()
                 .ToListAsync();
@@ -366,7 +373,7 @@ namespace DoAnSE104.Controllers
 
             var dichVuDaDangKy = await _context.DichVu
                 .Where(dv => dichVuDaDangKyIds.Contains(dv.MaDichVu)
-                    && (dv.MaChuTro == phong.NhaTro.MaChuTro || dv.MaChuTro == null))
+                    && dv.MaNhaTro == phong.MaNhaTro)
                 .OrderBy(dv => dv.TenDichVu)
                 .Select(dv => new
                 {
@@ -633,35 +640,39 @@ namespace DoAnSE104.Controllers
         {
             try
             {
-                var hoaDon = await _context.HoaDon.FindAsync(id);
-                if (hoaDon == null)
+                var hoaDon = await _context.HoaDon
+                    .Include(hd => hd.ChiTietHoaDon)
+                    .FirstOrDefaultAsync(hd => hd.MaHoaDon == id);
+                if (hoaDon == null || hoaDon.TrangThai == "Huy")
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy hóa đơn"));
 
                 if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenHoaDon(id))
                     return Forbid();
 
-                // Hỗ trợ xóa cả hóa đơn cũ và hóa đơn mới:
-                // - Hóa đơn cũ có thể chưa có LoaiHoaDon, MaDien/MaNuoc dạng cũ.
-                // - Hóa đơn đã ghi nhận thanh toán sẽ bị FK ThanhToan -> HoaDon chặn nếu không xóa thanh toán trước.
-                // - Hóa đơn có dịch vụ sẽ bị FK ChiTietHoaDon -> HoaDon chặn nếu không xóa chi tiết trước.
-                var thanhToans = await _context.ThanhToan
-                    .Where(tt => tt.MaHoaDon == id)
-                    .ToListAsync();
+                // Kiểm tra đã thanh toán chưa
+                var coThanhToan = await _context.ThanhToan.AnyAsync(tt => tt.MaHoaDon == id);
 
-                if (thanhToans.Count > 0)
-                    _context.ThanhToan.RemoveRange(thanhToans);
+                if (!coThanhToan)
+                {
+                    // Chưa thanh toán → Xóa cứng (kèm chi tiết hóa đơn)
+                    var chiTietList = await _context.ChiTietHoaDon
+                        .Where(ct => ct.MaHoaDon == id).ToListAsync();
+                    if (chiTietList.Count > 0)
+                        _context.ChiTietHoaDon.RemoveRange(chiTietList);
 
-                var chiTietHoaDons = await _context.ChiTietHoaDon
-                    .Where(ct => ct.MaHoaDon == id)
-                    .ToListAsync();
-
-                if (chiTietHoaDons.Count > 0)
-                    _context.ChiTietHoaDon.RemoveRange(chiTietHoaDons);
-
-                _context.HoaDon.Remove(hoaDon);
-                await _context.SaveChangesAsync();
-
-                return Ok(ApiResponse<object>.Ok(null, "Xóa hóa đơn thành công"));
+                    _context.HoaDon.Remove(hoaDon);
+                    await _context.SaveChangesAsync();
+                    return Ok(ApiResponse<object>.Ok(null!, "Đã xóa hóa đơn thành công"));
+                }
+                else
+                {
+                    // Đã thanh toán → Không xóa cứng, chỉ chuyển trạng thái Huy
+                    hoaDon.TrangThai = "Huy";
+                    await _context.SaveChangesAsync();
+                    return Ok(ApiResponse<object>.Ok(null!,
+                        "Hóa đơn đã có thanh toán liên quan. " +
+                        "Đã chuyển sang trạng thái \"Hủy\"."));
+                }
             }
             catch (DbUpdateException ex)
             {

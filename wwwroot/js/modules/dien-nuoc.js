@@ -15,7 +15,7 @@ window.AppDienNuocModules.dien = {
         { label: 'Ngày ghi', key: 'ngayThangDien', render: v => window.AppFormat.date(v) }
     ],
     fields: [
-        { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },
+        { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phongDienNuoc', valField: 'maPhong', txtField: 'tenPhong', required: true },
         { id: 'soDienCu', label: 'Chỉ số cũ (kWh)', type: 'number', required: true },
         { id: 'soDienMoi', label: 'Chỉ số mới (kWh)', type: 'number', required: true },
         { id: 'giaDien', label: 'Giá điện (đ/kWh)', type: 'number', required: true, defaultVal: 3500 },
@@ -36,7 +36,7 @@ window.AppDienNuocModules.nuoc = {
         { label: 'Ngày ghi', key: 'ngayThangNuoc', render: v => window.AppFormat.date(v) }
     ],
     fields: [
-        { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phong', valField: 'maPhong', txtField: 'tenPhong', required: true },
+        { id: 'maPhong', label: 'Phòng', type: 'lookup', lookup: 'phongDienNuoc', valField: 'maPhong', txtField: 'tenPhong', required: true },
         { id: 'soNuocCu', label: 'Chỉ số cũ (m³)', type: 'number', required: true },
         { id: 'soNuocMoi', label: 'Chỉ số mới (m³)', type: 'number', required: true },
         { id: 'giaNuoc', label: 'Giá nước (đ/m³)', type: 'number', required: true, defaultVal: 20000 },

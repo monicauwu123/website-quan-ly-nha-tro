@@ -1,9 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\Controllers",
-    "\\wwwroot"
+    "\\Controllers"
   ],
-  "SelectedNode": "\\wwwroot\\register.html",
+  "SelectedNode": "\\Controllers\\PhongController.cs",
   "PreviewInSolutionExplorer": false
 }

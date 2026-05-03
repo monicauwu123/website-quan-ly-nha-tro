@@ -172,7 +172,7 @@ namespace DoAnSE104.Controllers
                 .ToListAsync();
 
             var dichVu = await _context.DichVu
-                .Where(dv => dv.MaChuTro == phong.NhaTro.MaChuTro || dv.MaChuTro == null)
+                .Where(dv => dv.MaNhaTro == phong.MaNhaTro)
                 .OrderBy(dv => dv.TenDichVu)
                 .Select(dv => new
                 {
@@ -207,10 +207,10 @@ namespace DoAnSE104.Controllers
 
             var dichVu = await _context.DichVu.FirstOrDefaultAsync(dv =>
                 dv.MaDichVu == dto.MaDichVu
-                && (dv.MaChuTro == phong.NhaTro.MaChuTro || dv.MaChuTro == null));
+                && dv.MaNhaTro == phong.MaNhaTro);
 
             if (dichVu == null)
-                return BadRequest(ApiResponse<object>.Loi("Dịch vụ không tồn tại hoặc không thuộc chủ trọ của phòng này"));
+                return BadRequest(ApiResponse<object>.Loi("Dịch vụ không tồn tại hoặc không thuộc nhà trọ của phòng này"));
 
             var daDangKy = await _context.DangKyDichVu.AnyAsync(dk =>
                 dk.MaNguoiDung == userId

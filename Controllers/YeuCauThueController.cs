@@ -430,13 +430,23 @@ namespace DoAnSE104.Controllers
                 if (role == VaiTroConst.ChuTro && yeuCau.Phong.NhaTro.MaChuTro != userId)
                     return Forbid();
 
+                // Đã lập hợp đồng → giữ lịch sử, không thao tác
                 if (yeuCau.TrangThai == DaLapHopDong)
-                    return BadRequest(ApiResponse<object>.Loi("Yêu cầu đã lập hợp đồng, không thể xóa"));
+                    return BadRequest(ApiResponse<object>.Loi(
+                        "Yêu cầu đã được lập hợp đồng. Không thể xóa để giữ lịch sử dữ liệu."));
 
-                _context.YeuCauThue.Remove(yeuCau);
-                await _context.SaveChangesAsync();
+                // Đang chờ duyệt → Xóa cứng (hủy bỏ yêu cầu chưa xử lý)
+                if (yeuCau.TrangThai == ChoDuyet)
+                {
+                    _context.YeuCauThue.Remove(yeuCau);
+                    await _context.SaveChangesAsync();
+                    return Ok(ApiResponse<object>.Ok(null!, "Đã hủy yêu cầu thuê thành công"));
+                }
 
-                return Ok(ApiResponse<object>.Ok(null!, "Xóa yêu cầu thuê thành công"));
+                // Đã từ chối / đã chấp nhận nhưng chưa lập hợp đồng → giữ lịch sử
+                return Ok(ApiResponse<object>.Ok(null!,
+                    $"Yêu cầu thuê có trạng thái \"{yeuCau.TrangThai}\" đã được giữ lại để lưu lịch sử. " +
+                    "Chỉ có thể hủy yêu cầu đang chờ duyệt."));
             }
             catch (Exception ex)
             {

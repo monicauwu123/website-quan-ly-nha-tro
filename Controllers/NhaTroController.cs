@@ -33,15 +33,14 @@ namespace DoAnSE104.Controllers
             try
             {
                 var role = GetCurrentRole();
-                IQueryable<NhaTro> query = _context.NhaTro;
+                IQueryable<NhaTro> query = _context.NhaTro
+                    .Where(n => n.TrangThai != "DaXoa");
 
                 if (role == VaiTroConst.ChuTro)
                 {
                     var userId = GetCurrentUserId();
                     query = query.Where(n => n.MaChuTro == userId);
                 }
-                // NguoiDung được xem danh sách nhà trọ để lựa chọn thuê.
-                // Admin: không filter
 
                 var data = await query.ToListAsync();
                 return Ok(ApiResponse<List<NhaTro>>.Ok(data));
@@ -59,7 +58,7 @@ namespace DoAnSE104.Controllers
             try
             {
                 var nhaTro = await _context.NhaTro.FindAsync(id);
-                if (nhaTro == null)
+                if (nhaTro == null || nhaTro.TrangThai == "DaXoa")
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy nhà trọ"));
 
                 var role = GetCurrentRole();
@@ -67,8 +66,6 @@ namespace DoAnSE104.Controllers
 
                 if (role == VaiTroConst.ChuTro && nhaTro.MaChuTro != userId)
                     return Forbid();
-
-                // NguoiDung được xem chi tiết nhà trọ để lựa chọn thuê.
 
                 return Ok(ApiResponse<NhaTro>.Ok(nhaTro));
             }
@@ -78,7 +75,7 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/NhaTro — Admin và ChuTro
+        // POST: api/NhaTro
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PostNhaTro([FromBody] NhaTro nhaTro)
@@ -88,9 +85,10 @@ namespace DoAnSE104.Controllers
                 var role = GetCurrentRole();
                 var userId = GetCurrentUserId();
 
-                // ChuTro tự động gán mình là chủ
                 if (role == VaiTroConst.ChuTro)
                     nhaTro.MaChuTro = userId;
+
+                nhaTro.TrangThai = "HoatDong";
 
                 _context.NhaTro.Add(nhaTro);
                 await _context.SaveChangesAsync();
@@ -115,17 +113,21 @@ namespace DoAnSE104.Controllers
                     return BadRequest(ApiResponse<object>.Loi("Mã nhà trọ không khớp"));
 
                 var existing = await _context.NhaTro.FindAsync(id);
-                if (existing == null)
+                if (existing == null || existing.TrangThai == "DaXoa")
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy nhà trọ"));
 
                 var role = GetCurrentRole();
                 if (role == VaiTroConst.ChuTro && existing.MaChuTro != GetCurrentUserId())
                     return Forbid();
 
-                _context.Entry(nhaTro).State = EntityState.Modified;
-                await _context.SaveChangesAsync();
+                existing.TenNhaTro = nhaTro.TenNhaTro;
+                existing.DiaChi = nhaTro.DiaChi;
+                existing.MoTa = nhaTro.MoTa;
+                if (role == VaiTroConst.Admin)
+                    existing.MaChuTro = nhaTro.MaChuTro;
 
-                return Ok(ApiResponse<NhaTro>.Ok(nhaTro, "Cập nhật thành công"));
+                await _context.SaveChangesAsync();
+                return Ok(ApiResponse<NhaTro>.Ok(existing, "Cập nhật thành công"));
             }
             catch (Exception ex)
             {
@@ -134,6 +136,9 @@ namespace DoAnSE104.Controllers
         }
 
         // DELETE: api/NhaTro/5
+        // Logic:
+        //   Chưa có dữ liệu liên quan → Xóa cứng, báo "Đã xóa thành công"
+        //   Đã có dữ liệu liên quan   → Chuyển TrangThai = NgungHoatDong, báo rõ lý do
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeleteNhaTro(int id)
@@ -141,17 +146,40 @@ namespace DoAnSE104.Controllers
             try
             {
                 var nhaTro = await _context.NhaTro.FindAsync(id);
-                if (nhaTro == null)
+                if (nhaTro == null || nhaTro.TrangThai == "DaXoa")
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy nhà trọ"));
 
                 var role = GetCurrentRole();
                 if (role == VaiTroConst.ChuTro && nhaTro.MaChuTro != GetCurrentUserId())
                     return Forbid();
 
-                _context.NhaTro.Remove(nhaTro);
-                await _context.SaveChangesAsync();
+                // Kiểm tra dữ liệu liên quan
+                var coPhong      = await _context.Phong.AnyAsync(p => p.MaNhaTro == id);
+                var coLoaiPhong  = await _context.LoaiPhong.AnyAsync(lp => lp.MaNhaTro == id);
+                var coDichVu     = await _context.DichVu.AnyAsync(dv => dv.MaNhaTro == id);
 
-                return Ok(ApiResponse<object>.Ok(null!, "Xóa thành công"));
+                if (!coPhong && !coLoaiPhong && !coDichVu)
+                {
+                    // Chưa phát sinh dữ liệu → Xóa cứng
+                    _context.NhaTro.Remove(nhaTro);
+                    await _context.SaveChangesAsync();
+                    return Ok(ApiResponse<object>.Ok(null!, "Đã xóa nhà trọ thành công"));
+                }
+                else
+                {
+                    // Đã có dữ liệu liên quan → Chuyển trạng thái Ngưng hoạt động
+                    nhaTro.TrangThai = "NgungHoatDong";
+                    await _context.SaveChangesAsync();
+
+                    var lyDo = new List<string>();
+                    if (coPhong)     lyDo.Add("phòng");
+                    if (coLoaiPhong) lyDo.Add("loại phòng");
+                    if (coDichVu)    lyDo.Add("dịch vụ");
+
+                    return Ok(ApiResponse<object>.Ok(null!,
+                        $"Nhà trọ đã có {string.Join(", ", lyDo)} liên quan. " +
+                        "Đã chuyển sang trạng thái \"Ngưng hoạt động\"."));
+                }
             }
             catch (Exception ex)
             {

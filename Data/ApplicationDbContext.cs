@@ -57,9 +57,23 @@ namespace DoAnSE104.Data
 
 
             modelBuilder.Entity<LoaiPhong>()
+                .HasOne(lp => lp.NhaTro)
+                .WithMany()
+                .HasForeignKey(lp => lp.MaNhaTro)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<LoaiPhong>()
                 .HasOne(lp => lp.ChuTro)
                 .WithMany()
                 .HasForeignKey(lp => lp.MaChuTro)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<DichVu>()
+                .HasOne(dv => dv.NhaTro)
+                .WithMany()
+                .HasForeignKey(dv => dv.MaNhaTro)
                 .OnDelete(DeleteBehavior.NoAction)
                 .IsRequired(false);
 

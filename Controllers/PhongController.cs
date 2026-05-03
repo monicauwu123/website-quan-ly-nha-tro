@@ -91,12 +91,23 @@ namespace DoAnSE104.Controllers
             if (role == VaiTroConst.ChuTro && nhaTro.MaChuTro != userId)
                 return "Bạn không có quyền dùng nhà trọ này";
 
-            var loaiPhong = await _context.LoaiPhong.FirstOrDefaultAsync(l => l.MaLoaiPhong == phong.MaLoaiPhong);
+            var loaiPhong = await _context.LoaiPhong
+                .Include(l => l.NhaTro)
+                .FirstOrDefaultAsync(l => l.MaLoaiPhong == phong.MaLoaiPhong);
             if (loaiPhong == null)
                 return "Loại phòng không tồn tại";
 
-            if (role == VaiTroConst.ChuTro && loaiPhong.MaChuTro != userId)
-                return "Bạn không có quyền dùng loại phòng này";
+            if (loaiPhong.MaNhaTro != phong.MaNhaTro)
+                return "Loại phòng không thuộc nhà trọ đã chọn";
+
+            if (role == VaiTroConst.ChuTro)
+            {
+                var loaiPhongThuocChuTro = loaiPhong.NhaTro?.MaChuTro == userId ||
+                    (loaiPhong.MaNhaTro == null && loaiPhong.MaChuTro == userId);
+
+                if (!loaiPhongThuocChuTro)
+                    return "Bạn không có quyền dùng loại phòng này";
+            }
 
             if (!await _context.TrangThai.AnyAsync(t => t.MaTrangThai == phong.MaTrangThai))
                 return "Trạng thái không tồn tại";
@@ -386,13 +397,19 @@ namespace DoAnSE104.Controllers
         }
 
         // DELETE: api/Phong/5
+        // Logic:
+        //   Chưa có dữ liệu liên quan → Xóa cứng
+        //   Đã có hợp đồng / hóa đơn / khách thuê → Chuyển trạng thái NgungHoatDong
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeletePhong(int id)
         {
             try
             {
-                var phong = await _context.Phong.FindAsync(id);
+                var phong = await _context.Phong
+                    .Include(p => p.TrangThai)
+                    .FirstOrDefaultAsync(p => p.MaPhong == id);
+
                 if (phong == null)
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy phòng cần xóa"));
 
@@ -404,10 +421,42 @@ namespace DoAnSE104.Controllers
                     if (!maPhongList.Contains(id)) return Forbid();
                 }
 
-                _context.Phong.Remove(phong);
-                await _context.SaveChangesAsync();
+                // Kiểm tra dữ liệu liên quan
+                var coHopDong   = await _context.HopDong.AnyAsync(h => h.MaPhong == id);
+                var coHoaDon    = await _context.HoaDon.AnyAsync(hd => hd.MaPhong == id);
+                var coNguoiThue = await _context.NguoiThue.AnyAsync(nt => nt.MaPhong == id);
+                var coBaoCao    = await _context.BaoCaoSuCo.AnyAsync(b => b.MaPhong == id);
+                var coYeuCau    = await _context.YeuCauThue.AnyAsync(y => y.MaPhong == id);
 
-                return Ok(ApiResponse<object>.Ok(null!, "Xóa phòng thành công"));
+                if (!coHopDong && !coHoaDon && !coNguoiThue && !coBaoCao && !coYeuCau)
+                {
+                    // Chưa phát sinh dữ liệu → Xóa cứng
+                    _context.Phong.Remove(phong);
+                    await _context.SaveChangesAsync();
+                    return Ok(ApiResponse<object>.Ok(null!, "Đã xóa phòng thành công"));
+                }
+                else
+                {
+                    // Đã có dữ liệu liên quan → Tìm trạng thái "Ngưng hoạt động" trong bảng TrangThai
+                    var trangThaiNgung = await _context.TrangThai
+                        .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("Ngưng") || t.TenTrangThai.Contains("ngung"));
+
+                    if (trangThaiNgung != null)
+                        phong.MaTrangThai = trangThaiNgung.MaTrangThai;
+
+                    await _context.SaveChangesAsync();
+
+                    var lyDo = new List<string>();
+                    if (coHopDong)   lyDo.Add("hợp đồng");
+                    if (coHoaDon)    lyDo.Add("hóa đơn");
+                    if (coNguoiThue) lyDo.Add("khách thuê");
+                    if (coBaoCao)    lyDo.Add("báo cáo sự cố");
+                    if (coYeuCau)    lyDo.Add("yêu cầu thuê");
+
+                    return Ok(ApiResponse<object>.Ok(null!,
+                        $"Phòng đã có {string.Join(", ", lyDo)}. " +
+                        "Đã chuyển sang trạng thái \"Ngưng hoạt động\"."));
+                }
             }
             catch (Exception ex)
             {

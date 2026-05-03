@@ -24,5 +24,11 @@ namespace DoAnSE104.Models
 
         [ForeignKey("MaChuTro")]
         public virtual User? ChuTro { get; set; }
+
+        /// <summary>
+        /// Trạng thái nhà trọ: HoatDong | NgungHoatDong | DaXoa
+        /// </summary>
+        [MaxLength(30)]
+        public string TrangThai { get; set; } = "HoatDong";
     }
 }

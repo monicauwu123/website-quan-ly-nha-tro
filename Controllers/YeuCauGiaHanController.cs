@@ -248,12 +248,18 @@ namespace DoAnSE104.Controllers
             if (yeuCau.MaNguoiDung != userId)
                 return Forbid();
 
-            if (yeuCau.TrangThai != ChoDuyet)
-                return BadRequest(ApiResponse<object>.Loi("Chỉ có thể hủy yêu cầu đang chờ duyệt"));
+            // Chỉ hủy được khi đang chờ duyệt → Xóa cứng
+            if (yeuCau.TrangThai == ChoDuyet)
+            {
+                _context.YeuCauGiaHan.Remove(yeuCau);
+                await _context.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null!, "Đã hủy yêu cầu gia hạn"));
+            }
 
-            _context.YeuCauGiaHan.Remove(yeuCau);
-            await _context.SaveChangesAsync();
-            return Ok(ApiResponse<object>.Ok(null!, "Đã hủy yêu cầu gia hạn"));
+            // Đã được xử lý (chấp nhận/từ chối) → Giữ lịch sử, không xóa
+            return BadRequest(ApiResponse<object>.Loi(
+                $"Yêu cầu gia hạn đã được xử lý (trạng thái: {yeuCau.TrangThai}). " +
+                "Không thể xóa để giữ lịch sử dữ liệu. Chỉ hủy được khi yêu cầu đang chờ duyệt."));
         }
     }
 }

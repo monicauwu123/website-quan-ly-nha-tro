@@ -48,5 +48,11 @@ namespace DoAnSE104.Models
 
         [ForeignKey("MaNguoiDung")]
         public virtual User? NguoiDungTK { get; set; }
+
+        /// <summary>
+        /// Trạng thái khách thuê: DangThue | KhongHoatDong | DaXoa
+        /// </summary>
+        [MaxLength(30)]
+        public string TrangThai { get; set; } = "DangThue";
     }
 }
