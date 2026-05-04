@@ -6,6 +6,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services;
 
 namespace DoAnSE104.Controllers
 {
@@ -15,10 +16,12 @@ namespace DoAnSE104.Controllers
     public class HoaDonController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IRentalPeriodResetService _rentalPeriodResetService;
 
-        public HoaDonController(ApplicationDbContext context)
+        public HoaDonController(ApplicationDbContext context, IRentalPeriodResetService rentalPeriodResetService)
         {
             _context = context;
+            _rentalPeriodResetService = rentalPeriodResetService;
         }
 
         private int GetCurrentUserId()
@@ -443,6 +446,11 @@ namespace DoAnSE104.Controllers
             {
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
+
+                if (GetCurrentRole() == VaiTroConst.Admin)
+                    await _rentalPeriodResetService.ChotKyThueAsync();
+                else if (GetCurrentRole() == VaiTroConst.ChuTro)
+                    await _rentalPeriodResetService.ChotKyThueAsync(GetCurrentUserId());
 
                 var phong = await _context.Phong
                     .Include(p => p.NhaTro)

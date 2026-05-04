@@ -37,6 +37,15 @@ namespace DoAnSE104.Models
 
         public DateTime? NgayHuy { get; set; }
 
+        /// <summary>
+        /// Ngày hệ thống tự chuyển đăng ký sang hết hạn khi bước sang kỳ thuê mới.
+        /// Dùng để giữ lịch sử, không xóa dữ liệu đăng ký cũ.
+        /// </summary>
+        public DateTime? NgayHetHan { get; set; }
+
+        [MaxLength(7)]
+        public string? KyDangKy { get; set; }
+
         [Required]
         [MaxLength(30)]
         public string TrangThai { get; set; } = "DangSuDung";

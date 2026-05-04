@@ -29,9 +29,15 @@ namespace DoAnSE104.Controllers
 
         private const string TrangThaiDangSuDung = "DangSuDung";
         private const string TrangThaiDaHuy = "DaHuy";
+        private const string TrangThaiHetHan = "HetHan";
 
         private static string LayTenTrangThai(string? trangThai)
-            => trangThai == TrangThaiDaHuy ? "Đã hủy" : "Đang sử dụng";
+            => trangThai switch
+            {
+                TrangThaiDaHuy => "Đã hủy",
+                TrangThaiHetHan => "Hết hạn kỳ thuê",
+                _ => "Đang sử dụng"
+            };
 
         private async Task<bool> NguoiDungDangThuePhong(int maNguoiDung, int maPhong)
         {
@@ -100,6 +106,8 @@ namespace DoAnSE104.Controllers
                 TienDichVu = dk.DichVu == null ? 0 : (decimal)dk.DichVu.Tiendichvu,
                 NgayDangKy = dk.NgayDangKy,
                 NgayHuy = dk.NgayHuy,
+                NgayHetHan = dk.NgayHetHan,
+                KyDangKy = dk.KyDangKy,
                 TrangThai = dk.TrangThai,
                 TenTrangThai = LayTenTrangThai(dk.TrangThai),
                 GhiChu = dk.GhiChu,
@@ -230,6 +238,7 @@ namespace DoAnSE104.Controllers
                 MaPhong = dto.MaPhong,
                 MaDichVu = dto.MaDichVu,
                 NgayDangKy = DateTime.Now,
+                KyDangKy = DateTime.Now.ToString("yyyy-MM"),
                 TrangThai = TrangThaiDangSuDung,
                 GhiChu = dto.GhiChu
             };
@@ -263,6 +272,9 @@ namespace DoAnSE104.Controllers
 
             if (dangKy.TrangThai == TrangThaiDaHuy)
                 return BadRequest(ApiResponse<object>.Loi("Đăng ký dịch vụ này đã được hủy trước đó"));
+
+            if (dangKy.TrangThai == TrangThaiHetHan)
+                return BadRequest(ApiResponse<object>.Loi("Đăng ký dịch vụ này đã hết hạn theo kỳ thuê"));
 
             dangKy.TrangThai = TrangThaiDaHuy;
             dangKy.NgayHuy = DateTime.Now;

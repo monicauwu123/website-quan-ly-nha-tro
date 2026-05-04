@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using DoAnSE104.Data;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services;
 
 namespace DoAnSE104.Controllers
 {
@@ -13,10 +14,12 @@ namespace DoAnSE104.Controllers
     public class DashboardController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IRentalPeriodResetService _rentalPeriodResetService;
 
-        public DashboardController(ApplicationDbContext context)
+        public DashboardController(ApplicationDbContext context, IRentalPeriodResetService rentalPeriodResetService)
         {
             _context = context;
+            _rentalPeriodResetService = rentalPeriodResetService;
         }
 
         private int GetCurrentUserId()
@@ -30,6 +33,11 @@ namespace DoAnSE104.Controllers
         {
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
+
+            if (role == VaiTroConst.Admin)
+                await _rentalPeriodResetService.ChotKyThueAsync();
+            else if (role == VaiTroConst.ChuTro)
+                await _rentalPeriodResetService.ChotKyThueAsync(userId);
 
             if (role == VaiTroConst.NguoiDung)
                 return Ok(await BuildNguoiDungDashboard(userId));

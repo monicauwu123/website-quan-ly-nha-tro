@@ -11,6 +11,7 @@ window.AppModules.yeucauthue = {
             { label: 'Phòng', key: 'phong', render: v => v?.tenPhong || '---' },
             { label: 'Nhà trọ', key: 'phong', render: v => v?.nhaTro?.tenNhaTro || '---' },
             { label: 'Ngày gửi', key: 'ngayGui', render: v => window.AppFormat.date(v) },
+            { label: 'Số tháng thuê', key: 'soThangMuonThue', render: v => v ? `${v} tháng` : '---' },
             { label: 'Gia hạn đến', key: 'ngayKetThucMoi', render: (v, row) => row.loaiYeuCau === 'GiaHan' ? window.AppFormat.date(v || row.ngayKetThucMoiDeXuat) : '---' },
             { label: 'Trạng thái', key: 'trangThaiText', render: (v, row) => {
                 const cls = row.trangThai === 'ChoDuyet' ? 'badge-warning' : (row.trangThai === 'DaLapHopDong' || row.trangThai === 'DaChapNhan') ? 'badge-success' : row.trangThai === 'TuChoi' ? 'badge-danger' : 'badge-info';

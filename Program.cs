@@ -60,6 +60,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IRentalPeriodResetService, RentalPeriodResetService>();
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
 builder.Services.AddControllers(options =>
@@ -457,6 +458,136 @@ static void SeedSampleData(ApplicationDbContext context)
         new ThanhToan { MaHoaDon = hoaDonA.MaHoaDon, MaNguoiThue = khachA.MaNguoiThue, NgayThanhToan = now, TongTien = 1000000, HinhThucThanhToan = "Tiền mặt", GhiChu = "Thanh toán một phần hóa đơn" },
         new ThanhToan { MaHoaDon = hoaDonB.MaHoaDon, MaNguoiThue = khachB.MaNguoiThue, NgayThanhToan = now, TongTien = hoaDonB.TongTien, HinhThucThanhToan = "Chuyển khoản", GhiChu = "Đã thanh toán đủ" },
         new ThanhToan { MaHoaDon = hoaDonC.MaHoaDon, MaNguoiThue = khachC.MaNguoiThue, NgayThanhToan = now.AddDays(-1), TongTien = 2000000, HinhThucThanhToan = "Chuyển khoản", GhiChu = "Thanh toán trước một phần" }
+    );
+
+    // ─── Dữ liệu mở rộng để test reset kỳ thuê, hóa đơn, dịch vụ và yêu cầu thuê ───
+
+    var nguoiDung4 = new User
+    {
+        TenDangNhap = "nguoithue4",
+        HoTen = "Võ Thị Hạnh",
+        Email = "nguoithue4@example.com",
+        SoDienThoai = "0900000007",
+        CCCD = "012345678905",
+        VaiTro = "NguoiDung",
+        MatKhau = password
+    };
+
+    var nguoiDung5 = new User
+    {
+        TenDangNhap = "nguoithue5",
+        HoTen = "Đỗ Quốc Bảo",
+        Email = "nguoithue5@example.com",
+        SoDienThoai = "0900000008",
+        CCCD = "012345678906",
+        VaiTro = "NguoiDung",
+        MatKhau = password
+    };
+
+    var nguoiDung6 = new User
+    {
+        TenDangNhap = "nguoithue6",
+        HoTen = "Phạm Ngọc Linh",
+        Email = "nguoithue6@example.com",
+        SoDienThoai = "0900000009",
+        CCCD = "012345678907",
+        VaiTro = "NguoiDung",
+        MatKhau = password
+    };
+
+    var nguoiDung7 = new User
+    {
+        TenDangNhap = "nguoithue7",
+        HoTen = "Hoàng Gia Huy",
+        Email = "nguoithue7@example.com",
+        SoDienThoai = "0900000010",
+        CCCD = "012345678908",
+        VaiTro = "NguoiDung",
+        MatKhau = password
+    };
+
+    context.Users.AddRange(nguoiDung4, nguoiDung5, nguoiDung6, nguoiDung7);
+    context.SaveChanges();
+
+    var phongA103 = new Phong { TenPhong = "A103", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongThuongA.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 24, GiaPhong = 2700000, SucChua = 2, SoNguoiHienTai = 1, MoTa = "Phòng có hợp đồng vừa hết hạn để test tự trả về trống", DiaChiPhong = "Tầng 1" };
+    var phongA202 = new Phong { TenPhong = "A202", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongVipA.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 30, GiaPhong = 3700000, SucChua = 3, SoNguoiHienTai = 2, MoTa = "Phòng sắp hết hạn hợp đồng trong vài ngày", DiaChiPhong = "Tầng 2" };
+    var phongB103 = new Phong { TenPhong = "B103", MaNhaTro = nhaTroB.MaNhaTro, MaLoaiPhong = loaiPhongSinhVienB.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 16, GiaPhong = 1600000, SucChua = 1, SoNguoiHienTai = 1, MoTa = "Phòng thuê theo kỳ tháng, có dịch vụ tháng cũ cần hết hạn", DiaChiPhong = "Dãy B" };
+    var phongC303 = new Phong { TenPhong = "C303", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiSuaChua, DienTich = 34, GiaPhong = 4700000, SucChua = 3, SoNguoiHienTai = 0, MoTa = "Căn hộ đang sửa chữa để test filter trạng thái", DiaChiPhong = "Tầng 3" };
+    var phongC304 = new Phong { TenPhong = "C304", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 36, GiaPhong = 5000000, SucChua = 4, SoNguoiHienTai = 0, MoTa = "Căn hộ trống để test yêu cầu thuê nhiều tháng", DiaChiPhong = "Tầng 4" };
+
+    context.Phong.AddRange(phongA103, phongA202, phongB103, phongC303, phongC304);
+    context.SaveChanges();
+
+    var khachD = new NguoiThue { HoTen = "Võ Thị Hạnh", CCCD = "012345678905", SDT = "0900000007", Email = "nguoithue4@example.com", GioiTinh = "Nữ", QuocTich = "Việt Nam", DiaChi = "31 Pasteur", MaPhong = phongA103.MaPhong, MaNguoiDung = nguoiDung4.MaNguoiDung };
+    var khachE = new NguoiThue { HoTen = "Đỗ Quốc Bảo", CCCD = "012345678906", SDT = "0900000008", Email = "nguoithue5@example.com", GioiTinh = "Nam", QuocTich = "Việt Nam", DiaChi = "15 Lý Tự Trọng", MaPhong = phongA202.MaPhong, MaNguoiDung = nguoiDung5.MaNguoiDung };
+    var khachF = new NguoiThue { HoTen = "Phạm Ngọc Linh", CCCD = "012345678907", SDT = "0900000009", Email = "nguoithue6@example.com", GioiTinh = "Nữ", QuocTich = "Việt Nam", DiaChi = "101 Hoàng Diệu", MaPhong = phongB103.MaPhong, MaNguoiDung = nguoiDung6.MaNguoiDung };
+    var khachG = new NguoiThue { HoTen = "Hoàng Gia Huy", CCCD = "012345678908", SDT = "0900000010", Email = "nguoithue7@example.com", GioiTinh = "Nam", QuocTich = "Việt Nam", DiaChi = "6 Trường Sa", MaPhong = phongC304.MaPhong, MaNguoiDung = nguoiDung7.MaNguoiDung, TrangThai = "ChoDuyet" };
+
+    context.NguoiThue.AddRange(khachD, khachE, khachF, khachG);
+    context.SaveChanges();
+
+    context.HopDong.AddRange(
+        new HopDong { MaNguoiThue = khachD.MaNguoiThue, MaPhong = phongA103.MaPhong, NgayBatDau = now.AddMonths(-1).AddDays(-2), NgayKetThuc = now.AddDays(-1), TienCoc = 2700000, NoiDung = "Hợp đồng đã hết hạn hôm qua - dùng để test reset phòng/dịch vụ", TrangThai = "DangHieuLuc" },
+        new HopDong { MaNguoiThue = khachE.MaNguoiThue, MaPhong = phongA202.MaPhong, NgayBatDau = now.AddMonths(-5), NgayKetThuc = now.AddDays(5), TienCoc = 3700000, NoiDung = "Hợp đồng sắp hết hạn trong 5 ngày", TrangThai = "DangHieuLuc" },
+        new HopDong { MaNguoiThue = khachF.MaNguoiThue, MaPhong = phongB103.MaPhong, NgayBatDau = now.AddMonths(-1).AddDays(-8), NgayKetThuc = now.AddMonths(2), TienCoc = 1600000, NoiDung = "Hợp đồng còn hiệu lực nhưng đã sang kỳ thuê mới", TrangThai = "DangHieuLuc" }
+    );
+
+    var mayLanhA = new DichVu { TenDichVu = "Máy lạnh", Tiendichvu = 250000, MaNhaTro = nhaTroA.MaNhaTro, MaChuTro = chuTro.MaNguoiDung };
+    var racA = new DichVu { TenDichVu = "Thu gom rác", Tiendichvu = 30000, MaNhaTro = nhaTroA.MaNhaTro, MaChuTro = chuTro.MaNguoiDung };
+    var cameraB = new DichVu { TenDichVu = "Camera an ninh", Tiendichvu = 40000, MaNhaTro = nhaTroB.MaNhaTro, MaChuTro = chuTro.MaNguoiDung };
+    var guiXeC = new DichVu { TenDichVu = "Giữ xe ô tô", Tiendichvu = 500000, MaNhaTro = nhaTroC.MaNhaTro, MaChuTro = chuTro2.MaNguoiDung };
+    var veSinhC = new DichVu { TenDichVu = "Vệ sinh căn hộ", Tiendichvu = 200000, MaNhaTro = nhaTroC.MaNhaTro, MaChuTro = chuTro2.MaNguoiDung };
+
+    context.DichVu.AddRange(mayLanhA, racA, cameraB, guiXeC, veSinhC);
+    context.SaveChanges();
+
+    var dauThangNay = new DateTime(now.Year, now.Month, 1);
+    var thangTruoc = now.AddMonths(-1);
+    var kyThangTruoc = thangTruoc.ToString("yyyy-MM");
+    var kyHaiThangTruoc = now.AddMonths(-2).ToString("yyyy-MM");
+
+    context.DangKyDichVu.AddRange(
+        new DangKyDichVu { MaNguoiDung = nguoiDung4.MaNguoiDung, MaNguoiThue = khachD.MaNguoiThue, MaPhong = phongA103.MaPhong, MaDichVu = internetA.MaDichVu, NgayDangKy = now.AddMonths(-1).AddDays(-2), KyDangKy = kyThangTruoc, TrangThai = "DangSuDung", GhiChu = "Dịch vụ của hợp đồng đã hết hạn - reset sẽ chuyển HetHan" },
+        new DangKyDichVu { MaNguoiDung = nguoiDung4.MaNguoiDung, MaNguoiThue = khachD.MaNguoiThue, MaPhong = phongA103.MaPhong, MaDichVu = racA.MaDichVu, NgayDangKy = now.AddMonths(-1).AddDays(-1), KyDangKy = kyThangTruoc, TrangThai = "DangSuDung", GhiChu = "Dịch vụ tháng cũ cần hết hạn" },
+        new DangKyDichVu { MaNguoiDung = nguoiDung5.MaNguoiDung, MaNguoiThue = khachE.MaNguoiThue, MaPhong = phongA202.MaPhong, MaDichVu = mayLanhA.MaDichVu, NgayDangKy = dauThangNay.AddDays(1), KyDangKy = kyHoaDon, TrangThai = "DangSuDung", GhiChu = "Dịch vụ mới trong kỳ hiện tại - không bị reset" },
+        new DangKyDichVu { MaNguoiDung = nguoiDung5.MaNguoiDung, MaNguoiThue = khachE.MaNguoiThue, MaPhong = phongA202.MaPhong, MaDichVu = giuXeA.MaDichVu, NgayDangKy = now.AddMonths(-1), NgayHuy = now.AddDays(-3), KyDangKy = kyThangTruoc, TrangThai = "DaHuy", GhiChu = "Dịch vụ người dùng đã hủy thủ công" },
+        new DangKyDichVu { MaNguoiDung = nguoiDung6.MaNguoiDung, MaNguoiThue = khachF.MaNguoiThue, MaPhong = phongB103.MaPhong, MaDichVu = internetB.MaDichVu, NgayDangKy = now.AddMonths(-1).AddDays(-5), KyDangKy = kyThangTruoc, TrangThai = "DangSuDung", GhiChu = "Dịch vụ kỳ trước của hợp đồng còn hiệu lực - reset sẽ chuyển HetHan khi sang kỳ mới" },
+        new DangKyDichVu { MaNguoiDung = nguoiDung6.MaNguoiDung, MaNguoiThue = khachF.MaNguoiThue, MaPhong = phongB103.MaPhong, MaDichVu = mayGiatB.MaDichVu, NgayDangKy = dauThangNay.AddDays(2), KyDangKy = kyHoaDon, TrangThai = "DangSuDung", GhiChu = "Dịch vụ đăng ký lại cho kỳ hiện tại" },
+        new DangKyDichVu { MaNguoiDung = nguoiDung3.MaNguoiDung, MaNguoiThue = khachC.MaNguoiThue, MaPhong = phongC301.MaPhong, MaDichVu = guiXeC.MaDichVu, NgayDangKy = now.AddMonths(-2), NgayHuy = now.AddMonths(-1), NgayHetHan = now.AddMonths(-1), KyDangKy = kyHaiThangTruoc, TrangThai = "HetHan", GhiChu = "Dịch vụ cũ đã hết hạn để test lịch sử" }
+    );
+
+    var dienD = new ChiSoDien { MaPhong = phongA103.MaPhong, SoDienCu = 80, SoDienMoi = 118, GiaDien = 3500, TienDien = 133000, NgayThangDien = thangTruoc };
+    var nuocD = new ChiSoNuoc { MaPhong = phongA103.MaPhong, SoNuocCu = 20, SoNuocMoi = 28, GiaNuoc = 12000, TienNuoc = 96000, NgayThangNuoc = thangTruoc };
+    var dienE = new ChiSoDien { MaPhong = phongA202.MaPhong, SoDienCu = 300, SoDienMoi = 366, GiaDien = 3500, TienDien = 231000, NgayThangDien = now };
+    var nuocE = new ChiSoNuoc { MaPhong = phongA202.MaPhong, SoNuocCu = 70, SoNuocMoi = 85, GiaNuoc = 12000, TienNuoc = 180000, NgayThangNuoc = now };
+    var dienFThangTruoc = new ChiSoDien { MaPhong = phongB103.MaPhong, SoDienCu = 20, SoDienMoi = 40, GiaDien = 3500, TienDien = 70000, NgayThangDien = thangTruoc };
+    var nuocFThangTruoc = new ChiSoNuoc { MaPhong = phongB103.MaPhong, SoNuocCu = 8, SoNuocMoi = 13, GiaNuoc = 12000, TienNuoc = 60000, NgayThangNuoc = thangTruoc };
+    var dienF = new ChiSoDien { MaPhong = phongB103.MaPhong, SoDienCu = 40, SoDienMoi = 59, GiaDien = 3500, TienDien = 66500, NgayThangDien = now };
+    var nuocF = new ChiSoNuoc { MaPhong = phongB103.MaPhong, SoNuocCu = 13, SoNuocMoi = 18, GiaNuoc = 12000, TienNuoc = 60000, NgayThangNuoc = now };
+
+    context.ChiSoDien.AddRange(dienD, dienE, dienFThangTruoc, dienF);
+    context.ChiSoNuoc.AddRange(nuocD, nuocE, nuocFThangTruoc, nuocF);
+    context.SaveChanges();
+
+    var hoaDonDThangTruoc = new HoaDon { MaNguoiThue = khachD.MaNguoiThue, MaPhong = phongA103.MaPhong, MaDien = dienD.MaDien, MaNuoc = nuocD.MaNuoc, LoaiHoaDon = "HangThang", TienPhatSinhKhac = 20000, TongTien = phongA103.GiaPhong + dienD.TienDien + nuocD.TienNuoc + 150000 + 20000, NgayLap = thangTruoc, KyHoaDon = kyThangTruoc, TrangThai = "ChuaThanhToan" };
+    var hoaDonE = new HoaDon { MaNguoiThue = khachE.MaNguoiThue, MaPhong = phongA202.MaPhong, MaDien = dienE.MaDien, MaNuoc = nuocE.MaNuoc, LoaiHoaDon = "HangThang", TienPhatSinhKhac = 75000, TongTien = phongA202.GiaPhong + dienE.TienDien + nuocE.TienNuoc + 330000 + 75000, NgayLap = now, KyHoaDon = kyHoaDon, TrangThai = "ChuaThanhToan" };
+    var hoaDonFThangTruoc = new HoaDon { MaNguoiThue = khachF.MaNguoiThue, MaPhong = phongB103.MaPhong, MaDien = dienFThangTruoc.MaDien, MaNuoc = nuocFThangTruoc.MaNuoc, LoaiHoaDon = "HangThang", TienPhatSinhKhac = 0, TongTien = phongB103.GiaPhong + dienFThangTruoc.TienDien + nuocFThangTruoc.TienNuoc + 130000, NgayLap = thangTruoc, KyHoaDon = kyThangTruoc, TrangThai = "ChuaThanhToan" };
+    var hoaDonF = new HoaDon { MaNguoiThue = khachF.MaNguoiThue, MaPhong = phongB103.MaPhong, MaDien = dienF.MaDien, MaNuoc = nuocF.MaNuoc, LoaiHoaDon = "HangThang", TienPhatSinhKhac = 0, TongTien = phongB103.GiaPhong + dienF.TienDien + nuocF.TienNuoc + 130000, NgayLap = now, KyHoaDon = kyHoaDon, TrangThai = "ChuaThanhToan" };
+
+    context.HoaDon.AddRange(hoaDonDThangTruoc, hoaDonE, hoaDonFThangTruoc, hoaDonF);
+    context.SaveChanges();
+
+    context.ThanhToan.AddRange(
+        new ThanhToan { MaHoaDon = hoaDonDThangTruoc.MaHoaDon, MaNguoiThue = khachD.MaNguoiThue, NgayThanhToan = thangTruoc.AddDays(2), TongTien = 500000, HinhThucThanhToan = "Tiền mặt", GhiChu = "Thanh toán thiếu, hóa đơn tháng cũ sẽ bị chốt khi reset" },
+        new ThanhToan { MaHoaDon = hoaDonE.MaHoaDon, MaNguoiThue = khachE.MaNguoiThue, NgayThanhToan = now.AddDays(-2), TongTien = 2000000, HinhThucThanhToan = "Chuyển khoản", GhiChu = "Thanh toán một phần hóa đơn hiện tại" },
+        new ThanhToan { MaHoaDon = hoaDonFThangTruoc.MaHoaDon, MaNguoiThue = khachF.MaNguoiThue, NgayThanhToan = thangTruoc.AddDays(5), TongTien = hoaDonFThangTruoc.TongTien, HinhThucThanhToan = "Chuyển khoản", GhiChu = "Đã trả đủ nhưng trạng thái hóa đơn cố ý để ChuaThanhToan nhằm test đối soát" }
+    );
+
+    context.YeuCauThue.AddRange(
+        new YeuCauThue { MaNguoiDung = nguoiDung7.MaNguoiDung, MaPhong = phongC304.MaPhong, NgayGui = now.AddDays(-1), TrangThai = "ChoDuyet", GhiChuNguoiDung = "Muốn thuê 6 tháng, nhận phòng đầu tháng sau", SoThangMuonThue = 6, NgayBatDauMongMuon = dauThangNay.AddMonths(1) },
+        new YeuCauThue { MaNguoiDung = nguoiDung4.MaNguoiDung, MaPhong = phongA102.MaPhong, NgayGui = now.AddDays(-4), TrangThai = "ChoDuyet", GhiChuNguoiDung = "Muốn xem phòng trước khi đặt cọc", SoThangMuonThue = 3, NgayBatDauMongMuon = now.AddDays(7) },
+        new YeuCauThue { MaNguoiDung = nguoiDung5.MaNguoiDung, MaPhong = phongB102.MaPhong, NgayGui = now.AddDays(-10), TrangThai = "TuChoi", GhiChuNguoiDung = "Cần phòng cho 2 người", GhiChuChuTro = "Phòng chỉ phù hợp 1 người ở thời điểm hiện tại", NgayXuLy = now.AddDays(-8), SoThangMuonThue = 2, NgayBatDauMongMuon = now.AddDays(3) },
+        new YeuCauThue { MaNguoiDung = nguoiDung6.MaNguoiDung, MaPhong = phongA102.MaPhong, NgayGui = now.AddDays(-20), TrangThai = "DaDuyet", GhiChuNguoiDung = "Đã duyệt thử nghiệm", GhiChuChuTro = "Dữ liệu mẫu để test lọc trạng thái yêu cầu", NgayXuLy = now.AddDays(-18), SoThangMuonThue = 1, NgayBatDauMongMuon = now.AddDays(-15) }
     );
 
     context.SaveChanges();

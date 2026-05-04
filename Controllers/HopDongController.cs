@@ -28,6 +28,9 @@ namespace DoAnSE104.Controllers
         private string GetCurrentRole()
             => User.FindFirstValue(ClaimTypes.Role)!;
 
+        private static DateTime TinhNgayKetThucTheoSoThang(DateTime ngayBatDau, int soThang)
+            => ngayBatDau.Date.AddMonths(Math.Max(soThang, 1)).AddDays(-1);
+
         private async Task<string?> ValidateHopDong(int maHopDong, int maNguoiThue, int maPhong, DateTime ngayBatDau, DateTime? ngayKetThuc, decimal tienCoc)
         {
             if (ngayKetThuc.HasValue && ngayKetThuc.Value <= ngayBatDau)
@@ -235,7 +238,12 @@ namespace DoAnSE104.Controllers
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<ActionResult<HopDong>> PostHopDong(CreateHopDongDto dto)
         {
-            var loiValidation = await ValidateHopDong(0, dto.MaNguoiThue, dto.MaPhong, dto.NgayBatDau, dto.NgayKetThuc, dto.TienCoc);
+            if (dto.SoThangThue.HasValue && (dto.SoThangThue.Value < 1 || dto.SoThangThue.Value > 60))
+                return BadRequest(ApiResponse<object>.Loi("Số tháng thuê phải từ 1 đến 60"));
+
+            var ngayKetThuc = dto.NgayKetThuc ?? (dto.SoThangThue.HasValue ? TinhNgayKetThucTheoSoThang(dto.NgayBatDau, dto.SoThangThue.Value) : null);
+
+            var loiValidation = await ValidateHopDong(0, dto.MaNguoiThue, dto.MaPhong, dto.NgayBatDau, ngayKetThuc, dto.TienCoc);
             if (loiValidation != null)
                 return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
@@ -281,7 +289,7 @@ namespace DoAnSE104.Controllers
                 MaNguoiThue = dto.MaNguoiThue,
                 MaPhong = dto.MaPhong,
                 NgayBatDau = dto.NgayBatDau,
-                NgayKetThuc = dto.NgayKetThuc,
+                NgayKetThuc = ngayKetThuc,
                 TienCoc = dto.TienCoc,
                 NoiDung = dto.NoiDung
             };
@@ -333,7 +341,12 @@ namespace DoAnSE104.Controllers
                     return Forbid();
             }
 
-            var loiValidation = await ValidateHopDong(id, hopDongDto.MaNguoiThue, hopDongDto.MaPhong, hopDongDto.NgayBatDau, hopDongDto.NgayKetThuc, hopDongDto.TienCoc);
+            if (hopDongDto.SoThangThue.HasValue && (hopDongDto.SoThangThue.Value < 1 || hopDongDto.SoThangThue.Value > 60))
+                return BadRequest(ApiResponse<object>.Loi("Số tháng thuê phải từ 1 đến 60"));
+
+            var ngayKetThuc = hopDongDto.NgayKetThuc ?? (hopDongDto.SoThangThue.HasValue ? TinhNgayKetThucTheoSoThang(hopDongDto.NgayBatDau, hopDongDto.SoThangThue.Value) : null);
+
+            var loiValidation = await ValidateHopDong(id, hopDongDto.MaNguoiThue, hopDongDto.MaPhong, hopDongDto.NgayBatDau, ngayKetThuc, hopDongDto.TienCoc);
             if (loiValidation != null)
                 return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
@@ -341,7 +354,7 @@ namespace DoAnSE104.Controllers
             hopDong.MaPhong = hopDongDto.MaPhong;
             hopDong.MaNguoiThue = hopDongDto.MaNguoiThue;
             hopDong.NgayBatDau = hopDongDto.NgayBatDau;
-            hopDong.NgayKetThuc = hopDongDto.NgayKetThuc;
+            hopDong.NgayKetThuc = ngayKetThuc;
             hopDong.TienCoc = hopDongDto.TienCoc;
             hopDong.NoiDung = hopDongDto.NoiDung;
 

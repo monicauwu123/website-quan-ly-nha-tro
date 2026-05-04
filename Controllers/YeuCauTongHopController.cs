@@ -76,6 +76,8 @@ namespace DoAnSE104.Controllers
                 },
                 y.GhiChuNguoiDung,
                 y.GhiChuChuTro,
+                y.SoThangMuonThue,
+                y.NgayBatDauMongMuon,
                 NgayKetThucCu = (DateTime?)null,
                 NgayKetThucMoiDeXuat = (DateTime?)null,
                 NgayKetThucMoi = (DateTime?)null,

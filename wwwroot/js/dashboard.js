@@ -1002,6 +1002,15 @@ function buildModal(title, fields, item, onSubmit) {
         </div>`;
     }).join('');
 
+    const updateNgayKetThucThue = () => {
+        const start = document.getElementById('f_ngayBatDau')?.value;
+        const months = document.getElementById('f_soThangThue')?.value;
+        const endInput = document.getElementById('f_ngayKetThuc');
+        if (start && months && endInput) endInput.value = tinhNgayKetThucTheoSoThang(start, months);
+    };
+    document.getElementById('f_ngayBatDau')?.addEventListener('change', updateNgayKetThucThue);
+    document.getElementById('f_soThangThue')?.addEventListener('input', updateNgayKetThucThue);
+
     document.getElementById('modalForm').onsubmit = async (e) => {
         e.preventDefault();
         const payload = {};
@@ -1131,6 +1140,16 @@ function closeModal() {
     document.getElementById('universalModal').style.display = 'none';
 }
 
+
+function tinhNgayKetThucTheoSoThang(ngayBatDauValue, soThangValue) {
+    if (!ngayBatDauValue) return '';
+    const months = Math.max(1, Number(soThangValue || 1));
+    const d = new Date(`${ngayBatDauValue}T00:00:00`);
+    d.setMonth(d.getMonth() + months);
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().substring(0, 10);
+}
+
 // ==========================================
 // YÊU CẦU THUÊ CUSTOM MODAL
 // ==========================================
@@ -1154,9 +1173,21 @@ async function openYeuCauThueModal(id = null, maPhongChon = null) {
                 }).join('')}
             </select>
         </div>
+        <div class="form-group">
+            <label>Số tháng muốn thuê <span style="color:var(--error)">*</span></label>
+            <input type="number" id="f_soThangMuonThue" class="form-control" value="1" min="1" max="60" required>
+            <small style="color:var(--text-light);">Hợp đồng sẽ tính theo kỳ từng tháng; hết mỗi kỳ, dịch vụ đã đăng ký trong kỳ cũ sẽ tự hết hạn.</small>
+        </div>
+        <div class="form-group">
+            <label>Ngày bắt đầu mong muốn</label>
+            <input type="date" id="f_ngayBatDauMongMuon" class="form-control">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;padding:.85rem;color:var(--text-light);">
+            <strong>Thông tin kỳ thuê:</strong> Người dùng có thể đăng ký nhiều tháng. Mỗi tháng là một kỳ thuê riêng; dịch vụ/yêu cầu dịch vụ của kỳ cũ không tự cộng sang kỳ mới.
+        </div>
         <div class="form-group" style="grid-column:1/-1;">
             <label>Ghi chú gửi chủ trọ</label>
-            <textarea id="f_ghiChuNguoiDung" class="form-control" placeholder="Ví dụ: Em muốn xem phòng vào cuối tuần..."></textarea>
+            <textarea id="f_ghiChuNguoiDung" class="form-control" placeholder="Ví dụ: Em muốn thuê 3 tháng, bắt đầu từ đầu tháng sau..."></textarea>
         </div>`;
 
     document.getElementById('modalForm').onsubmit = async (e) => {
@@ -1164,8 +1195,12 @@ async function openYeuCauThueModal(id = null, maPhongChon = null) {
 
         const payload = {
             maPhong: Number(document.getElementById('f_maPhong').value),
+            soThangMuonThue: Number(document.getElementById('f_soThangMuonThue').value || 1),
             ghiChuNguoiDung: document.getElementById('f_ghiChuNguoiDung').value
         };
+
+        const ngayBatDauMongMuon = document.getElementById('f_ngayBatDauMongMuon').value;
+        if (ngayBatDauMongMuon) payload.ngayBatDauMongMuon = ngayBatDauMongMuon;
 
         try {
             await apiFetch('/api/YeuCauThue', 'POST', payload);
@@ -1188,20 +1223,29 @@ async function openYeuCauThueDuyetModal(maYeuCau) {
     }
 
     const today = new Date().toISOString().substring(0, 10);
+    const soThangMacDinh = Number(yc.soThangMuonThue || 1);
+    const ngayBatDauMacDinh = yc.ngayBatDauMongMuon ? yc.ngayBatDauMongMuon.substring(0, 10) : today;
+    const ngayKetThucMacDinh = tinhNgayKetThucTheoSoThang(ngayBatDauMacDinh, soThangMacDinh);
 
     document.getElementById('modalTitle').textContent = 'Duyệt yêu cầu và lập hợp đồng';
     document.getElementById('modalFields').innerHTML = `
         <div style="grid-column:1/-1;background:#f8fafc;border-radius:.75rem;padding:1rem;margin-bottom:.5rem;">
             <strong>${yc.nguoiDung?.hoTen || 'Người dùng'}</strong> muốn thuê <strong>${yc.phong?.tenPhong || 'phòng'}</strong><br>
-            <small>${yc.phong?.nhaTro?.tenNhaTro || ''}</small>
+            <small>${yc.phong?.nhaTro?.tenNhaTro || ''}</small><br>
+            <small>Thời hạn người dùng đề xuất: <strong>${soThangMacDinh} tháng</strong>${yc.ngayBatDauMongMuon ? `, bắt đầu khoảng ${window.AppFormat.date(yc.ngayBatDauMongMuon)}` : ''}</small>
         </div>
         <div class="form-group">
             <label>Ngày bắt đầu <span style="color:var(--error)">*</span></label>
-            <input type="date" id="f_ngayBatDau" class="form-control" value="${today}" required>
+            <input type="date" id="f_ngayBatDau" class="form-control" value="${ngayBatDauMacDinh}" required>
+        </div>
+        <div class="form-group">
+            <label>Số tháng thuê</label>
+            <input type="number" id="f_soThangThue" class="form-control" value="${soThangMacDinh}" min="1" max="60">
         </div>
         <div class="form-group">
             <label>Ngày kết thúc</label>
-            <input type="date" id="f_ngayKetThuc" class="form-control">
+            <input type="date" id="f_ngayKetThuc" class="form-control" value="${ngayKetThucMacDinh}">
+            <small style="color:var(--text-light);">Có thể sửa thủ công nếu chủ trọ muốn chốt ngày khác.</small>
         </div>
         <div class="form-group">
             <label>Tiền cọc (đ) <span style="color:var(--error)">*</span></label>
@@ -1216,11 +1260,21 @@ async function openYeuCauThueDuyetModal(maYeuCau) {
             <textarea id="f_ghiChuChuTro" class="form-control"></textarea>
         </div>`;
 
+    const updateNgayKetThucDuyet = () => {
+        const start = document.getElementById('f_ngayBatDau')?.value;
+        const months = document.getElementById('f_soThangThue')?.value;
+        const endInput = document.getElementById('f_ngayKetThuc');
+        if (start && months && endInput) endInput.value = tinhNgayKetThucTheoSoThang(start, months);
+    };
+    document.getElementById('f_ngayBatDau')?.addEventListener('change', updateNgayKetThucDuyet);
+    document.getElementById('f_soThangThue')?.addEventListener('input', updateNgayKetThucDuyet);
+
     document.getElementById('modalForm').onsubmit = async (e) => {
         e.preventDefault();
 
         const payload = {
             ngayBatDau: document.getElementById('f_ngayBatDau').value,
+            soThangThue: Number(document.getElementById('f_soThangThue').value || 1),
             tienCoc: Number(document.getElementById('f_tienCoc').value),
             noiDung: document.getElementById('f_noiDung').value,
             ghiChuChuTro: document.getElementById('f_ghiChuChuTro').value
@@ -1435,6 +1489,11 @@ async function openHopDongModal(id = null) {
             <input type="date" id="f_ngayBatDau" class="form-control" value="${item?.ngayBatDau ? item.ngayBatDau.substring(0, 10) : ''}" required>
         </div>
         <div class="form-group">
+            <label>Số tháng thuê</label>
+            <input type="number" id="f_soThangThue" class="form-control" value="1" min="1" max="60">
+            <small style="color:var(--text-light);">Nhập số tháng để tự tính ngày kết thúc.</small>
+        </div>
+        <div class="form-group">
             <label>Ngày kết thúc</label>
             <input type="date" id="f_ngayKetThuc" class="form-control" value="${item?.ngayKetThuc ? item.ngayKetThuc.substring(0, 10) : ''}">
         </div>
@@ -1447,12 +1506,22 @@ async function openHopDongModal(id = null) {
             <textarea id="f_noiDung" class="form-control">${item?.noiDung || ''}</textarea>
         </div>`;
 
+    const updateNgayKetThucHopDong = () => {
+        const start = document.getElementById('f_ngayBatDau')?.value;
+        const months = document.getElementById('f_soThangThue')?.value;
+        const endInput = document.getElementById('f_ngayKetThuc');
+        if (start && months && endInput) endInput.value = tinhNgayKetThucTheoSoThang(start, months);
+    };
+    document.getElementById('f_ngayBatDau')?.addEventListener('change', updateNgayKetThucHopDong);
+    document.getElementById('f_soThangThue')?.addEventListener('input', updateNgayKetThucHopDong);
+
     document.getElementById('modalForm').onsubmit = async (e) => {
         e.preventDefault();
         const payload = {
             maNguoiThue: Number(document.getElementById('f_maNguoiThue').value),
             maPhong: Number(document.getElementById('f_maPhong').value),
             ngayBatDau: document.getElementById('f_ngayBatDau').value,
+            soThangThue: Number(document.getElementById('f_soThangThue').value || 1),
             tienCoc: Number(document.getElementById('f_tienCoc').value),
             noiDung: document.getElementById('f_noiDung').value
         };

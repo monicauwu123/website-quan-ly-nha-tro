@@ -10,7 +10,11 @@ window.AppModules.dangkydichvu = {
         { label: 'Dịch vụ', key: 'tenDichVu' },
         { label: 'Đơn giá', key: 'tienDichVu', render: v => window.AppFormat.currency(v) },
         { label: 'Ngày đăng ký', key: 'ngayDangKy', render: v => window.AppFormat.date(v) },
-        { label: 'Trạng thái', key: 'trangThai', render: (v, item) => `<span class="badge ${v === 'DaHuy' ? 'badge-red' : 'badge-green'}">${item.tenTrangThai || (v === 'DaHuy' ? 'Đã hủy' : 'Đang sử dụng')}</span>` },
+        { label: 'Kỳ đăng ký', key: 'kyDangKy', render: v => v || '---' },
+        { label: 'Trạng thái', key: 'trangThai', render: (v, item) => {
+            const cls = v === 'DaHuy' ? 'badge-red' : v === 'HetHan' ? 'badge-amber' : 'badge-green';
+            return `<span class="badge ${cls}">${item.tenTrangThai || (v === 'DaHuy' ? 'Đã hủy' : v === 'HetHan' ? 'Hết hạn kỳ thuê' : 'Đang sử dụng')}</span>`;
+        } },
         { label: 'Ghi chú', key: 'ghiChu' }
     ],
     fields: []

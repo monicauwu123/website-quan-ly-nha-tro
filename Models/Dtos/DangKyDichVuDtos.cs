@@ -27,6 +27,8 @@ namespace DoAnSE104.Models.Dtos
         public decimal TienDichVu { get; set; }
         public DateTime NgayDangKy { get; set; }
         public DateTime? NgayHuy { get; set; }
+        public DateTime? NgayHetHan { get; set; }
+        public string? KyDangKy { get; set; }
         public string TrangThai { get; set; } = string.Empty;
         public string TenTrangThai { get; set; } = string.Empty;
         public string? GhiChu { get; set; }

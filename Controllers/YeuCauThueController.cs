@@ -39,6 +39,9 @@ namespace DoAnSE104.Controllers
                 .AnyAsync(p => p.MaPhong == maPhong && p.NhaTro.MaChuTro == maChuTro);
         }
 
+        private static DateTime TinhNgayKetThucTheoSoThang(DateTime ngayBatDau, int soThang)
+            => ngayBatDau.Date.AddMonths(Math.Max(soThang, 1)).AddDays(-1);
+
         private IQueryable<YeuCauThue> BaseQuery()
         {
             return _context.YeuCauThue
@@ -71,6 +74,8 @@ namespace DoAnSE104.Controllers
                 },
                 y.GhiChuNguoiDung,
                 y.GhiChuChuTro,
+                y.SoThangMuonThue,
+                y.NgayBatDauMongMuon,
                 NguoiDung = new
                 {
                     y.NguoiDung.MaNguoiDung,
@@ -162,6 +167,9 @@ namespace DoAnSE104.Controllers
             {
                 var userId = GetCurrentUserId();
 
+                if (dto.SoThangMuonThue < 1 || dto.SoThangMuonThue > 60)
+                    return BadRequest(ApiResponse<object>.Loi("Số tháng muốn thuê phải từ 1 đến 60"));
+
                 var phong = await _context.Phong
                     .Include(p => p.NhaTro)
                     .FirstOrDefaultAsync(p => p.MaPhong == dto.MaPhong);
@@ -190,6 +198,8 @@ namespace DoAnSE104.Controllers
                     MaNguoiDung = userId,
                     MaPhong = dto.MaPhong,
                     GhiChuNguoiDung = dto.GhiChuNguoiDung,
+                    SoThangMuonThue = dto.SoThangMuonThue,
+                    NgayBatDauMongMuon = dto.NgayBatDauMongMuon,
                     TrangThai = ChoDuyet,
                     NgayGui = DateTime.Now
                 };
@@ -251,7 +261,17 @@ namespace DoAnSE104.Controllers
                             return;
                         }
 
-                        if (dto.NgayKetThuc.HasValue && dto.NgayKetThuc.Value <= dto.NgayBatDau)
+                        var soThangThue = dto.SoThangThue ?? yeuCau.SoThangMuonThue;
+                        if (soThangThue < 1 || soThangThue > 60)
+                        {
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Số tháng thuê phải từ 1 đến 60"));
+                            await transaction.RollbackAsync();
+                            return;
+                        }
+
+                        var ngayKetThucHopDong = dto.NgayKetThuc ?? TinhNgayKetThucTheoSoThang(dto.NgayBatDau, soThangThue);
+
+                        if (ngayKetThucHopDong <= dto.NgayBatDau)
                         {
                             ketQua = BadRequest(ApiResponse<object>.Loi("Ngày kết thúc phải lớn hơn ngày bắt đầu"));
                             await transaction.RollbackAsync();
@@ -320,7 +340,7 @@ namespace DoAnSE104.Controllers
                             MaNguoiThue = nguoiThue.MaNguoiThue,
                             MaPhong = yeuCau.MaPhong,
                             NgayBatDau = dto.NgayBatDau,
-                            NgayKetThuc = dto.NgayKetThuc,
+                            NgayKetThuc = ngayKetThucHopDong,
                             TienCoc = dto.TienCoc,
                             NoiDung = dto.NoiDung
                         };
@@ -353,7 +373,9 @@ namespace DoAnSE104.Controllers
                             yeuCau.MaYeuCau,
                             nguoiThue.MaNguoiThue,
                             hopDong.MaHopDong,
-                            yeuCau.MaPhong
+                            yeuCau.MaPhong,
+                            SoThangThue = soThangThue,
+                            NgayKetThuc = ngayKetThucHopDong
                         }, "Đã chấp nhận yêu cầu và lập hợp đồng thành công"));
                     }
                     catch

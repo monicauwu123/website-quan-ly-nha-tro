@@ -8,6 +8,7 @@
         
         public DateTime NgayBatDau { get; set; }
         public DateTime? NgayKetThuc { get; set; }
+        public int? SoThangThue { get; set; }
         public decimal TienCoc { get; set; }
         public string? NoiDung { get; set; }
     }

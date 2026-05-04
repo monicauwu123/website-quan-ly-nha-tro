@@ -44,5 +44,14 @@ namespace DoAnSE104.Models
         public virtual HopDong? HopDong { get; set; }
 
         public DateTime? NgayXuLy { get; set; }
+
+        /// <summary>
+        /// Số tháng người dùng muốn thuê khi gửi yêu cầu. Mặc định 1 tháng.
+        /// Chủ trọ có thể dùng thông tin này để lập hợp đồng nhiều tháng.
+        /// </summary>
+        [Range(1, 60)]
+        public int SoThangMuonThue { get; set; } = 1;
+
+        public DateTime? NgayBatDauMongMuon { get; set; }
     }
 }
