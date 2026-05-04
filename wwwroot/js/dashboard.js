@@ -576,8 +576,31 @@ async function loadGenericSection(section) {
         </div>`;
     }
 
+    let extraToolbarHtml = '';
+    if (section === 'hoadon' && (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
+        const now = new Date();
+        const kyDefault = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        extraToolbarHtml = `
+            <div class="data-card" style="margin-bottom:1rem;">
+                <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+                    <div class="form-group" style="margin-bottom:0;min-width:220px;">
+                        <label><i class="fas fa-calendar-alt"></i> Kỳ hóa đơn tự tạo</label>
+                        <input type="month" id="autoInvoiceKy" class="form-control" value="${kyDefault}">
+                    </div>
+                    <button class="btn btn-success" onclick="taoHoaDonHangThangTuDong()">
+                        <i class="fas fa-magic"></i> Tạo hóa đơn tháng này
+                    </button>
+                    <div style="color:var(--text-light);font-size:.9rem;padding-bottom:.55rem;">
+                        Tự lấy phòng có hợp đồng hiệu lực, cộng tiền phòng, điện, nước và dịch vụ đang dùng. Phòng đã có hóa đơn cùng kỳ sẽ được bỏ qua.
+                    </div>
+                </div>
+                <div id="autoInvoiceResult" style="display:none;margin-top:1rem;"></div>
+            </div>`;
+    }
+
     document.getElementById('genericSection').innerHTML = `
         ${searchHtml}
+        ${extraToolbarHtml}
         <div class="data-card">
             <div class="table-container">
                 <table>

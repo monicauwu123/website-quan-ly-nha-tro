@@ -61,6 +61,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IRentalPeriodResetService, RentalPeriodResetService>();
+builder.Services.AddScoped<IMonthlyInvoiceService, MonthlyInvoiceService>();
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
 builder.Services.AddControllers(options =>

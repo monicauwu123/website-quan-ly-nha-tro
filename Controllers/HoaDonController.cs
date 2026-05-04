@@ -17,11 +17,16 @@ namespace DoAnSE104.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IRentalPeriodResetService _rentalPeriodResetService;
+        private readonly IMonthlyInvoiceService _monthlyInvoiceService;
 
-        public HoaDonController(ApplicationDbContext context, IRentalPeriodResetService rentalPeriodResetService)
+        public HoaDonController(
+            ApplicationDbContext context,
+            IRentalPeriodResetService rentalPeriodResetService,
+            IMonthlyInvoiceService monthlyInvoiceService)
         {
             _context = context;
             _rentalPeriodResetService = rentalPeriodResetService;
+            _monthlyInvoiceService = monthlyInvoiceService;
         }
 
         private int GetCurrentUserId()
@@ -196,6 +201,13 @@ namespace DoAnSE104.Controllers
                 : "Dịch vụ";
         }
 
+        private static decimal LayTienTheoChiTiet(IEnumerable<ChiTietHoaDon>? chiTietHoaDon, string loaiKhoan)
+        {
+            return chiTietHoaDon?
+                .Where(ct => string.Equals(ct.LoaiKhoan, loaiKhoan, StringComparison.OrdinalIgnoreCase))
+                .Sum(ct => ct.SoTien) ?? 0m;
+        }
+
         private async Task CapNhatChiTietHoaDonDichVuAsync(int maHoaDon, List<DichVu> dichVuSuDung)
         {
             var chiTietDichVuCu = await _context.ChiTietHoaDon
@@ -310,9 +322,15 @@ namespace DoAnSE104.Controllers
                     TenLoaiHoaDon = LayTenLoaiHoaDon(h.LoaiHoaDon),
                     NgayLap = h.NgayLap,
                     KyHoaDon = h.KyHoaDon,
-                    TienPhong = ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonThuePhong ? (h.Phong?.GiaPhong ?? 0m) : 0m,
-                    TienDien = ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonHangThang ? (h.ChiSoDien?.TienDien ?? 0m) : 0m,
-                    TienNuoc = ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonHangThang ? (h.ChiSoNuoc?.TienNuoc ?? 0m) : 0m,
+                    TienPhong = LayTienTheoChiTiet(h.ChiTietHoaDon, "TienPhong") > 0
+                        ? LayTienTheoChiTiet(h.ChiTietHoaDon, "TienPhong")
+                        : (ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonThuePhong ? (h.Phong?.GiaPhong ?? 0m) : 0m),
+                    TienDien = LayTienTheoChiTiet(h.ChiTietHoaDon, "TienDien") > 0
+                        ? LayTienTheoChiTiet(h.ChiTietHoaDon, "TienDien")
+                        : (ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonHangThang ? (h.ChiSoDien?.TienDien ?? 0m) : 0m),
+                    TienNuoc = LayTienTheoChiTiet(h.ChiTietHoaDon, "TienNuoc") > 0
+                        ? LayTienTheoChiTiet(h.ChiTietHoaDon, "TienNuoc")
+                        : (ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == LoaiHoaDonHangThang ? (h.ChiSoNuoc?.TienNuoc ?? 0m) : 0m),
                     TienDichVu = chiTietDichVu.Sum(ct => ct.SoTien),
                     TienPhatSinhKhac = h.TienPhatSinhKhac,
                     TongTien = h.TongTien,
@@ -435,6 +453,38 @@ namespace DoAnSE104.Controllers
 
             var phongChuaCoHoaDon = await phongQuery.ToListAsync();
             return Ok(phongChuaCoHoaDon);
+        }
+
+        // POST: api/HoaDon/TaoHoaDonThang
+        [HttpPost("TaoHoaDonThang")]
+        [Authorize(Roles = "Admin,ChuTro")]
+        public async Task<IActionResult> TaoHoaDonThang([FromQuery] string? kyHoaDon = null)
+        {
+            try
+            {
+                if (GetCurrentRole() == VaiTroConst.Admin)
+                    await _rentalPeriodResetService.ChotKyThueAsync();
+                else if (GetCurrentRole() == VaiTroConst.ChuTro)
+                    await _rentalPeriodResetService.ChotKyThueAsync(GetCurrentUserId());
+
+                var result = GetCurrentRole() == VaiTroConst.ChuTro
+                    ? await _monthlyInvoiceService.TaoHoaDonHangThangAsync(kyHoaDon, GetCurrentUserId())
+                    : await _monthlyInvoiceService.TaoHoaDonHangThangAsync(kyHoaDon);
+
+                var thongBao = $"Đã tạo {result.SoHoaDonDaTao} hóa đơn kỳ {result.KyHoaDon}. Bỏ qua {result.SoHoaDonBoQua} phòng đã có hóa đơn.";
+                if (result.CanhBao.Count > 0)
+                    thongBao += $" Có {result.CanhBao.Count} cảnh báo cần kiểm tra.";
+
+                return Ok(ApiResponse<object>.Ok(result, thongBao));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Loi(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Loi($"Lỗi khi tạo hóa đơn tháng: {ex.Message}"));
+            }
         }
 
         // POST: api/HoaDon
