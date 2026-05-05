@@ -105,6 +105,17 @@ const API = {
     },
     nuoc: {
         getAll: () => apiFetch('/api/ChiSoNuoc'),
+    },
+
+    // 8. THÔNG BÁO
+    thongbao: {
+        getAll: () => apiFetch('/api/ThongBao'),
+        getChuaDoc: () => apiFetch('/api/ThongBao/chua-doc'),
+        create: (data) => apiFetch('/api/ThongBao', 'POST', data),
+        daDoc: (id) => apiFetch(`/api/ThongBao/${id}/da-doc`, 'PUT'),
+        docTatCa: () => apiFetch('/api/ThongBao/doc-tat-ca', 'PUT'),
+        an: (id) => apiFetch(`/api/ThongBao/${id}/an`, 'PUT'),
+        getInitData: () => apiFetch('/api/ThongBao/init-data')
     }
 };
 

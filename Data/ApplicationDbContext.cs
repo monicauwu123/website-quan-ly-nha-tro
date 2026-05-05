@@ -29,6 +29,9 @@ namespace DoAnSE104.Data
         public DbSet<BaoCaoSuCo> BaoCaoSuCo { get; set; }
         public DbSet<DangKyDichVu> DangKyDichVu { get; set; }
 
+        // ── Thông Báo ────────────────────────────────────────────────────────────
+        public DbSet<ThongBao> ThongBao { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -256,6 +259,31 @@ namespace DoAnSE104.Data
 
             modelBuilder.Entity<DangKyDichVu>()
                 .HasIndex(dk => new { dk.MaNguoiDung, dk.MaPhong, dk.MaDichVu, dk.TrangThai });
+
+            // ── ThongBao ──────────────────────────────────────────────────────────
+            modelBuilder.Entity<ThongBao>()
+                .HasOne(tb => tb.NguoiNhan)
+                .WithMany()
+                .HasForeignKey(tb => tb.NguoiNhanId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<ThongBao>()
+                .HasOne(tb => tb.Phong)
+                .WithMany()
+                .HasForeignKey(tb => tb.PhongId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<ThongBao>()
+                .HasOne(tb => tb.NguoiTao)
+                .WithMany()
+                .HasForeignKey(tb => tb.NguoiTaoId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
+
+            modelBuilder.Entity<ThongBao>()
+                .HasIndex(tb => new { tb.DaDoc, tb.TrangThai });
         }
     }
 }

@@ -1,0 +1,439 @@
+// ==========================================
+// MODULE: thongbao
+// Quản lý thông báo - Admin/ChuTro tạo, NguoiDung xem
+// ==========================================
+
+window.AppModules = window.AppModules || {};
+
+(function () {
+    'use strict';
+
+    // ── Constants ──────────────────────────────────────────────────────────────
+    const LOAI_THONG_BAO = {
+        HoaDon: 'Hóa đơn',
+        HopDong: 'Hợp đồng',
+        DichVu: 'Dịch vụ',
+        BaoCaoSuCo: 'Sự cố',
+        ThuCong: 'Thủ công'
+    };
+
+    const LOAI_NGUOI_NHAN = {
+        TatCa: 'Tất cả người thuê',
+        Phong: 'Một phòng',
+        NguoiDung: 'Một người dùng'
+    };
+
+    const ICON_LOAI = {
+        HoaDon: 'fa-file-invoice-dollar',
+        HopDong: 'fa-file-contract',
+        DichVu: 'fa-concierge-bell',
+        BaoCaoSuCo: 'fa-tools',
+        ThuCong: 'fa-bell'
+    };
+
+    const COLOR_LOAI = {
+        HoaDon: '#6366f1',
+        HopDong: '#0891b2',
+        DichVu: '#7c3aed',
+        BaoCaoSuCo: '#d97706',
+        ThuCong: '#16a34a'
+    };
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let _initData = null;
+    let _badgeInterval = null;
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function getRole() {
+        return localStorage.getItem('vaiTro') || '';
+    }
+
+    function isAdminOrChuTro() {
+        const role = getRole();
+        return role === 'Admin' || role === 'ChuTro';
+    }
+
+    function thoiGianTuongDoi(dateStr) {
+        if (!dateStr) return '---';
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const minutes = Math.floor(diff / 60000);
+        if (minutes < 1) return 'Vừa xong';
+        if (minutes < 60) return `${minutes} phút trước`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours} giờ trước`;
+        const days = Math.floor(hours / 24);
+        if (days < 7) return `${days} ngày trước`;
+        return window.AppFormat.date(dateStr);
+    }
+
+    // ── Badge (số thông báo chưa đọc) ─────────────────────────────────────────
+    async function capNhatBadge() {
+        try {
+            const res = await apiFetch('/api/ThongBao/chua-doc');
+            const count = res?.duLieu ?? 0;
+            const badge = document.getElementById('thongBaoBadge');
+            if (badge) {
+                badge.textContent = count > 99 ? '99+' : String(count);
+                badge.style.display = count > 0 ? 'inline-flex' : 'none';
+            }
+        } catch (_) { /* silent */ }
+    }
+
+    function startBadgePoller() {
+        capNhatBadge();
+        if (_badgeInterval) clearInterval(_badgeInterval);
+        _badgeInterval = setInterval(capNhatBadge, 60000); // mỗi 1 phút
+    }
+
+    // ── Load init data (danh sách phòng & người dùng để chọn) ─────────────────
+    async function loadInitData() {
+        if (!isAdminOrChuTro()) return;
+        try {
+            const res = await apiFetch('/api/ThongBao/init-data');
+            _initData = res?.duLieu ?? null;
+        } catch (_) { _initData = null; }
+    }
+
+    // ── Render danh sách dạng card (không dùng generic table vì UX đặc thù) ──
+    function renderThongBaoList(list, container) {
+        if (!list || list.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:3rem 1rem;color:#6b7280;">
+                    <i class="fas fa-bell-slash" style="font-size:2.5rem;margin-bottom:1rem;display:block;opacity:.4;"></i>
+                    <p>Không có thông báo nào.</p>
+                </div>`;
+            return;
+        }
+
+        const html = list.map(tb => {
+            const icon = ICON_LOAI[tb.loaiThongBao] || 'fa-bell';
+            const color = COLOR_LOAI[tb.loaiThongBao] || '#6b7280';
+            const chuaDoc = !tb.daDoc;
+            const loaiText = LOAI_THONG_BAO[tb.loaiThongBao] || tb.loaiThongBao;
+
+            let metaHtml = '';
+            if (isAdminOrChuTro()) {
+                const nguoiNhanText = tb.loaiNguoiNhan === 'TatCa' ? 'Tất cả người thuê'
+                    : tb.loaiNguoiNhan === 'Phong' ? `Phòng: ${tb.tenPhong || '#' + tb.phongId}`
+                    : `Người dùng: ${tb.tenNguoiNhan || '#' + tb.nguoiNhanId}`;
+                metaHtml = `<span class="badge badge-info" style="font-size:.7rem;">${nguoiNhanText}</span>`;
+            }
+
+            const actionsHtml = chuaDoc
+                ? `<button class="btn" style="padding:.2rem .6rem;font-size:.78rem;background:#e0e7ff;color:#3730a3;"
+                        onclick="window.AppThongBao.danhDauDoc(${tb.thongBaoId}, this)">
+                        <i class="fas fa-check"></i> Đánh dấu đọc
+                   </button>`
+                : `<span style="color:#9ca3af;font-size:.78rem;"><i class="fas fa-check-double"></i> Đã đọc</span>`;
+
+            const anBtn = isAdminOrChuTro()
+                ? `<button class="btn" style="padding:.2rem .6rem;font-size:.78rem;background:#fee2e2;color:#991b1b;margin-left:.4rem;"
+                        onclick="window.AppThongBao.anThongBao(${tb.thongBaoId}, this)" title="Ẩn thông báo">
+                        <i class="fas fa-eye-slash"></i>
+                   </button>` : '';
+
+            return `
+            <div class="thongbao-card${chuaDoc ? ' chua-doc' : ''}" data-id="${tb.thongBaoId}"
+                 style="border-left:4px solid ${color};background:${chuaDoc ? '#f0f9ff' : '#fff'};
+                        border-radius:.5rem;padding:1rem 1.25rem;margin-bottom:.75rem;
+                        box-shadow:0 1px 4px rgba(0,0,0,.07);transition:background .2s;">
+                <div style="display:flex;align-items:flex-start;gap:1rem;">
+                    <div style="width:2.4rem;height:2.4rem;border-radius:50%;background:${color}22;
+                                display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas ${icon}" style="color:${color};font-size:1rem;"></i>
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+                            ${chuaDoc ? '<span style="width:.5rem;height:.5rem;border-radius:50%;background:#3b82f6;display:inline-block;flex-shrink:0;" title="Chưa đọc"></span>' : ''}
+                            <strong style="font-size:.95rem;">${window.AppFormat.escapeHtml(tb.tieuDe)}</strong>
+                            <span class="badge badge-secondary" style="font-size:.68rem;">${loaiText}</span>
+                            ${metaHtml}
+                        </div>
+                        <p style="color:#374151;font-size:.875rem;margin:.4rem 0;white-space:pre-line;">${window.AppFormat.escapeHtml(tb.noiDung)}</p>
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+                            <span style="color:#9ca3af;font-size:.78rem;">
+                                <i class="fas fa-clock"></i> ${thoiGianTuongDoi(tb.ngayTao)}
+                                ${tb.nguoiTaoId ? `&nbsp;·&nbsp;<i class="fas fa-user"></i> ${window.AppFormat.escapeHtml(tb.tenNguoiTao || 'Hệ thống')}` : '· Hệ thống'}
+                            </span>
+                            <div style="display:flex;align-items:center;">
+                                ${actionsHtml}
+                                ${anBtn}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.innerHTML = html;
+    }
+
+    // ── Load & render section ──────────────────────────────────────────────────
+    async function loadThongBaoSection(contentSlot) {
+        contentSlot.innerHTML = '<div style="padding:2rem;color:#6b7280;text-align:center;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+        try {
+            const res = await apiFetch('/api/ThongBao');
+            const list = res?.duLieu ?? [];
+
+            const toolbar = buildToolbar(list);
+            const contentDiv = document.createElement('div');
+            contentDiv.style.cssText = 'padding:.5rem 0;';
+            renderThongBaoList(list, contentDiv);
+
+            contentSlot.innerHTML = '';
+            contentSlot.appendChild(toolbar);
+            contentSlot.appendChild(contentDiv);
+        } catch (e) {
+            contentSlot.innerHTML = `<div style="padding:2rem;color:#991b1b;">Lỗi tải thông báo: ${e.message}</div>`;
+        }
+    }
+
+    function buildToolbar(list) {
+        const chuaDocCount = list.filter(tb => !tb.daDoc).length;
+
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;padding:.5rem 0 1rem;';
+
+        const info = document.createElement('span');
+        info.style.cssText = 'color:#6b7280;font-size:.875rem;flex:1;';
+        info.innerHTML = `<strong>${list.length}</strong> thông báo · <strong style="color:#3b82f6;">${chuaDocCount}</strong> chưa đọc`;
+        wrapper.appendChild(info);
+
+        if (chuaDocCount > 0) {
+            const btnDocTatCa = document.createElement('button');
+            btnDocTatCa.className = 'btn btn-secondary';
+            btnDocTatCa.style.cssText = 'width:auto;';
+            btnDocTatCa.innerHTML = '<i class="fas fa-check-double"></i> Đánh dấu tất cả đã đọc';
+            btnDocTatCa.onclick = () => window.AppThongBao.docTatCa();
+            wrapper.appendChild(btnDocTatCa);
+        }
+
+        return wrapper;
+    }
+
+    // ── Đánh dấu đọc 1 ────────────────────────────────────────────────────────
+    async function danhDauDoc(id, btn) {
+        try {
+            if (btn) btn.disabled = true;
+            await apiFetch(`/api/ThongBao/${id}/da-doc`, 'PUT');
+
+            // Cập nhật UI ngay
+            const card = document.querySelector(`.thongbao-card[data-id="${id}"]`);
+            if (card) {
+                card.classList.remove('chua-doc');
+                card.style.background = '#fff';
+                const dot = card.querySelector('span[title="Chưa đọc"]');
+                if (dot) dot.remove();
+                const actDiv = card.querySelector('div[style*="justify-content:space-between"] > div');
+                if (actDiv) {
+                    actDiv.innerHTML = `<span style="color:#9ca3af;font-size:.78rem;"><i class="fas fa-check-double"></i> Đã đọc</span>` +
+                        (actDiv.innerHTML.includes('fa-eye-slash') ? actDiv.innerHTML.replace(/.*btn.*fa-eye-slash.*?<\/button>/s, m => m) : '');
+                }
+            }
+
+            await capNhatBadge();
+        } catch (e) {
+            showToast('Lỗi: ' + e.message, 'error');
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // ── Đánh dấu tất cả đã đọc ────────────────────────────────────────────────
+    async function docTatCa() {
+        try {
+            const res = await apiFetch('/api/ThongBao/doc-tat-ca', 'PUT');
+            showToast(res?.thongBao || 'Đã đánh dấu tất cả đã đọc', 'success');
+            // Reload section
+            const contentSlot = document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
+            if (contentSlot) await loadThongBaoSection(contentSlot);
+            await capNhatBadge();
+        } catch (e) {
+            showToast('Lỗi: ' + e.message, 'error');
+        }
+    }
+
+    // ── Ẩn thông báo (Admin/ChuTro) ───────────────────────────────────────────
+    async function anThongBao(id, btn) {
+        if (!confirm('Ẩn thông báo này? Người nhận sẽ không thấy nữa.')) return;
+        try {
+            if (btn) btn.disabled = true;
+            await apiFetch(`/api/ThongBao/${id}/an`, 'PUT');
+            showToast('Đã ẩn thông báo.', 'success');
+            const card = document.querySelector(`.thongbao-card[data-id="${id}"]`);
+            if (card) card.style.opacity = '0', setTimeout(() => card.remove(), 300);
+        } catch (e) {
+            showToast('Lỗi: ' + e.message, 'error');
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // ── Modal tạo thông báo (Admin/ChuTro) ────────────────────────────────────
+    async function openCreateModal() {
+        if (!isAdminOrChuTro()) return;
+        if (!_initData) await loadInitData();
+
+        const phongs = _initData?.phongs ?? [];
+        const nguoiDungs = _initData?.nguoiDungs ?? [];
+
+        const phongOptions = phongs.map(p =>
+            `<option value="${p.maPhong}">${window.AppFormat.escapeHtml(p.tenPhong)} (${window.AppFormat.escapeHtml(p.tenNhaTro || '')})</option>`
+        ).join('');
+
+        const nguoiDungOptions = nguoiDungs.map(u =>
+            `<option value="${u.maNguoiDung}">${window.AppFormat.escapeHtml(u.hoTen || u.email)} - ${u.soDienThoai || ''}</option>`
+        ).join('');
+
+        const modalBody = document.getElementById('modalBody');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalFooter = document.getElementById('modalFooter');
+        const modal = document.getElementById('globalModal');
+
+        if (!modalBody || !modal) {
+            showToast('Không tìm thấy modal container.', 'error');
+            return;
+        }
+
+        if (modalTitle) modalTitle.textContent = 'Tạo thông báo mới';
+
+        modalBody.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div>
+                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Tiêu đề <span style="color:#ef4444;">*</span></label>
+                <input id="tbTieuDe" type="text" class="form-input" placeholder="Nhập tiêu đề thông báo..." maxlength="200">
+            </div>
+            <div>
+                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Nội dung <span style="color:#ef4444;">*</span></label>
+                <textarea id="tbNoiDung" class="form-input" rows="4" placeholder="Nhập nội dung thông báo..." maxlength="2000"
+                          style="resize:vertical;min-height:6rem;"></textarea>
+            </div>
+            <div>
+                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Gửi đến</label>
+                <select id="tbLoaiNguoiNhan" class="form-input" onchange="window.AppThongBao._onLoaiNguoiNhanChange()">
+                    <option value="TatCa">Tất cả người thuê</option>
+                    <option value="Phong">Một phòng cụ thể</option>
+                    <option value="NguoiDung">Một người dùng cụ thể</option>
+                </select>
+            </div>
+            <div id="tbPhongGroup" style="display:none;">
+                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Chọn phòng <span style="color:#ef4444;">*</span></label>
+                <select id="tbPhongId" class="form-input">
+                    <option value="">-- Chọn phòng --</option>
+                    ${phongOptions}
+                </select>
+            </div>
+            <div id="tbNguoiDungGroup" style="display:none;">
+                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Chọn người dùng <span style="color:#ef4444;">*</span></label>
+                <select id="tbNguoiNhanId" class="form-input">
+                    <option value="">-- Chọn người dùng --</option>
+                    ${nguoiDungOptions}
+                </select>
+            </div>
+        </div>`;
+
+        if (modalFooter) {
+            modalFooter.innerHTML = `
+                <button class="btn btn-secondary" onclick="closeModal()" style="width:auto;">Hủy</button>
+                <button class="btn btn-primary" onclick="window.AppThongBao._submitCreate()" style="width:auto;">
+                    <i class="fas fa-paper-plane"></i> Gửi thông báo
+                </button>`;
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    function _onLoaiNguoiNhanChange() {
+        const val = document.getElementById('tbLoaiNguoiNhan')?.value;
+        const phongGroup = document.getElementById('tbPhongGroup');
+        const nguoiDungGroup = document.getElementById('tbNguoiDungGroup');
+        if (phongGroup) phongGroup.style.display = val === 'Phong' ? 'block' : 'none';
+        if (nguoiDungGroup) nguoiDungGroup.style.display = val === 'NguoiDung' ? 'block' : 'none';
+    }
+
+    async function _submitCreate() {
+        const tieuDe = document.getElementById('tbTieuDe')?.value?.trim();
+        const noiDung = document.getElementById('tbNoiDung')?.value?.trim();
+        const loaiNguoiNhan = document.getElementById('tbLoaiNguoiNhan')?.value;
+        const phongId = document.getElementById('tbPhongId')?.value;
+        const nguoiNhanId = document.getElementById('tbNguoiNhanId')?.value;
+
+        if (!tieuDe) { showToast('Vui lòng nhập tiêu đề.', 'error'); return; }
+        if (!noiDung) { showToast('Vui lòng nhập nội dung.', 'error'); return; }
+        if (loaiNguoiNhan === 'Phong' && !phongId) { showToast('Vui lòng chọn phòng.', 'error'); return; }
+        if (loaiNguoiNhan === 'NguoiDung' && !nguoiNhanId) { showToast('Vui lòng chọn người dùng.', 'error'); return; }
+
+        const payload = {
+            tieuDe,
+            noiDung,
+            loaiThongBao: 'ThuCong',
+            loaiNguoiNhan,
+            phongId: loaiNguoiNhan === 'Phong' ? parseInt(phongId) : null,
+            nguoiNhanId: loaiNguoiNhan === 'NguoiDung' ? parseInt(nguoiNhanId) : null
+        };
+
+        try {
+            const btn = document.querySelector('#modalFooter .btn-primary');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...'; }
+
+            await apiFetch('/api/ThongBao', 'POST', payload);
+            showToast('Thông báo đã được gửi thành công!', 'success');
+            if (typeof closeModal === 'function') closeModal();
+
+            // Reload section nếu đang ở mục thông báo
+            const contentSlot = document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
+            if (contentSlot) await loadThongBaoSection(contentSlot);
+        } catch (e) {
+            showToast('Lỗi: ' + e.message, 'error');
+            const btn = document.querySelector('#modalFooter .btn-primary');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi thông báo'; }
+        }
+    }
+
+    // ── Đăng ký module (tích hợp với generic loader) ──────────────────────────
+    window.AppModules.thongbao = {
+        title: 'Thông Báo',
+        endpoint: '/api/ThongBao',
+        pk: 'thongBaoId',
+        customModal: true,
+
+        // headers chỉ dùng fallback nếu generic loader gọi; thực tế ta override render
+        headers: [
+            { label: 'Tiêu đề', key: 'tieuDe' },
+            { label: 'Nội dung', key: 'noiDung' },
+            { label: 'Loại', key: 'loaiThongBaoText' },
+            { label: 'Gửi đến', key: 'loaiNguoiNhanText' },
+            { label: 'Ngày tạo', key: 'ngayTao', render: v => window.AppFormat.date(v) },
+            {
+                label: 'Trạng thái', key: 'daDoc', render: v =>
+                    v ? '<span class="badge badge-success">Đã đọc</span>'
+                      : '<span class="badge badge-warning">Chưa đọc</span>'
+            }
+        ],
+
+        // Hook: override phần render content nếu dashboard gọi loadGenericSection
+        onLoad: async function (contentSlot) {
+            await loadThongBaoSection(contentSlot);
+        }
+    };
+
+    // ── Public API ─────────────────────────────────────────────────────────────
+    window.AppThongBao = {
+        init: async function () {
+            await startBadgePoller();
+            if (isAdminOrChuTro()) await loadInitData();
+        },
+        openCreateModal,
+        danhDauDoc,
+        docTatCa,
+        anThongBao,
+        refreshBadge: capNhatBadge,
+        _onLoaiNguoiNhanChange,
+        _submitCreate
+    };
+
+    // Tự khởi động badge ngay khi script load xong
+    if (document.readyState !== 'loading') {
+        window.AppThongBao.init();
+    } else {
+        document.addEventListener('DOMContentLoaded', () => window.AppThongBao.init());
+    }
+})();

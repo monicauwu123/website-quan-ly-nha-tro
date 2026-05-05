@@ -210,6 +210,7 @@ function normalizeSectionFromHash() {
         'dien-nuoc': 'diennuoc',
         'yeu-cau-thue': 'yeucauthue',
         'bao-cao-su-co': 'baocaosuco',
+        'thong-bao': 'thongbao',
         'nguoi-dung': 'user',
         'tai-khoan': 'taikhoan'
     };
@@ -232,6 +233,7 @@ function sectionToHash(section) {
         diennuoc: 'dien-nuoc',
         yeucauthue: 'yeu-cau-thue',
         baocaosuco: 'bao-cao-su-co',
+        thongbao: 'thong-bao',
         user: 'nguoi-dung',
         taikhoan: 'tai-khoan',
         account: 'tai-khoan',
@@ -277,7 +279,7 @@ function showSection(section, el, skipHashUpdate = false) {
     // Quyền hiển thị nút "Thêm mới" theo từng nghiệp vụ.
     // Báo cáo sự cố: chỉ Người dùng/khách thuê được tạo; Chủ trọ/Admin chỉ xem và xử lý.
     const canCreate =
-        ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu', 'phongdangthue'].includes(section))
+        ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu', 'phongdangthue', 'thongbao'].includes(section))
         || (CURRENT_ROLE === 'NguoiDung' && ['yeucauthue', 'dangkydichvu', 'baocaosuco'].includes(section));
     const canWrite = canCreate;
 
@@ -577,7 +579,32 @@ async function loadGenericSection(section) {
     }
 
     let extraToolbarHtml = '';
+    if (section === 'thongbao') {
+        // Nút "Thêm mới" cho Admin/ChuTro
+        const addBtn = document.getElementById('addBtn');
+        if (addBtn && (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
+            addBtn.style.display = 'inline-flex';
+            addBtn.onclick = () => {
+                if (typeof window.AppThongBao !== 'undefined') {
+                    window.AppThongBao.openCreateModal();
+                }
+            };
+        }
+
+        // Mount container & gọi onLoad của module thongbao
+        document.getElementById('genericSection').innerHTML = `
+            <div id="thongBaoContainer" style="padding:.25rem 0;"></div>`;
+        const container = document.getElementById('thongBaoContainer');
+
+        const cfg = modules['thongbao'];
+        if (cfg?.onLoad) {
+            await cfg.onLoad(container);
+        }
+        return;
+    }
+
     if (section === 'hoadon' && (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
+
         const now = new Date();
         const kyDefault = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         extraToolbarHtml = `
@@ -1140,6 +1167,7 @@ function openModal(id = null) {
         if (section === 'hoadon') return openHoaDonModal(id);
         if (section === 'dangkydichvu') return openDangKyDichVuModal(id);
         if (section === 'baocaosuco') return openBaoCaoSuCoModal(id);
+        if (section === 'thongbao') return window.AppThongBao?.openCreateModal();
         if (section === 'user') return openUserModal(id);
         return;
     }
