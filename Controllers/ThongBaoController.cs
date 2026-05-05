@@ -25,7 +25,9 @@ namespace DoAnSE104.Controllers
             => int.Parse(User.FindFirstValue("MaNguoiDung") ?? User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         private string GetCurrentRole()
-            => User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+            => (User.FindFirstValue(ClaimTypes.Role)
+                ?? User.FindFirstValue("VaiTro")
+                ?? string.Empty).Trim();
 
         // ── Helper map DTO ──────────────────────────────────────────────────────
         private static ThongBaoDto MapDto(ThongBao tb)
@@ -182,6 +184,16 @@ namespace DoAnSE104.Controllers
             var userId = GetCurrentUserId();
             var role = GetCurrentRole();
 
+            var loaiNhanHopLe = new[] { "TatCa", "Phong", "NguoiDung" };
+            if (!loaiNhanHopLe.Contains(dto.LoaiNguoiNhan))
+                return BadRequest(new { thanhCong = false, thongBao = "Loại người nhận không hợp lệ." });
+
+            if (dto.LoaiNguoiNhan == "Phong" && !dto.PhongId.HasValue)
+                return BadRequest(new { thanhCong = false, thongBao = "Vui lòng chọn phòng nhận thông báo." });
+
+            if (dto.LoaiNguoiNhan == "NguoiDung" && !dto.NguoiNhanId.HasValue)
+                return BadRequest(new { thanhCong = false, thongBao = "Vui lòng chọn người dùng nhận thông báo." });
+
             // Kiểm tra quyền nếu chỉ định phòng
             if (dto.LoaiNguoiNhan == "Phong" && dto.PhongId.HasValue)
             {
@@ -189,18 +201,18 @@ namespace DoAnSE104.Controllers
                 {
                     var coQuyen = await _context.Phong
                         .Include(p => p.NhaTro)
-                        .AnyAsync(p => p.MaPhong == dto.PhongId && p.NhaTro.MaChuTro == userId);
+                        .AnyAsync(p => p.MaPhong == dto.PhongId && p.NhaTro != null && p.NhaTro.MaChuTro == userId);
                     if (!coQuyen)
-                        return Forbid();
+                        return StatusCode(403, new { thanhCong = false, thongBao = "Bạn không có quyền gửi thông báo cho phòng này." });
                 }
             }
 
             // Kiểm tra người nhận tồn tại
             if (dto.LoaiNguoiNhan == "NguoiDung" && dto.NguoiNhanId.HasValue)
             {
-                var exists = await _context.Users.AnyAsync(u => u.MaNguoiDung == dto.NguoiNhanId);
+                var exists = await _context.Users.AnyAsync(u => u.MaNguoiDung == dto.NguoiNhanId && u.TrangThai);
                 if (!exists)
-                    return BadRequest(new { thanhCong = false, thongBao = "Người nhận không tồn tại." });
+                    return BadRequest(new { thanhCong = false, thongBao = "Người nhận không tồn tại hoặc đã bị khóa." });
             }
 
             var tb = new ThongBao

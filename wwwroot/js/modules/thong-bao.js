@@ -44,8 +44,32 @@ window.AppModules = window.AppModules || {};
     let _badgeInterval = null;
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+    function unwrapApiResponse(res) {
+        // api.js trả nguyên wrapper { thanhCong, duLieu }, còn dashboard.js lại trả thẳng duLieu.
+        // Module này có thể chạy trước hoặc sau dashboard.js nên cần nhận cả hai dạng.
+        return res && Object.prototype.hasOwnProperty.call(res, 'duLieu') ? res.duLieu : res;
+    }
+
+    function normalizeList(value) {
+        const data = unwrapApiResponse(value);
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.$values)) return data.$values;
+        return [];
+    }
+
     function getRole() {
-        return localStorage.getItem('vaiTro') || '';
+        // Dự án hiện lưu role chủ yếu trong localStorage.user.vaiTro,
+        // không phải localStorage.vaiTro. Nếu chỉ đọc localStorage.vaiTro
+        // thì tài khoản ChuTro/Admin sẽ bị hiểu là không có quyền tạo thông báo.
+        const directRole = (localStorage.getItem('vaiTro') || '').trim();
+        if (directRole) return directRole;
+
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            return (user.vaiTro || user.role || '').trim();
+        } catch (_) {
+            return '';
+        }
     }
 
     function isAdminOrChuTro() {
@@ -70,7 +94,7 @@ window.AppModules = window.AppModules || {};
     async function capNhatBadge() {
         try {
             const res = await apiFetch('/api/ThongBao/chua-doc');
-            const count = res?.duLieu ?? 0;
+            const count = unwrapApiResponse(res) ?? 0;
             const badge = document.getElementById('thongBaoBadge');
             if (badge) {
                 badge.textContent = count > 99 ? '99+' : String(count);
@@ -90,7 +114,7 @@ window.AppModules = window.AppModules || {};
         if (!isAdminOrChuTro()) return;
         try {
             const res = await apiFetch('/api/ThongBao/init-data');
-            _initData = res?.duLieu ?? null;
+            _initData = unwrapApiResponse(res) ?? null;
         } catch (_) { _initData = null; }
     }
 
@@ -173,7 +197,7 @@ window.AppModules = window.AppModules || {};
         contentSlot.innerHTML = '<div style="padding:2rem;color:#6b7280;text-align:center;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
         try {
             const res = await apiFetch('/api/ThongBao');
-            const list = res?.duLieu ?? [];
+            const list = normalizeList(res);
 
             const toolbar = buildToolbar(list);
             const contentDiv = document.createElement('div');
@@ -244,7 +268,8 @@ window.AppModules = window.AppModules || {};
             const res = await apiFetch('/api/ThongBao/doc-tat-ca', 'PUT');
             showToast(res?.thongBao || 'Đã đánh dấu tất cả đã đọc', 'success');
             // Reload section
-            const contentSlot = document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
+            const contentSlot = document.getElementById('thongBaoContainer')
+                || document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
             if (contentSlot) await loadThongBaoSection(contentSlot);
             await capNhatBadge();
         } catch (e) {
@@ -283,59 +308,73 @@ window.AppModules = window.AppModules || {};
             `<option value="${u.maNguoiDung}">${window.AppFormat.escapeHtml(u.hoTen || u.email)} - ${u.soDienThoai || ''}</option>`
         ).join('');
 
-        const modalBody = document.getElementById('modalBody');
+        const modalBody = document.getElementById('modalFields');
         const modalTitle = document.getElementById('modalTitle');
-        const modalFooter = document.getElementById('modalFooter');
-        const modal = document.getElementById('globalModal');
+        const modalFooter = document.querySelector('#universalModal .modal-footer');
+        const modal = document.getElementById('universalModal');
+        const modalForm = document.getElementById('modalForm');
 
         if (!modalBody || !modal) {
             showToast('Không tìm thấy modal container.', 'error');
             return;
         }
 
+        if (typeof resetModalFooter === 'function') resetModalFooter();
         if (modalTitle) modalTitle.textContent = 'Tạo thông báo mới';
 
         modalBody.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:1rem;">
-            <div>
-                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Tiêu đề <span style="color:#ef4444;">*</span></label>
-                <input id="tbTieuDe" type="text" class="form-input" placeholder="Nhập tiêu đề thông báo..." maxlength="200">
+            <div class="form-group" style="grid-column:1/-1;">
+                <label>Tiêu đề <span style="color:var(--error)">*</span></label>
+                <input id="tbTieuDe" type="text" class="form-control" placeholder="Nhập tiêu đề thông báo..." maxlength="200" required>
             </div>
-            <div>
-                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Nội dung <span style="color:#ef4444;">*</span></label>
-                <textarea id="tbNoiDung" class="form-input" rows="4" placeholder="Nhập nội dung thông báo..." maxlength="2000"
-                          style="resize:vertical;min-height:6rem;"></textarea>
-            </div>
-            <div>
-                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Gửi đến</label>
-                <select id="tbLoaiNguoiNhan" class="form-input" onchange="window.AppThongBao._onLoaiNguoiNhanChange()">
+
+            <div class="form-group">
+                <label>Gửi đến <span style="color:var(--error)">*</span></label>
+                <select id="tbLoaiNguoiNhan" class="form-control" onchange="window.AppThongBao._onLoaiNguoiNhanChange()" required>
                     <option value="TatCa">Tất cả người thuê</option>
                     <option value="Phong">Một phòng cụ thể</option>
                     <option value="NguoiDung">Một người dùng cụ thể</option>
                 </select>
             </div>
-            <div id="tbPhongGroup" style="display:none;">
-                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Chọn phòng <span style="color:#ef4444;">*</span></label>
-                <select id="tbPhongId" class="form-input">
+
+            <div id="tbPhongGroup" class="form-group" style="display:none;">
+                <label>Chọn phòng <span style="color:var(--error)">*</span></label>
+                <select id="tbPhongId" class="form-control">
                     <option value="">-- Chọn phòng --</option>
                     ${phongOptions}
                 </select>
             </div>
-            <div id="tbNguoiDungGroup" style="display:none;">
-                <label style="font-size:.85rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;">Chọn người dùng <span style="color:#ef4444;">*</span></label>
-                <select id="tbNguoiNhanId" class="form-input">
+
+            <div id="tbNguoiDungGroup" class="form-group" style="display:none;">
+                <label>Chọn người dùng <span style="color:var(--error)">*</span></label>
+                <select id="tbNguoiNhanId" class="form-control">
                     <option value="">-- Chọn người dùng --</option>
                     ${nguoiDungOptions}
                 </select>
             </div>
-        </div>`;
+
+            <div class="form-group" style="grid-column:1/-1;">
+                <label>Nội dung <span style="color:var(--error)">*</span></label>
+                <textarea id="tbNoiDung" class="form-control" rows="5" placeholder="Nhập nội dung thông báo..." maxlength="2000" required></textarea>
+            </div>
+
+            <div class="form-group" style="grid-column:1/-1;background:#f8fffe;border:1px solid #d1fae5;border-radius:.75rem;padding:.85rem;color:var(--text-light);">
+                <strong>Lưu ý:</strong> Chủ trọ/Admin có thể gửi thông báo cho tất cả người thuê, một phòng cụ thể hoặc một người dùng cụ thể.
+            </div>`;
 
         if (modalFooter) {
             modalFooter.innerHTML = `
-                <button class="btn btn-secondary" onclick="closeModal()" style="width:auto;">Hủy</button>
-                <button class="btn btn-primary" onclick="window.AppThongBao._submitCreate()" style="width:auto;">
-                    <i class="fas fa-paper-plane"></i> Gửi thông báo
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Lưu
                 </button>`;
+        }
+
+        if (modalForm) {
+            modalForm.onsubmit = (e) => {
+                e.preventDefault();
+                window.AppThongBao._submitCreate();
+            };
         }
 
         modal.style.display = 'flex';
@@ -371,20 +410,21 @@ window.AppModules = window.AppModules || {};
         };
 
         try {
-            const btn = document.querySelector('#modalFooter .btn-primary');
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...'; }
+            const btn = document.querySelector('#universalModal .modal-footer .btn-primary');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...'; }
 
             await apiFetch('/api/ThongBao', 'POST', payload);
             showToast('Thông báo đã được gửi thành công!', 'success');
             if (typeof closeModal === 'function') closeModal();
 
             // Reload section nếu đang ở mục thông báo
-            const contentSlot = document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
+            const contentSlot = document.getElementById('thongBaoContainer')
+                || document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
             if (contentSlot) await loadThongBaoSection(contentSlot);
         } catch (e) {
             showToast('Lỗi: ' + e.message, 'error');
-            const btn = document.querySelector('#modalFooter .btn-primary');
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi thông báo'; }
+            const btn = document.querySelector('#universalModal .modal-footer .btn-primary');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Lưu'; }
         }
     }
 
