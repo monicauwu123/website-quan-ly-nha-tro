@@ -25,6 +25,11 @@ namespace DoAnSE104.Models.Dtos
         public decimal ConLai { get; set; } = 0;
         public string TrangThaiThanhToan { get; set; } = "Chưa thanh toán";
 
+        /// <summary>
+        /// Trạng thái hóa đơn: ChuaThanhToan | DaThanhToan | Huy
+        /// </summary>
+        public string TrangThai { get; set; } = "ChuaThanhToan";
+
         public int? MaChuTro { get; set; }
         public string? TenChuTro { get; set; }
         public string? TenNganHang { get; set; }

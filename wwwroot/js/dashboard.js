@@ -659,11 +659,18 @@ function renderTable(cfg, data, section) {
                     <button class="btn-action btn-delete" onclick="deleteNguoiThueDisplayGroup(${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
             }
         } else if (section === 'hoadon') {
-            actionHtml = `<button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>`;
-            if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
-                actionHtml += `
+            // trangThai = 'Huy' khi hóa đơn bị hủy (field từ HoaDonDto).
+            // trangThaiThanhToan = 'Đã hủy' là fallback nếu server cũ chưa build lại.
+            const isHuy = item.trangThai === 'Huy' || item.trangThaiThanhToan === 'Đã hủy';
+            if (isHuy) {
+                actionHtml = `<span class="badge badge-red">Đã hủy</span>`;
+            } else {
+                actionHtml = `<button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>`;
+                if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
+                    actionHtml += `
                     <button class="btn-action btn-edit" onclick="editItem('hoadon',${item.maHoaDon})"><i class="fas fa-edit"></i> Sửa</button>
                     <button class="btn-action btn-delete" onclick="deleteItem('hoadon',${item.maHoaDon})"><i class="fas fa-trash"></i> Xóa</button>`;
+                }
             }
         } else if (section === 'phongdangthue') {
             if (CURRENT_ROLE === 'NguoiDung') {
@@ -1895,9 +1902,6 @@ async function huyDangKyDichVu(id) {
         const result = await apiFetch(`/api/DangKyDichVu/${id}`, 'DELETE');
         showToast(result?.thongBao || 'Đã hủy đăng ký dịch vụ');
         refreshData();
-        return;
-        showToast('Đã hủy đăng ký dịch vụ');
-        refreshData();
     } catch (e) {
         showToast(e.message || 'Lỗi hủy đăng ký dịch vụ', 'error');
     }
@@ -2243,12 +2247,62 @@ async function deleteItem(section, id) {
     const cfg = modules[section];
     if (!cfg) return;
     try {
-        const result = await apiFetch(`${cfg.endpoint}/${id}`, 'DELETE');
-        showToast(result?.thongBao || 'Đã xử lý yêu cầu xóa!');
+        const res = await fetch(`${cfg.endpoint}/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        if (res.status === 401) { logout(); return; }
+        const text = await res.text();
+        let json = {};
+        try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+
+        if (!res.ok || json.thanhCong === false) {
+            throw new Error(extractApiErrorMessage(json) || `Lỗi HTTP ${res.status}`);
+        }
+
+        // Lấy thông báo trực tiếp từ ApiResponse (không qua apiFetch vì apiFetch trả về duLieu)
+        const msg = json.thongBao || 'Đã xử lý yêu cầu xóa!';
+        showToast(msg);
         refreshData();
         loadLookups();
     } catch (e) {
         showToast(e.message || 'Lỗi xóa dữ liệu', 'error');
+    }
+}
+
+async function taoHoaDonHangThangTuDong() {
+    const kyInput = document.getElementById('autoInvoiceKy');
+    const ky = kyInput?.value || '';
+    const resultBox = document.getElementById('autoInvoiceResult');
+
+    if (!ky) { showToast('Vui lòng chọn kỳ hóa đơn', 'error'); return; }
+
+    if (resultBox) {
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = `<div style="color:var(--text-light);"><i class="fas fa-spinner fa-spin"></i> Đang tạo hóa đơn...</div>`;
+    }
+
+    try {
+        const res = await apiFetch(`/api/HoaDon/TaoHoaDonThang?kyHoaDon=${encodeURIComponent(ky)}`, 'POST');
+        const data = res?.chiTiet ? res : (res?.duLieu || res);
+        const soTao = data?.soHoaDonDaTao ?? 0;
+        const boQua = data?.soHoaDonBoQua ?? 0;
+        const canhBao = data?.canhBao || [];
+
+        let html = `<div style="padding:.75rem 1rem;border-radius:.75rem;background:#f0fdf4;border:1px solid #bbf7d0;">
+            <strong style="color:var(--success)"><i class="fas fa-check-circle"></i> Hoàn tất kỳ ${ky}</strong><br>
+            <span>Đã tạo: <strong>${soTao}</strong> hóa đơn &nbsp;|&nbsp; Bỏ qua: <strong>${boQua}</strong> phòng đã có</span>`;
+        if (canhBao.length) {
+            html += `<br><span style="color:#d97706;font-size:.85rem;"><i class="fas fa-exclamation-triangle"></i> ${canhBao.length} cảnh báo: ${canhBao.slice(0, 3).join('; ')}${canhBao.length > 3 ? '...' : ''}</span>`;
+        }
+        html += `</div>`;
+        if (resultBox) resultBox.innerHTML = html;
+
+        showToast(`Đã tạo ${soTao} hóa đơn kỳ ${ky}`);
+        refreshData();
+    } catch (e) {
+        if (resultBox) resultBox.innerHTML = `<div style="padding:.75rem 1rem;border-radius:.75rem;background:#fef2f2;border:1px solid #fecaca;color:var(--error);"><i class="fas fa-times-circle"></i> ${e.message || 'Lỗi tạo hóa đơn'}</div>`;
+        showToast(e.message || 'Lỗi tạo hóa đơn tháng', 'error');
     }
 }
 

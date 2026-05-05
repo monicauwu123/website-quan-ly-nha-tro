@@ -47,25 +47,29 @@ namespace DoAnSE104.Services
                 KyHienTai = kyHienTai
             };
 
-            await using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            var strategy = _context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                result.HopDongHetHan = await KetThucHopDongHetHanAsync(today, maChuTro);
-                result.DangKyDichVuHetHan = await HetHanDichVuCuTheoKyThueAsync(today, maChuTro);
-                result.HoaDonDaChot = await ChotHoaDonKyCuAsync(kyHienTai, maChuTro);
-                result.PhongDaTraVeTrong = await CapNhatPhongTrongChoHopDongHetHanAsync(today, maChuTro);
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    result.HopDongHetHan = await KetThucHopDongHetHanAsync(today, maChuTro);
+                    result.DangKyDichVuHetHan = await HetHanDichVuCuTheoKyThueAsync(today, maChuTro);
+                    result.HoaDonDaChot = await ChotHoaDonKyCuAsync(kyHienTai, maChuTro);
+                    result.PhongDaTraVeTrong = await CapNhatPhongTrongChoHopDongHetHanAsync(today, maChuTro);
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Lỗi khi reset/chốt kỳ thuê tháng");
+                    throw;
+                }
+            });
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Lỗi khi reset/chốt kỳ thuê tháng");
-                throw;
-            }
+            return result;
         }
 
         private async Task<int> KetThucHopDongHetHanAsync(DateTime today, int? maChuTro)

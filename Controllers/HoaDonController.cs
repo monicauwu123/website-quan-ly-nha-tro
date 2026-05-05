@@ -100,6 +100,7 @@ namespace DoAnSE104.Controllers
                 hd.MaPhong == maPhong &&
                 hd.KyHoaDon == kyHoaDon &&
                 hd.LoaiHoaDon == loai &&
+                hd.TrangThai != "Huy" &&
                 hd.MaHoaDon != maHoaDon);
 
             if (trungHoaDon)
@@ -336,7 +337,10 @@ namespace DoAnSE104.Controllers
                     TongTien = h.TongTien,
                     DaThanhToan = daThanhToan,
                     ConLai = conLai,
-                    TrangThaiThanhToan = LayTrangThaiThanhToan(h.TongTien, daThanhToan),
+                    TrangThai = h.TrangThai ?? "ChuaThanhToan",
+                    TrangThaiThanhToan = (h.TrangThai == "Huy")
+                        ? "Đã hủy"
+                        : LayTrangThaiThanhToan(h.TongTien, daThanhToan),
                     MaChuTro = h.Phong?.NhaTro?.MaChuTro,
                     TenChuTro = chuTro?.HoTen,
                     TenNganHang = chuTro?.TenNganHang,

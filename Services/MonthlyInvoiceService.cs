@@ -92,7 +92,7 @@ namespace DoAnSE104.Services
                 {
                     MaPhong = hopDong.MaPhong,
                     TenPhong = phong?.TenPhong ?? $"Phòng #{hopDong.MaPhong}",
-                    TienPhong = phong?.GiaPhong ?? 0m
+                    TienPhong = 0m  // Hóa đơn hằng tháng không bao gồm tiền phòng
                 };
 
                 try
@@ -158,7 +158,7 @@ namespace DoAnSE104.Services
                         .OrderBy(x => x)
                         .ToList();
 
-                    item.TongTien = item.TienPhong + item.TienDien + item.TienNuoc + item.TienDichVu + item.TienPhatSinhKhac;
+                    item.TongTien = item.TienDien + item.TienNuoc + item.TienDichVu + item.TienPhatSinhKhac;
 
                     var hoaDon = new HoaDon
                     {
@@ -177,7 +177,6 @@ namespace DoAnSE104.Services
                     _context.HoaDon.Add(hoaDon);
                     await _context.SaveChangesAsync();
 
-                    ThemChiTiet(hoaDon.MaHoaDon, "TienPhong", item.TienPhong);
                     ThemChiTiet(hoaDon.MaHoaDon, "TienDien", item.TienDien);
                     ThemChiTiet(hoaDon.MaHoaDon, "TienNuoc", item.TienNuoc);
                     ThemChiTiet(hoaDon.MaHoaDon, "PhatSinhKhac", item.TienPhatSinhKhac);
