@@ -4,7 +4,7 @@
 // ==========================================
 
 (function () {
-    const VERSION = '5.5';
+    const VERSION = '5.6';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
@@ -32,7 +32,8 @@
         `js/modules/nguoi-dung.js?v=${VERSION}`,
         `js/modules/bao-cao-su-co.js?v=${VERSION}`,
         `js/modules/dien-nuoc.js?v=${VERSION}`,
-        `js/modules/thong-bao.js?v=${VERSION}`   // ← Module Thông Báo
+        `js/modules/thong-bao.js?v=${VERSION}`,
+        `js/modules/bien-lai.js?v=${VERSION}`   // ← Module Biên Lai
     ];
 
     const appScripts = [

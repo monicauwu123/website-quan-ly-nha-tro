@@ -211,6 +211,8 @@ function normalizeSectionFromHash() {
         'yeu-cau-thue': 'yeucauthue',
         'bao-cao-su-co': 'baocaosuco',
         'thong-bao': 'thongbao',
+        'bien-lai': 'bienlai',
+        'bien-lai-cho-duyet': 'bienlai',
         'nguoi-dung': 'user',
         'tai-khoan': 'taikhoan'
     };
@@ -234,6 +236,7 @@ function sectionToHash(section) {
         yeucauthue: 'yeu-cau-thue',
         baocaosuco: 'bao-cao-su-co',
         thongbao: 'thong-bao',
+        bienlai: 'bien-lai',
         user: 'nguoi-dung',
         taikhoan: 'tai-khoan',
         account: 'tai-khoan',
@@ -279,7 +282,7 @@ function showSection(section, el, skipHashUpdate = false) {
     // Quyền hiển thị nút "Thêm mới" theo từng nghiệp vụ.
     // Báo cáo sự cố: chỉ Người dùng/khách thuê được tạo; Chủ trọ/Admin chỉ xem và xử lý.
     const canCreate =
-        ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu', 'phongdangthue', 'thongbao'].includes(section))
+        ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu', 'phongdangthue', 'thongbao', 'bienlai'].includes(section))
         || (CURRENT_ROLE === 'NguoiDung' && ['yeucauthue', 'dangkydichvu', 'baocaosuco'].includes(section));
     const canWrite = canCreate;
 
@@ -316,6 +319,29 @@ function showSection(section, el, skipHashUpdate = false) {
     if (section === 'overview') loadOverview();
     else if (section === 'phong') renderRoomGrid();
     else if (section === 'diennuoc') renderDienNuocSection();
+    else if (section === 'bienlai') {
+        if (sectionTitle) sectionTitle.textContent = 'Biên lai chờ xác nhận';
+        if (addBtn) addBtn.style.display = 'none';
+        const generic = document.getElementById('genericSection');
+        if (generic) {
+            generic.innerHTML = `
+                <div class="section-header" style="margin-bottom:1rem;">
+                    <div>
+                        <h2 class="section-title"><i class="fas fa-receipt"></i> Biên lai chờ xác nhận</h2>
+                        <p class="section-subtitle">Danh sách biên lai người thuê đã gửi, cần xem xét và xác nhận</p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="renderBienLaiChoXacNhan()">
+                        <i class="fas fa-sync-alt"></i> Làm mới
+                    </button>
+                </div>
+                <div id="bienLaiContainer" class="data-card" style="padding:1rem;">
+                    <div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+                </div>`;
+            if (typeof window.renderBienLaiChoXacNhan === 'function') {
+                window.renderBienLaiChoXacNhan();
+            }
+        }
+    }
     else loadGenericSection(section);
 }
 
@@ -698,6 +724,11 @@ function renderTable(cfg, data, section) {
                     <button class="btn-action btn-edit" onclick="editItem('hoadon',${item.maHoaDon})"><i class="fas fa-edit"></i> Sửa</button>
                     <button class="btn-action btn-delete" onclick="deleteItem('hoadon',${item.maHoaDon})"><i class="fas fa-trash"></i> Xóa</button>`;
                 }
+                if (CURRENT_ROLE === 'NguoiDung' && item.trangThai !== 'DaThanhToan') {
+                    const rowJson = JSON.stringify(item).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    actionHtml += `<button class="btn-action btn-edit" style="background:#10b981;" 
+                        onclick='window.moModalGuiBienLai(${rowJson})'><i class="fas fa-receipt"></i> Gửi biên lai</button>`;
+               }
             }
         } else if (section === 'phongdangthue') {
             if (CURRENT_ROLE === 'NguoiDung') {
@@ -2349,6 +2380,9 @@ function logout() {
 // ==========================================
 // STARTUP
 // ==========================================
+
+
+
 async function startDashboard() {
     if (window.__dashboardStarted) return;
     window.__dashboardStarted = true;
@@ -2364,8 +2398,10 @@ async function startDashboard() {
             showSection(section, null, true);
         }
     });
-}
 
+    capNhatBadgeBienLai();
+    setInterval(capNhatBadgeBienLai, 60000);
+}
 window.startDashboard = startDashboard;
 
 if (!window.__USING_MODULE_LOADER) {

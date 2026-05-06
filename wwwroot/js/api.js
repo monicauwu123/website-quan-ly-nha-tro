@@ -49,18 +49,61 @@ const API = {
         }
     },
 
+    // 4. THANH TOÁN & BIÊN LAI
     thanhtoan: {
         getByHoaDon: (hoaDonId) => apiFetch(`/api/ThanhToan/HoaDon/${hoaDonId}`),
-        create: (data) => apiFetch('/api/ThanhToan', 'POST', data)
+        create: (data) => apiFetch('/api/ThanhToan', 'POST', data),
+
+        /**
+         * Người dùng gửi biên lai thanh toán (multipart/form-data)
+         * @param {Object} dto - { maHoaDon, tongTien, hinhThucThanhToan, maGiaoDich, ghiChu }
+         * @param {File|null} anhBienLai - File ảnh biên lai
+         */
+        guiBienLai: async (dto, anhBienLai) => {
+            const formData = new FormData();
+            formData.append('maHoaDon', dto.maHoaDon);
+            formData.append('tongTien', dto.tongTien);
+            formData.append('hinhThucThanhToan', dto.hinhThucThanhToan || 'ChuyenKhoan');
+            if (dto.maGiaoDich) formData.append('maGiaoDich', dto.maGiaoDich);
+            if (dto.ghiChu) formData.append('ghiChu', dto.ghiChu);
+            if (anhBienLai) formData.append('anhBienLai', anhBienLai);
+
+            const res = await fetch('/api/ThanhToan/gui-bien-lai', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: formData
+            });
+
+            const text = await res.text();
+            let json = {};
+            try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+
+            if (!res.ok || json.thanhCong === false) {
+                throw new Error(extractApiErrorMessage(json) || 'Gửi biên lai thất bại');
+            }
+            return json;
+        },
+
+        /** Chủ trọ / Admin lấy danh sách biên lai chờ xác nhận */
+        getChoXacNhan: () => apiFetch('/api/ThanhToan/cho-xac-nhan'),
+
+        /**
+         * Chủ trọ / Admin xác nhận hoặc từ chối biên lai
+         * @param {number} id - MaThanhToan
+         * @param {boolean} chapNhan
+         * @param {string} [lyDoTuChoi]
+         */
+        xacNhan: (id, chapNhan, lyDoTuChoi = '') =>
+            apiFetch(`/api/ThanhToan/${id}/xac-nhan`, 'PUT', { chapNhan, lyDoTuChoi }),
     },
 
-    // 4. HỢP ĐỒNG (CONTRACTS)
+    // 5. HỢP ĐỒNG (CONTRACTS)
     hopdong: {
         getAll: () => apiFetch('/api/HopDong'),
         getInitData: () => apiFetch('/api/HopDong/TaoMoi'),
     },
 
-    // 5. KHÁCH THUÊ (TENANTS)
+    // 6. KHÁCH THUÊ (TENANTS)
     nguoithue: {
         getAll: () => apiFetch('/api/NguoiThue'),
         getById: (id) => apiFetch(`/api/NguoiThue/${id}`),
@@ -90,7 +133,7 @@ const API = {
         }
     },
 
-    // 6. YÊU CẦU THUÊ
+    // 7. YÊU CẦU THUÊ
     yeucauthue: {
         getAll: () => apiFetch('/api/YeuCauThue'),
         create: (data) => apiFetch('/api/YeuCauThue', 'POST', data),
@@ -99,7 +142,7 @@ const API = {
         delete: (id) => apiFetch(`/api/YeuCauThue/${id}`, 'DELETE'),
     },
 
-    // 7. ĐIỆN & NƯỚC
+    // 8. ĐIỆN & NƯỚC
     dien: {
         getAll: () => apiFetch('/api/ChiSoDien'),
     },
@@ -107,7 +150,7 @@ const API = {
         getAll: () => apiFetch('/api/ChiSoNuoc'),
     },
 
-    // 8. THÔNG BÁO
+    // 9. THÔNG BÁO
     thongbao: {
         getAll: () => apiFetch('/api/ThongBao'),
         getChuaDoc: () => apiFetch('/api/ThongBao/chua-doc'),
