@@ -2399,8 +2399,10 @@ async function startDashboard() {
         }
     });
 
-    capNhatBadgeBienLai();
-    setInterval(capNhatBadgeBienLai, 60000);
+    if (typeof window.capNhatBadgeBienLai === 'function') {
+        window.capNhatBadgeBienLai();
+        setInterval(window.capNhatBadgeBienLai, 60000);
+    }
 }
 window.startDashboard = startDashboard;
 

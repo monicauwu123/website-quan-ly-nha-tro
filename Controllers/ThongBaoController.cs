@@ -29,8 +29,7 @@ namespace DoAnSE104.Controllers
                 ?? User.FindFirstValue("VaiTro")
                 ?? string.Empty).Trim();
 
-        // ── Helper map DTO ──────────────────────────────────────────────────────
-        private static ThongBaoDto MapDto(ThongBao tb)
+        private static ThongBaoDto MapDto(ThongBao tb, bool daDoc = false, bool coTheDanhDauDoc = false)
         {
             return new ThongBaoDto
             {
@@ -45,8 +44,9 @@ namespace DoAnSE104.Controllers
                 TenPhong = tb.Phong?.TenPhong,
                 NguoiTaoId = tb.NguoiTaoId,
                 TenNguoiTao = tb.NguoiTao?.HoTen ?? tb.NguoiTao?.Email,
-                DaDoc = tb.DaDoc,
-                NgayDoc = tb.NgayDoc,
+                DaDoc = daDoc,
+                CoTheDanhDauDoc = coTheDanhDauDoc,
+                NgayDoc = null,
                 NgayTao = tb.NgayTao,
                 TrangThai = tb.TrangThai,
                 LoaiThongBaoText = LoaiThongBaoText(tb.LoaiThongBao),
@@ -72,7 +72,31 @@ namespace DoAnSE104.Controllers
             _ => loai ?? "---"
         };
 
-        // ── GET: tất cả (Admin/ChuTro) hoặc của tôi (NguoiDung) ───────────────
+        private async Task<List<int>> GetPhongCuaNguoiDungAsync(int userId)
+        {
+            return await _context.NguoiThue
+                .Where(nt => nt.MaNguoiDung == userId)
+                .Select(nt => nt.MaPhong)
+                .ToListAsync();
+        }
+
+        private async Task<List<int>> GetPhongCuaChuTroAsync(int userId)
+        {
+            return await _context.Phong
+                .Include(p => p.NhaTro)
+                .Where(p => p.NhaTro != null && p.NhaTro.MaChuTro == userId)
+                .Select(p => p.MaPhong)
+                .ToListAsync();
+        }
+
+        private static bool ThongBaoThuocNguoiDung(ThongBao tb, int userId, List<int> phongCuaToi)
+        {
+            return tb.LoaiNguoiNhan == "TatCa"
+                || (tb.LoaiNguoiNhan == "NguoiDung" && tb.NguoiNhanId == userId)
+                || (tb.LoaiNguoiNhan == "Phong" && tb.PhongId != null && phongCuaToi.Contains(tb.PhongId.Value));
+        }
+
+        // GET: Admin/ChuTro xem thông báo đã gửi; NguoiDung xem thông báo nhận được
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -80,10 +104,11 @@ namespace DoAnSE104.Controllers
             var role = GetCurrentRole();
 
             List<ThongBao> list;
+            var readIds = new HashSet<int>();
+            var coTheDanhDauDoc = role == VaiTroConst.NguoiDung;
 
             if (role == VaiTroConst.Admin)
             {
-                // Admin thấy toàn bộ
                 list = await _context.ThongBao
                     .Include(tb => tb.NguoiNhan)
                     .Include(tb => tb.Phong)
@@ -94,12 +119,7 @@ namespace DoAnSE104.Controllers
             }
             else if (role == VaiTroConst.ChuTro)
             {
-                // ChuTro thấy thông báo mà mình tạo + thông báo nhận cho phòng của mình
-                var maPhongCuaToi = await _context.Phong
-                    .Include(p => p.NhaTro)
-                    .Where(p => p.NhaTro.MaChuTro == userId)
-                    .Select(p => p.MaPhong)
-                    .ToListAsync();
+                var maPhongCuaToi = await GetPhongCuaChuTroAsync(userId);
 
                 list = await _context.ThongBao
                     .Include(tb => tb.NguoiNhan)
@@ -107,7 +127,6 @@ namespace DoAnSE104.Controllers
                     .Include(tb => tb.NguoiTao)
                     .Where(tb => tb.TrangThai != "An" && (
                         tb.NguoiTaoId == userId ||
-                        tb.LoaiNguoiNhan == "TatCa" ||
                         (tb.LoaiNguoiNhan == "Phong" && tb.PhongId != null && maPhongCuaToi.Contains(tb.PhongId.Value))
                     ))
                     .OrderByDescending(tb => tb.NgayTao)
@@ -115,11 +134,7 @@ namespace DoAnSE104.Controllers
             }
             else
             {
-                // NguoiDung: thấy thông báo gửi TatCa, gửi cho phòng mình, gửi cho chính mình
-                var phongCuaToi = await _context.NguoiThue
-                    .Where(nt => nt.MaNguoiDung == userId)
-                    .Select(nt => nt.MaPhong)
-                    .ToListAsync();
+                var phongCuaToi = await GetPhongCuaNguoiDungAsync(userId);
 
                 list = await _context.ThongBao
                     .Include(tb => tb.NguoiNhan)
@@ -132,48 +147,44 @@ namespace DoAnSE104.Controllers
                     ))
                     .OrderByDescending(tb => tb.NgayTao)
                     .ToListAsync();
+
+                var ids = list.Select(tb => tb.ThongBaoId).ToList();
+                var readList = await _context.ThongBaoDaDoc
+                    .Where(x => x.MaNguoiDung == userId && ids.Contains(x.ThongBaoId))
+                    .Select(x => x.ThongBaoId)
+                    .ToListAsync();
+                readIds = readList.ToHashSet();
             }
 
-            var result = list.Select(MapDto).ToList();
+            var result = list.Select(tb => MapDto(tb, readIds.Contains(tb.ThongBaoId), coTheDanhDauDoc)).ToList();
             return Ok(new { thanhCong = true, duLieu = result });
         }
 
-        // ── GET: đếm chưa đọc (dùng cho badge) ────────────────────────────────
+        // GET: đếm thông báo chưa đọc của người nhận. Admin/ChuTro không cần badge đã đọc.
         [HttpGet("chua-doc")]
         public async Task<IActionResult> GetChuaDoc()
         {
             var userId = GetCurrentUserId();
             var role = GetCurrentRole();
 
-            int count;
+            if (role != VaiTroConst.NguoiDung)
+                return Ok(new { thanhCong = true, duLieu = 0 });
 
-            if (role == VaiTroConst.NguoiDung)
-            {
-                var phongCuaToi = await _context.NguoiThue
-                    .Where(nt => nt.MaNguoiDung == userId)
-                    .Select(nt => nt.MaPhong)
-                    .ToListAsync();
+            var phongCuaToi = await GetPhongCuaNguoiDungAsync(userId);
 
-                count = await _context.ThongBao
-                    .Where(tb => tb.TrangThai != "An" && !tb.DaDoc && (
-                        tb.LoaiNguoiNhan == "TatCa" ||
-                        (tb.LoaiNguoiNhan == "NguoiDung" && tb.NguoiNhanId == userId) ||
-                        (tb.LoaiNguoiNhan == "Phong" && tb.PhongId != null && phongCuaToi.Contains(tb.PhongId.Value))
-                    ))
-                    .CountAsync();
-            }
-            else
-            {
-                // Admin/ChuTro: đếm thông báo chưa đọc trong scope của mình
-                count = await _context.ThongBao
-                    .Where(tb => tb.TrangThai != "An" && !tb.DaDoc && tb.NguoiTaoId == userId)
-                    .CountAsync();
-            }
+            var count = await _context.ThongBao
+                .Where(tb => tb.TrangThai != "An" && (
+                    tb.LoaiNguoiNhan == "TatCa" ||
+                    (tb.LoaiNguoiNhan == "NguoiDung" && tb.NguoiNhanId == userId) ||
+                    (tb.LoaiNguoiNhan == "Phong" && tb.PhongId != null && phongCuaToi.Contains(tb.PhongId.Value))
+                ))
+                .Where(tb => !_context.ThongBaoDaDoc.Any(x => x.ThongBaoId == tb.ThongBaoId && x.MaNguoiDung == userId))
+                .CountAsync();
 
             return Ok(new { thanhCong = true, duLieu = count });
         }
 
-        // ── POST: Tạo thông báo (Admin/ChuTro) ───────────────────────────────
+        // POST: Tạo thông báo (Admin/ChuTro)
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> Create([FromBody] ThongBaoCreateDto dto)
@@ -194,37 +205,34 @@ namespace DoAnSE104.Controllers
             if (dto.LoaiNguoiNhan == "NguoiDung" && !dto.NguoiNhanId.HasValue)
                 return BadRequest(new { thanhCong = false, thongBao = "Vui lòng chọn người dùng nhận thông báo." });
 
-            // Kiểm tra quyền nếu chỉ định phòng
-            if (dto.LoaiNguoiNhan == "Phong" && dto.PhongId.HasValue)
+            if (dto.LoaiNguoiNhan == "Phong" && dto.PhongId.HasValue && role == VaiTroConst.ChuTro)
             {
-                if (role == VaiTroConst.ChuTro)
-                {
-                    var coQuyen = await _context.Phong
-                        .Include(p => p.NhaTro)
-                        .AnyAsync(p => p.MaPhong == dto.PhongId && p.NhaTro != null && p.NhaTro.MaChuTro == userId);
-                    if (!coQuyen)
-                        return StatusCode(403, new { thanhCong = false, thongBao = "Bạn không có quyền gửi thông báo cho phòng này." });
-                }
+                var coQuyen = await _context.Phong
+                    .Include(p => p.NhaTro)
+                    .AnyAsync(p => p.MaPhong == dto.PhongId && p.NhaTro != null && p.NhaTro.MaChuTro == userId);
+                if (!coQuyen)
+                    return StatusCode(403, new { thanhCong = false, thongBao = "Bạn không có quyền gửi thông báo cho phòng này." });
             }
 
-            // Kiểm tra người nhận tồn tại
             if (dto.LoaiNguoiNhan == "NguoiDung" && dto.NguoiNhanId.HasValue)
             {
-                var exists = await _context.Users.AnyAsync(u => u.MaNguoiDung == dto.NguoiNhanId && u.TrangThai);
+                var exists = await _context.Users.AnyAsync(u => u.MaNguoiDung == dto.NguoiNhanId && u.VaiTro == VaiTroConst.NguoiDung && u.TrangThai);
                 if (!exists)
-                    return BadRequest(new { thanhCong = false, thongBao = "Người nhận không tồn tại hoặc đã bị khóa." });
+                    return BadRequest(new { thanhCong = false, thongBao = "Người nhận không tồn tại, không phải người dùng hoặc đã bị khóa." });
             }
 
             var tb = new ThongBao
             {
                 TieuDe = dto.TieuDe.Trim(),
                 NoiDung = dto.NoiDung.Trim(),
-                LoaiThongBao = dto.LoaiThongBao,
+                LoaiThongBao = string.IsNullOrWhiteSpace(dto.LoaiThongBao) ? "ThuCong" : dto.LoaiThongBao.Trim(),
                 LoaiNguoiNhan = dto.LoaiNguoiNhan,
                 NguoiNhanId = dto.LoaiNguoiNhan == "NguoiDung" ? dto.NguoiNhanId : null,
                 PhongId = dto.LoaiNguoiNhan == "Phong" ? dto.PhongId : null,
                 NguoiTaoId = userId,
-                NgayTao = DateTime.Now
+                NgayTao = DateTime.Now,
+                TrangThai = "HienThi",
+                DaDoc = false
             };
 
             _context.ThongBao.Add(tb);
@@ -234,89 +242,82 @@ namespace DoAnSE104.Controllers
             await _context.Entry(tb).Reference(x => x.Phong).LoadAsync();
             await _context.Entry(tb).Reference(x => x.NguoiTao).LoadAsync();
 
-            return Ok(new { thanhCong = true, thongBao = "Tạo thông báo thành công.", duLieu = MapDto(tb) });
+            return Ok(new { thanhCong = true, thongBao = "Tạo thông báo thành công.", duLieu = MapDto(tb, false, false) });
         }
 
-        // ── PUT: Đánh dấu đã đọc ──────────────────────────────────────────────
+        // PUT: Đánh dấu đã đọc 1 thông báo của chính người nhận
         [HttpPut("{id}/da-doc")]
         public async Task<IActionResult> DaDoc(int id)
         {
             var userId = GetCurrentUserId();
             var role = GetCurrentRole();
 
-            var tb = await _context.ThongBao.FindAsync(id);
+            if (role != VaiTroConst.NguoiDung)
+                return BadRequest(new { thanhCong = false, thongBao = "Chỉ người nhận thông báo mới cần đánh dấu đã đọc." });
+
+            var tb = await _context.ThongBao.FirstOrDefaultAsync(x => x.ThongBaoId == id && x.TrangThai != "An");
             if (tb == null)
                 return NotFound(new { thanhCong = false, thongBao = "Không tìm thấy thông báo." });
 
-            // Chỉ cho phép đánh dấu đọc nếu thông báo thuộc về người dùng
-            if (role == VaiTroConst.NguoiDung)
+            var phongCuaToi = await GetPhongCuaNguoiDungAsync(userId);
+            if (!ThongBaoThuocNguoiDung(tb, userId, phongCuaToi))
+                return Forbid();
+
+            var existed = await _context.ThongBaoDaDoc
+                .AnyAsync(x => x.ThongBaoId == id && x.MaNguoiDung == userId);
+
+            if (!existed)
             {
-                var phongCuaToi = await _context.NguoiThue
-                    .Where(nt => nt.MaNguoiDung == userId)
-                    .Select(nt => nt.MaPhong)
-                    .ToListAsync();
-
-                bool coQuyen = tb.LoaiNguoiNhan == "TatCa"
-                    || (tb.LoaiNguoiNhan == "NguoiDung" && tb.NguoiNhanId == userId)
-                    || (tb.LoaiNguoiNhan == "Phong" && tb.PhongId != null && phongCuaToi.Contains(tb.PhongId.Value));
-
-                if (!coQuyen)
-                    return Forbid();
-            }
-
-            if (!tb.DaDoc)
-            {
-                tb.DaDoc = true;
-                tb.NgayDoc = DateTime.Now;
+                _context.ThongBaoDaDoc.Add(new ThongBaoDaDoc
+                {
+                    ThongBaoId = id,
+                    MaNguoiDung = userId,
+                    NgayDoc = DateTime.Now
+                });
                 await _context.SaveChangesAsync();
             }
 
             return Ok(new { thanhCong = true, thongBao = "Đã đánh dấu đọc." });
         }
 
-        // ── PUT: Đánh dấu tất cả đã đọc ──────────────────────────────────────
+        // PUT: Đánh dấu tất cả thông báo của tôi là đã đọc
         [HttpPut("doc-tat-ca")]
         public async Task<IActionResult> DocTatCa()
         {
             var userId = GetCurrentUserId();
             var role = GetCurrentRole();
 
-            List<ThongBao> chuaDoc;
+            if (role != VaiTroConst.NguoiDung)
+                return Ok(new { thanhCong = true, thongBao = "Không có thông báo người nhận cần đánh dấu đọc." });
 
-            if (role == VaiTroConst.NguoiDung)
-            {
-                var phongCuaToi = await _context.NguoiThue
-                    .Where(nt => nt.MaNguoiDung == userId)
-                    .Select(nt => nt.MaPhong)
-                    .ToListAsync();
+            var phongCuaToi = await GetPhongCuaNguoiDungAsync(userId);
 
-                chuaDoc = await _context.ThongBao
-                    .Where(tb => !tb.DaDoc && tb.TrangThai != "An" && (
-                        tb.LoaiNguoiNhan == "TatCa" ||
-                        (tb.LoaiNguoiNhan == "NguoiDung" && tb.NguoiNhanId == userId) ||
-                        (tb.LoaiNguoiNhan == "Phong" && tb.PhongId != null && phongCuaToi.Contains(tb.PhongId.Value))
-                    ))
-                    .ToListAsync();
-            }
-            else
-            {
-                chuaDoc = await _context.ThongBao
-                    .Where(tb => !tb.DaDoc && tb.NguoiTaoId == userId)
-                    .ToListAsync();
-            }
+            var chuaDocIds = await _context.ThongBao
+                .Where(tb => tb.TrangThai != "An" && (
+                    tb.LoaiNguoiNhan == "TatCa" ||
+                    (tb.LoaiNguoiNhan == "NguoiDung" && tb.NguoiNhanId == userId) ||
+                    (tb.LoaiNguoiNhan == "Phong" && tb.PhongId != null && phongCuaToi.Contains(tb.PhongId.Value))
+                ))
+                .Where(tb => !_context.ThongBaoDaDoc.Any(x => x.ThongBaoId == tb.ThongBaoId && x.MaNguoiDung == userId))
+                .Select(tb => tb.ThongBaoId)
+                .ToListAsync();
 
             var now = DateTime.Now;
-            foreach (var tb in chuaDoc)
+            foreach (var tbId in chuaDocIds)
             {
-                tb.DaDoc = true;
-                tb.NgayDoc = now;
+                _context.ThongBaoDaDoc.Add(new ThongBaoDaDoc
+                {
+                    ThongBaoId = tbId,
+                    MaNguoiDung = userId,
+                    NgayDoc = now
+                });
             }
 
             await _context.SaveChangesAsync();
-            return Ok(new { thanhCong = true, thongBao = $"Đã đánh dấu {chuaDoc.Count} thông báo là đã đọc." });
+            return Ok(new { thanhCong = true, thongBao = $"Đã đánh dấu {chuaDocIds.Count} thông báo là đã đọc." });
         }
 
-        // ── PUT: Ẩn thông báo ────────────────────────────────────────────────
+        // PUT: Ẩn thông báo
         [HttpPut("{id}/an")]
         public async Task<IActionResult> AnThongBao(int id)
         {
@@ -327,7 +328,6 @@ namespace DoAnSE104.Controllers
             if (tb == null)
                 return NotFound(new { thanhCong = false, thongBao = "Không tìm thấy thông báo." });
 
-            // Chỉ admin/chủ trọ tạo mới được ẩn
             if (role == VaiTroConst.NguoiDung)
                 return Forbid();
 
@@ -340,7 +340,7 @@ namespace DoAnSE104.Controllers
             return Ok(new { thanhCong = true, thongBao = "Đã ẩn thông báo." });
         }
 
-        // ── GET: Danh sách người dùng & phòng để chọn khi tạo (Admin/ChuTro) ─
+        // GET: Danh sách người dùng & phòng để chọn khi tạo (Admin/ChuTro)
         [HttpGet("init-data")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> GetInitData()
@@ -350,10 +350,10 @@ namespace DoAnSE104.Controllers
 
             IQueryable<Phong> phongQuery = _context.Phong.Include(p => p.NhaTro);
             if (role == VaiTroConst.ChuTro)
-                phongQuery = phongQuery.Where(p => p.NhaTro.MaChuTro == userId);
+                phongQuery = phongQuery.Where(p => p.NhaTro != null && p.NhaTro.MaChuTro == userId);
 
             var phongs = await phongQuery
-                .Select(p => new { p.MaPhong, p.TenPhong, TenNhaTro = p.NhaTro.TenNhaTro })
+                .Select(p => new { p.MaPhong, p.TenPhong, TenNhaTro = p.NhaTro != null ? p.NhaTro.TenNhaTro : "" })
                 .ToListAsync();
 
             var nguoiDungs = await _context.Users

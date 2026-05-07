@@ -31,6 +31,7 @@ namespace DoAnSE104.Data
 
         // ── Thông Báo ────────────────────────────────────────────────────────────
         public DbSet<ThongBao> ThongBao { get; set; }
+        public DbSet<ThongBaoDaDoc> ThongBaoDaDoc { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -284,6 +285,25 @@ namespace DoAnSE104.Data
 
             modelBuilder.Entity<ThongBao>()
                 .HasIndex(tb => new { tb.DaDoc, tb.TrangThai });
+
+            modelBuilder.Entity<ThongBaoDaDoc>()
+                .HasOne(td => td.ThongBao)
+                .WithMany()
+                .HasForeignKey(td => td.ThongBaoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ThongBaoDaDoc>()
+                .HasOne(td => td.NguoiDung)
+                .WithMany()
+                .HasForeignKey(td => td.MaNguoiDung)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<ThongBaoDaDoc>()
+                .HasIndex(td => new { td.ThongBaoId, td.MaNguoiDung })
+                .IsUnique();
+
+            modelBuilder.Entity<ThongBaoDaDoc>()
+                .HasIndex(td => new { td.MaNguoiDung, td.NgayDoc });
         }
     }
 }

@@ -243,6 +243,7 @@ app.MapFallbackToFile("index.html");
 
 app.Run();
 
+
 static void SeedSampleData(ApplicationDbContext context)
 {
     if (context.NhaTro.Any())

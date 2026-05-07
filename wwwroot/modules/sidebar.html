@@ -30,8 +30,14 @@
                 <i class="fas fa-users"></i> Khách thuê
             </a>
             <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
-               onclick="showSection('yeucauthue', this); return false;">
+               onclick="showSection('yeucauthue', this); return false;"
+               style="position:relative;">
                 <i class="fas fa-paper-plane"></i> Yêu cầu thuê
+                <span id="yeuCauThueBadge"
+                      style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
+                             background:#ef4444;color:#fff;border-radius:999px;font-size:.65rem;font-weight:700;
+                             min-width:1.2rem;height:1.2rem;padding:0 .3rem;
+                             align-items:center;justify-content:center;line-height:1;"></span>
             </a>
             <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
                onclick="showSection('hopdong', this); return false;">
@@ -44,7 +50,7 @@
 
             <!-- ── BIÊN LAI THANH TOÁN (chủ trọ / admin xác nhận) ── -->
             <a href="#" class="nav-link" data-role="Admin,ChuTro"
-               onclick="showSection('bien-lai', this); renderBienLaiChoXacNhan(); return false;"
+               onclick="showSection('bienlai', this); return false;"
                style="position:relative;">
                 <i class="fas fa-receipt"></i> Biên lai chờ duyệt
                 <span id="bienLaiBadge"
@@ -55,8 +61,14 @@
             </a>
 
             <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
-               onclick="showSection('baocaosuco', this); return false;">
+               onclick="showSection('baocaosuco', this); return false;"
+               style="position:relative;">
                 <i class="fas fa-tools"></i> Báo cáo sự cố
+                <span id="baoCaoSuCoBadge"
+                      style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
+                             background:#ef4444;color:#fff;border-radius:999px;font-size:.65rem;font-weight:700;
+                             min-width:1.2rem;height:1.2rem;padding:0 .3rem;
+                             align-items:center;justify-content:center;line-height:1;"></span>
             </a>
             <a href="#" class="nav-link" data-role="NguoiDung"
                onclick="showSection('dangkydichvu', this); return false;">

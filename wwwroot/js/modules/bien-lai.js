@@ -14,80 +14,104 @@ function moModalGuiBienLai(hoaDon) {
     // Xóa modal cũ nếu có
     document.getElementById('modalGuiBienLai')?.remove();
 
+    const formatMoney = window.AppFormat?.currency || ((v) => new Intl.NumberFormat('vi-VN').format(v || 0) + 'đ');
+    const soTienMacDinh = hoaDon.conLai || hoaDon.tongTien || 0;
+
     const modal = document.createElement('div');
     modal.id = 'modalGuiBienLai';
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-        <div class="modal-box" style="max-width:480px;">
+        <div class="modal-card animate-fade-in" style="max-width:640px;">
             <div class="modal-header">
-                <h3><i class="fas fa-receipt"></i> Gửi biên lai thanh toán</h3>
-                <button class="modal-close" onclick="document.getElementById('modalGuiBienLai').remove()">
-                    <i class="fas fa-times"></i>
-                </button>
+                <h2><i class="fas fa-receipt"></i> Gửi biên lai thanh toán</h2>
+                <button type="button" class="close-btn" onclick="document.getElementById('modalGuiBienLai').remove()">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="info-row" style="background:var(--bg-secondary);border-radius:8px;padding:10px 14px;margin-bottom:16px;">
-                    <span style="color:var(--text-muted);font-size:.85rem;">Hóa đơn:</span>
-                    <strong>HĐ#${hoaDon.maHoaDon} – ${hoaDon.kyHoaDon} – ${AppFormat.currency(hoaDon.tongTien)}</strong>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label required">Số tiền đã chuyển (đ)</label>
-                    <input id="blTongTien" type="number" class="form-input" placeholder="VD: 2500000"
-                           min="1" value="${hoaDon.conLai || hoaDon.tongTien}" required />
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label required">Hình thức thanh toán</label>
-                    <select id="blHinhThuc" class="form-input">
-                        <option value="ChuyenKhoan">Chuyển khoản ngân hàng</option>
-                        <option value="TienMat">Tiền mặt</option>
-                        <option value="MoMo">Ví MoMo</option>
-                        <option value="ZaloPay">ZaloPay</option>
-                        <option value="VNPay">VNPay</option>
-                        <option value="Khac">Khác</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Mã giao dịch <span style="color:var(--text-muted)">(nếu có)</span></label>
-                    <input id="blMaGiaoDich" type="text" class="form-input" placeholder="VD: FT2405170001" />
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Ảnh biên lai <span style="color:var(--text-muted)">(tùy chọn, tối đa 10MB)</span></label>
-                    <input id="blAnhBienLai" type="file" class="form-input"
-                           accept=".jpg,.jpeg,.png,.gif,.webp" />
-                    <div id="blAnhPreview" style="margin-top:8px;display:none;">
-                        <img id="blAnhPreviewImg" style="max-width:100%;max-height:200px;border-radius:6px;border:1px solid var(--border);" />
+            <form id="formGuiBienLai">
+                <div class="modal-body" style="grid-template-columns:1fr;gap:1rem;">
+                    <div style="background:#f0fdf9;border:1px solid #d1fae5;border-radius:.9rem;padding:1rem;display:grid;gap:.35rem;">
+                        <div style="font-size:.85rem;color:var(--text-light);">Hóa đơn cần thanh toán</div>
+                        <strong style="color:var(--primary-dark);font-size:1rem;">
+                            HĐ#${hoaDon.maHoaDon} ${hoaDon.kyHoaDon ? '– ' + hoaDon.kyHoaDon : ''} – ${formatMoney(hoaDon.tongTien)}
+                        </strong>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label class="form-label">Ghi chú</label>
-                    <textarea id="blGhiChu" class="form-input" rows="2"
-                              placeholder="Nhập ghi chú nếu có..."></textarea>
-                </div>
+                    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;">
+                        <div class="form-group">
+                            <label for="blTongTien">Số tiền đã chuyển <span style="color:#ef4444;">*</span></label>
+                            <input id="blTongTien" type="number" class="form-control" placeholder="VD: 2500000"
+                                   min="1" value="${soTienMacDinh}" required />
+                        </div>
 
-                <div id="blError" class="alert alert-error" style="display:none;"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary"
-                        onclick="document.getElementById('modalGuiBienLai').remove()">
-                    Hủy
-                </button>
-                <button id="blBtnGui" class="btn btn-primary" onclick="guiBienLai(${hoaDon.maHoaDon})">
-                    <i class="fas fa-paper-plane"></i> Gửi biên lai
-                </button>
-            </div>
+                        <div class="form-group">
+                            <label for="blHinhThuc">Hình thức thanh toán <span style="color:#ef4444;">*</span></label>
+                            <select id="blHinhThuc" class="form-control" required>
+                                <option value="ChuyenKhoan">Chuyển khoản ngân hàng</option>
+                                <option value="TienMat">Tiền mặt</option>
+                                <option value="MoMo">Ví MoMo</option>
+                                <option value="ZaloPay">ZaloPay</option>
+                                <option value="VNPay">VNPay</option>
+                                <option value="Khac">Khác</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="blMaGiaoDich">Mã giao dịch <span style="color:var(--text-light);font-weight:400;">(nếu có)</span></label>
+                        <input id="blMaGiaoDich" type="text" class="form-control" placeholder="VD: FT2405170001" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="blAnhBienLai">Ảnh biên lai <span style="color:var(--text-light);font-weight:400;">(tùy chọn, tối đa 10MB)</span></label>
+                        <input id="blAnhBienLai" type="file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
+                        <div id="blAnhPreview" style="margin-top:.75rem;display:none;">
+                            <img id="blAnhPreviewImg" style="max-width:100%;max-height:220px;border-radius:.75rem;border:1px solid #d1fae5;" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="blGhiChu">Ghi chú</label>
+                        <textarea id="blGhiChu" class="form-control" rows="3" placeholder="Nhập ghi chú nếu có..."></textarea>
+                    </div>
+
+                    <div id="blError" class="alert alert-error" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" style="width:auto;" onclick="document.getElementById('modalGuiBienLai').remove()">
+                        Hủy
+                    </button>
+                    <button id="blBtnGui" type="submit" class="btn btn-primary" style="width:auto;">
+                        <i class="fas fa-paper-plane"></i> Gửi biên lai
+                    </button>
+                </div>
+            </form>
         </div>
     `;
     document.body.appendChild(modal);
+
+    const grid = modal.querySelector('div[style*="repeat(2"]');
+    const applyResponsive = () => {
+        if (grid) grid.style.gridTemplateColumns = window.innerWidth < 640 ? '1fr' : 'repeat(2,minmax(0,1fr))';
+    };
+    applyResponsive();
+    window.addEventListener('resize', applyResponsive, { once: true });
+
+    document.getElementById('formGuiBienLai').addEventListener('submit', function (e) {
+        e.preventDefault();
+        guiBienLai(hoaDon.maHoaDon);
+    });
 
     // Preview ảnh khi chọn
     document.getElementById('blAnhBienLai').addEventListener('change', function () {
         const file = this.files[0];
         if (!file) { document.getElementById('blAnhPreview').style.display = 'none'; return; }
+        if (file.size > 10 * 1024 * 1024) {
+            const errorEl = document.getElementById('blError');
+            errorEl.textContent = 'Ảnh biên lai không được vượt quá 10MB';
+            errorEl.style.display = 'block';
+            this.value = '';
+            document.getElementById('blAnhPreview').style.display = 'none';
+            return;
+        }
         const reader = new FileReader();
         reader.onload = (e) => {
             document.getElementById('blAnhPreviewImg').src = e.target.result;
@@ -125,8 +149,8 @@ async function guiBienLai(maHoaDon) {
         );
         document.getElementById('modalGuiBienLai').remove();
         showToast(res.thongBao || 'Đã gửi biên lai thành công! Vui lòng đợi chủ trọ xác nhận.', 'success');
-        // Reload section hiện tại
-        if (typeof loadSection === 'function') loadSection('hoadon');
+        // Reload lại danh sách hóa đơn nếu đang ở màn hình hóa đơn
+        if (typeof loadGenericSection === 'function') loadGenericSection('hoadon');
     } catch (err) {
         errorEl.textContent = err.message || 'Gửi biên lai thất bại';
         errorEl.style.display = 'block';
@@ -144,15 +168,13 @@ function moModalXacNhanBienLai(thanhToan) {
     modal.id = 'modalXacNhanBienLai';
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-        <div class="modal-box" style="max-width:500px;">
+        <div class="modal-card animate-fade-in" style="max-width:640px;">
             <div class="modal-header">
-                <h3><i class="fas fa-check-circle"></i> Xác nhận biên lai #${thanhToan.maThanhToan}</h3>
-                <button class="modal-close" onclick="document.getElementById('modalXacNhanBienLai').remove()">
-                    <i class="fas fa-times"></i>
-                </button>
+                <h2><i class="fas fa-check-circle"></i> Xác nhận biên lai #${thanhToan.maThanhToan}</h2>
+                <button type="button" class="close-btn" onclick="document.getElementById('modalXacNhanBienLai').remove()">&times;</button>
             </div>
-            <div class="modal-body">
-                <div style="display:grid;gap:8px;background:var(--bg-secondary);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:.9rem;">
+            <div class="modal-body" style="grid-template-columns:1fr;gap:1rem;">
+                <div style="display:grid;gap:8px;background:#f0fdf9;border:1px solid #d1fae5;border-radius:.9rem;padding:12px 14px;font-size:.9rem;">
                     <div><span style="color:var(--text-muted);">Người thuê:</span> <strong>${thanhToan.tenNguoiThue || '#' + thanhToan.maNguoiThue}</strong></div>
                     <div><span style="color:var(--text-muted);">Hóa đơn:</span> <strong>HĐ#${thanhToan.maHoaDon}</strong></div>
                     <div><span style="color:var(--text-muted);">Số tiền:</span> <strong style="color:var(--primary)">${AppFormat.currency(thanhToan.tongTien)}</strong></div>
@@ -174,7 +196,7 @@ function moModalXacNhanBienLai(thanhToan) {
 
                 <div id="tuChoiGroup" style="display:none;" class="form-group">
                     <label class="form-label required">Lý do từ chối</label>
-                    <textarea id="xnLyDoTuChoi" class="form-input" rows="3"
+                    <textarea id="xnLyDoTuChoi" class="form-control" rows="3"
                               placeholder="Nhập lý do từ chối để thông báo cho người thuê..."></textarea>
                 </div>
 
@@ -219,6 +241,7 @@ async function thucHienXacNhan(maThanhToan, chapNhan) {
             document.getElementById('modalXacNhanBienLai').remove();
             showToast(res.thongBao || 'Đã từ chối biên lai', 'warning');
             if (typeof renderBienLaiChoXacNhan === 'function') renderBienLaiChoXacNhan();
+            if (typeof capNhatBadgeBienLai === 'function') capNhatBadgeBienLai();
         } catch (err) {
             errorEl.textContent = err.message;
             errorEl.style.display = 'block';
@@ -229,6 +252,7 @@ async function thucHienXacNhan(maThanhToan, chapNhan) {
             document.getElementById('modalXacNhanBienLai').remove();
             showToast(res.thongBao || 'Đã xác nhận thanh toán thành công', 'success');
             if (typeof renderBienLaiChoXacNhan === 'function') renderBienLaiChoXacNhan();
+            if (typeof capNhatBadgeBienLai === 'function') capNhatBadgeBienLai();
         } catch (err) {
             errorEl.textContent = err.message;
             errorEl.style.display = 'block';
@@ -302,9 +326,31 @@ async function renderBienLaiChoXacNhan() {
     }
 }
 
+async function capNhatBadgeBienLai() {
+    const badge = document.getElementById('bienLaiBadge');
+    if (!badge || !window.API?.thanhtoan?.getChoXacNhan) return;
+
+    try {
+        const res = await API.thanhtoan.getChoXacNhan();
+        const list = res?.duLieu || res || [];
+        const count = Array.isArray(list) ? list.length : 0;
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : String(count);
+            badge.style.display = 'inline-flex';
+        } else {
+            badge.textContent = '';
+            badge.style.display = 'none';
+        }
+    } catch (err) {
+        console.warn('Không cập nhật được badge biên lai:', err);
+        badge.style.display = 'none';
+    }
+}
+
 // Export để dùng global
 window.moModalGuiBienLai = moModalGuiBienLai;
 window.guiBienLai = guiBienLai;
 window.moModalXacNhanBienLai = moModalXacNhanBienLai;
 window.thucHienXacNhan = thucHienXacNhan;
 window.renderBienLaiChoXacNhan = renderBienLaiChoXacNhan;
+window.capNhatBadgeBienLai = capNhatBadgeBienLai;

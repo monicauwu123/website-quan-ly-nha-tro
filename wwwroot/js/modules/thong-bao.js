@@ -93,13 +93,20 @@ window.AppModules = window.AppModules || {};
     // ── Badge (số thông báo chưa đọc) ─────────────────────────────────────────
     async function capNhatBadge() {
         try {
-            const res = await apiFetch('/api/ThongBao/chua-doc');
-            const count = unwrapApiResponse(res) ?? 0;
             const badge = document.getElementById('thongBaoBadge');
-            if (badge) {
-                badge.textContent = count > 99 ? '99+' : String(count);
-                badge.style.display = count > 0 ? 'inline-flex' : 'none';
+            if (!badge) return;
+
+            // Chủ trọ/Admin là người gửi/quản lý thông báo nên không cần chấm đỏ "chưa đọc".
+            if (isAdminOrChuTro()) {
+                badge.textContent = '';
+                badge.style.display = 'none';
+                return;
             }
+
+            const res = await apiFetch('/api/ThongBao/chua-doc');
+            const count = Number(unwrapApiResponse(res) ?? 0);
+            badge.textContent = count > 99 ? '99+' : String(count);
+            badge.style.display = count > 0 ? 'inline-flex' : 'none';
         } catch (_) { /* silent */ }
     }
 
@@ -132,7 +139,8 @@ window.AppModules = window.AppModules || {};
         const html = list.map(tb => {
             const icon = ICON_LOAI[tb.loaiThongBao] || 'fa-bell';
             const color = COLOR_LOAI[tb.loaiThongBao] || '#6b7280';
-            const chuaDoc = !tb.daDoc;
+            const canMarkRead = tb.coTheDanhDauDoc !== false && !isAdminOrChuTro();
+            const chuaDoc = canMarkRead && !tb.daDoc;
             const loaiText = LOAI_THONG_BAO[tb.loaiThongBao] || tb.loaiThongBao;
 
             let metaHtml = '';
@@ -143,12 +151,14 @@ window.AppModules = window.AppModules || {};
                 metaHtml = `<span class="badge badge-info" style="font-size:.7rem;">${nguoiNhanText}</span>`;
             }
 
-            const actionsHtml = chuaDoc
-                ? `<button class="btn" style="padding:.2rem .6rem;font-size:.78rem;background:#e0e7ff;color:#3730a3;"
-                        onclick="window.AppThongBao.danhDauDoc(${tb.thongBaoId}, this)">
-                        <i class="fas fa-check"></i> Đánh dấu đọc
-                   </button>`
-                : `<span style="color:#9ca3af;font-size:.78rem;"><i class="fas fa-check-double"></i> Đã đọc</span>`;
+            const actionsHtml = canMarkRead
+                ? (chuaDoc
+                    ? `<button class="btn" style="padding:.2rem .6rem;font-size:.78rem;background:#e0e7ff;color:#3730a3;"
+                            onclick="window.AppThongBao.danhDauDoc(${tb.thongBaoId}, this)">
+                            <i class="fas fa-check"></i> Đánh dấu đọc
+                       </button>`
+                    : `<span style="color:#9ca3af;font-size:.78rem;"><i class="fas fa-check-double"></i> Đã đọc</span>`)
+                : `<span style="color:#0f766e;font-size:.78rem;"><i class="fas fa-paper-plane"></i> Đã gửi</span>`;
 
             const anBtn = isAdminOrChuTro()
                 ? `<button class="btn" style="padding:.2rem .6rem;font-size:.78rem;background:#fee2e2;color:#991b1b;margin-left:.4rem;"
@@ -213,17 +223,20 @@ window.AppModules = window.AppModules || {};
     }
 
     function buildToolbar(list) {
-        const chuaDocCount = list.filter(tb => !tb.daDoc).length;
+        const chuaDocCount = list.filter(tb => tb.coTheDanhDauDoc !== false && !tb.daDoc).length;
+        const adminView = isAdminOrChuTro();
 
         const wrapper = document.createElement('div');
         wrapper.style.cssText = 'display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;padding:.5rem 0 1rem;';
 
         const info = document.createElement('span');
         info.style.cssText = 'color:#6b7280;font-size:.875rem;flex:1;';
-        info.innerHTML = `<strong>${list.length}</strong> thông báo · <strong style="color:#3b82f6;">${chuaDocCount}</strong> chưa đọc`;
+        info.innerHTML = adminView
+            ? `<strong>${list.length}</strong> thông báo đã gửi/đang hiển thị`
+            : `<strong>${list.length}</strong> thông báo · <strong style="color:#3b82f6;">${chuaDocCount}</strong> chưa đọc`;
         wrapper.appendChild(info);
 
-        if (chuaDocCount > 0) {
+        if (!adminView && chuaDocCount > 0) {
             const btnDocTatCa = document.createElement('button');
             btnDocTatCa.className = 'btn btn-secondary';
             btnDocTatCa.style.cssText = 'width:auto;';
@@ -256,6 +269,7 @@ window.AppModules = window.AppModules || {};
             }
 
             await capNhatBadge();
+            if (typeof window.refreshSidebarBadges === 'function') await window.refreshSidebarBadges();
         } catch (e) {
             showToast('Lỗi: ' + e.message, 'error');
             if (btn) btn.disabled = false;
@@ -272,6 +286,7 @@ window.AppModules = window.AppModules || {};
                 || document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
             if (contentSlot) await loadThongBaoSection(contentSlot);
             await capNhatBadge();
+            if (typeof window.refreshSidebarBadges === 'function') await window.refreshSidebarBadges();
         } catch (e) {
             showToast('Lỗi: ' + e.message, 'error');
         }
@@ -421,6 +436,7 @@ window.AppModules = window.AppModules || {};
             const contentSlot = document.getElementById('thongBaoContainer')
                 || document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
             if (contentSlot) await loadThongBaoSection(contentSlot);
+            if (typeof window.refreshSidebarBadges === 'function') await window.refreshSidebarBadges();
         } catch (e) {
             showToast('Lỗi: ' + e.message, 'error');
             const btn = document.querySelector('#universalModal .modal-footer .btn-primary');

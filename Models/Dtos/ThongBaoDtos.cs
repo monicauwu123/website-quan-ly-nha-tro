@@ -38,6 +38,7 @@ namespace DoAnSE104.Models.Dtos
         public int? NguoiTaoId { get; set; }
         public string? TenNguoiTao { get; set; }
         public bool DaDoc { get; set; }
+        public bool CoTheDanhDauDoc { get; set; }
         public DateTime? NgayDoc { get; set; }
         public DateTime NgayTao { get; set; }
         public string TrangThai { get; set; } = string.Empty;
