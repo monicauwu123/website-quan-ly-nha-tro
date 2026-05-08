@@ -6,6 +6,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Helpers;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
+using DoAnSE104.Services;
 
 namespace DoAnSE104.Controllers
 {
@@ -15,10 +16,12 @@ namespace DoAnSE104.Controllers
     public class ThongBaoController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly INotificationEmailService _notificationEmailService;
 
-        public ThongBaoController(ApplicationDbContext context)
+        public ThongBaoController(ApplicationDbContext context, INotificationEmailService notificationEmailService)
         {
             _context = context;
+            _notificationEmailService = notificationEmailService;
         }
 
         private int GetCurrentUserId()
@@ -237,6 +240,7 @@ namespace DoAnSE104.Controllers
 
             _context.ThongBao.Add(tb);
             await _context.SaveChangesAsync();
+            await _notificationEmailService.GuiEmailThongBaoMoiAsync(tb.ThongBaoId);
 
             await _context.Entry(tb).Reference(x => x.NguoiNhan).LoadAsync();
             await _context.Entry(tb).Reference(x => x.Phong).LoadAsync();

@@ -42,10 +42,13 @@ namespace DoAnSE104.Controllers
         /// Upload ảnh CCCD khi đăng ký tài khoản người dùng.
         /// </summary>
         [HttpPost("upload-cccd-image")]
-        public async Task<IActionResult> UploadCccdImage([FromForm] IFormFile file)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadCccdImage([FromForm] UploadCccdImageDto dto)
         {
             try
             {
+                var file = dto?.File;
+
                 if (file == null || file.Length == 0)
                     return BadRequest(ApiResponse<object>.Loi("Vui lòng chọn file ảnh CCCD"));
 

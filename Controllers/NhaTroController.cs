@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
+using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
 
 namespace DoAnSE104.Controllers
@@ -14,10 +17,12 @@ namespace DoAnSE104.Controllers
     public class NhaTroController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly Cloudinary _cloudinary;
 
-        public NhaTroController(ApplicationDbContext context)
+        public NhaTroController(ApplicationDbContext context, Cloudinary cloudinary)
         {
             _context = context;
+            _cloudinary = cloudinary;
         }
 
         private int GetCurrentUserId()
@@ -25,6 +30,24 @@ namespace DoAnSE104.Controllers
 
         private string GetCurrentRole()
             => User.FindFirstValue(ClaimTypes.Role)!;
+
+        private static string? ValidateImageFile(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return "Vui lòng chọn file ảnh";
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var allowedContentTypes = new[] { "image/jpeg", "image/png", "image/webp" };
+            var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(fileExtension) || !allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+                return "Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP";
+
+            if (file.Length > 5 * 1024 * 1024)
+                return "Kích thước file không được vượt quá 5MB";
+
+            return null;
+        }
 
         // GET: api/NhaTro
         [HttpGet]
@@ -123,6 +146,8 @@ namespace DoAnSE104.Controllers
                 existing.TenNhaTro = nhaTro.TenNhaTro;
                 existing.DiaChi = nhaTro.DiaChi;
                 existing.MoTa = nhaTro.MoTa;
+                existing.HinhAnh = nhaTro.HinhAnh;
+                existing.DanhSachHinhAnh = nhaTro.DanhSachHinhAnh;
                 if (role == VaiTroConst.Admin)
                     existing.MaChuTro = nhaTro.MaChuTro;
 
@@ -132,6 +157,47 @@ namespace DoAnSE104.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Loi(ex.Message));
+            }
+        }
+
+        // POST: api/NhaTro/upload-image
+        [HttpPost("UploadImage")]
+        [HttpPost("upload-image")]
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadImage([FromForm] UploadImageDto dto)
+        {
+            try
+            {
+                var file = dto?.File;
+                var validationError = ValidateImageFile(file!);
+                if (validationError != null)
+                    return BadRequest(ApiResponse<object>.Loi(validationError));
+
+                var uploadParams = new ImageUploadParams()
+                {
+                    File = new FileDescription(file.FileName, file.OpenReadStream()),
+                    Folder = "nha_tro_images",
+                    Transformation = new Transformation().Width(1200).Height(800).Crop("limit").Quality("auto")
+                };
+
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+                if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK && uploadResult.SecureUrl != null)
+                {
+                    var data = new { url = uploadResult.SecureUrl.AbsoluteUri, publicId = uploadResult.PublicId };
+                    return Ok(ApiResponse<object>.Ok(data, "Upload ảnh thành công"));
+                }
+
+                var cloudinaryError = uploadResult.Error?.Message;
+                return StatusCode(500, ApiResponse<object>.Loi(
+                    string.IsNullOrWhiteSpace(cloudinaryError)
+                        ? "Lỗi upload ảnh lên Cloudinary"
+                        : $"Lỗi upload ảnh lên Cloudinary: {cloudinaryError}"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Loi($"Lỗi xử lý ảnh: {ex.Message}"));
             }
         }
 

@@ -18,15 +18,18 @@ namespace DoAnSE104.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IRentalPeriodResetService _rentalPeriodResetService;
         private readonly IMonthlyInvoiceService _monthlyInvoiceService;
+        private readonly INotificationEmailService _notificationEmailService;
 
         public HoaDonController(
             ApplicationDbContext context,
             IRentalPeriodResetService rentalPeriodResetService,
-            IMonthlyInvoiceService monthlyInvoiceService)
+            IMonthlyInvoiceService monthlyInvoiceService,
+            INotificationEmailService notificationEmailService)
         {
             _context = context;
             _rentalPeriodResetService = rentalPeriodResetService;
             _monthlyInvoiceService = monthlyInvoiceService;
+            _notificationEmailService = notificationEmailService;
         }
 
         private int GetCurrentUserId()
@@ -150,7 +153,8 @@ namespace DoAnSE104.Controllers
 
             return await _context.DichVu
                 .Where(dv => distinctIds.Contains(dv.MaDichVu)
-                    && dv.MaNhaTro == maNhaTro)
+                    && dv.MaNhaTro == maNhaTro
+                    && dv.LoaiDichVu == "TinhPhi")
                 .ToListAsync();
         }
 
@@ -165,7 +169,8 @@ namespace DoAnSE104.Controllers
                 .Include(dk => dk.DichVu)
                 .Where(dk => dk.MaPhong == maPhong
                     && dk.TrangThai == "DangSuDung"
-                    && dk.DichVu.MaNhaTro == maNhaTro)
+                    && dk.DichVu.MaNhaTro == maNhaTro
+                    && dk.DichVu.LoaiDichVu == "TinhPhi")
                 .Select(dk => dk.DichVu)
                 .Distinct()
                 .ToListAsync();
@@ -398,7 +403,8 @@ namespace DoAnSE104.Controllers
 
             var dichVuDaDangKy = await _context.DichVu
                 .Where(dv => dichVuDaDangKyIds.Contains(dv.MaDichVu)
-                    && dv.MaNhaTro == phong.MaNhaTro)
+                    && dv.MaNhaTro == phong.MaNhaTro
+                    && dv.LoaiDichVu == "TinhPhi")
                 .OrderBy(dv => dv.TenDichVu)
                 .Select(dv => new
                 {
@@ -580,6 +586,7 @@ namespace DoAnSE104.Controllers
 
                 await CapNhatChiTietHoaDonDichVuAsync(hoaDon.MaHoaDon, dichVuSuDung);
                 await _context.SaveChangesAsync();
+                await _notificationEmailService.GuiEmailHoaDonMoiAsync(hoaDon.MaHoaDon);
 
                 return Ok(ApiResponse<object>.Ok(new
                 {
@@ -743,6 +750,216 @@ namespace DoAnSE104.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, ApiResponse<object>.Loi($"Lỗi khi xóa hóa đơn: {ex.Message}"));
+            }
+        }
+
+        // Trả về trang HTML chứa hóa đơn, dùng window.print() ở frontend
+        // Endpoint này trả về JSON data để frontend tự render & print
+        [HttpGet("ExportPdf/{id}")]
+        public async Task<IActionResult> ExportPdf(int id)
+        {
+            try
+            {
+                var role = GetCurrentRole();
+                var userId = GetCurrentUserId();
+
+                var hoaDon = await _context.HoaDon
+                    .Include(h => h.Phong)
+                        .ThenInclude(p => p.NhaTro)
+                            .ThenInclude(n => n.ChuTro)
+                    .Include(h => h.NguoiThue)
+                    .Include(h => h.ChiSoDien)
+                    .Include(h => h.ChiSoNuoc)
+                    .Include(h => h.ChiTietHoaDon)
+                    .FirstOrDefaultAsync(h => h.MaHoaDon == id);
+
+                if (hoaDon == null)
+                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy hóa đơn"));
+
+                // Kiểm tra quyền
+                if (role == VaiTroConst.ChuTro && !await ChuTroCoQuyenHoaDon(id))
+                    return Forbid();
+
+                if (role == VaiTroConst.NguoiDung && hoaDon.MaNguoiThue != userId)
+                    return Forbid();
+
+                var chiTietDichVu = hoaDon.ChiTietHoaDon?
+                    .Where(ct => ct.LoaiKhoan.StartsWith("DichVu"))
+                    .ToList() ?? new List<ChiTietHoaDon>();
+
+                var daThanhToan = await _context.ThanhToan
+                    .Where(t => t.MaHoaDon == id)
+                    .SumAsync(t => t.TongTien);
+
+                var conLai = Math.Max(hoaDon.TongTien - daThanhToan, 0m);
+                var chuTro = hoaDon.Phong?.NhaTro?.ChuTro;
+
+                var result = new
+                {
+                    maHoaDon          = hoaDon.MaHoaDon,
+                    maPhong           = hoaDon.MaPhong,
+                    tenPhong          = hoaDon.Phong?.TenPhong ?? "---",
+                    maNguoiThue       = hoaDon.MaNguoiThue,
+                    tenNguoiThue      = hoaDon.NguoiThue?.HoTen ?? "---",
+                    loaiHoaDon        = ChuanHoaLoaiHoaDon(hoaDon.LoaiHoaDon),
+                    tenLoaiHoaDon     = LayTenLoaiHoaDon(hoaDon.LoaiHoaDon),
+                    kyHoaDon          = hoaDon.KyHoaDon,
+                    ngayLap           = hoaDon.NgayLap,
+                    tienPhong         = LayTienTheoChiTiet(hoaDon.ChiTietHoaDon, "TienPhong") > 0
+                                        ? LayTienTheoChiTiet(hoaDon.ChiTietHoaDon, "TienPhong")
+                                        : (ChuanHoaLoaiHoaDon(hoaDon.LoaiHoaDon) == "ThuePhong" ? (hoaDon.Phong?.GiaPhong ?? 0m) : 0m),
+                    tienDien          = LayTienTheoChiTiet(hoaDon.ChiTietHoaDon, "TienDien") > 0
+                                        ? LayTienTheoChiTiet(hoaDon.ChiTietHoaDon, "TienDien")
+                                        : (hoaDon.ChiSoDien?.TienDien ?? 0m),
+                    tienNuoc          = LayTienTheoChiTiet(hoaDon.ChiTietHoaDon, "TienNuoc") > 0
+                                        ? LayTienTheoChiTiet(hoaDon.ChiTietHoaDon, "TienNuoc")
+                                        : (hoaDon.ChiSoNuoc?.TienNuoc ?? 0m),
+                    tienDichVu        = chiTietDichVu.Sum(ct => ct.SoTien),
+                    tienPhatSinhKhac  = hoaDon.TienPhatSinhKhac,
+                    tongTien          = hoaDon.TongTien,
+                    daThanhToan       = daThanhToan,
+                    conLai            = conLai,
+                    trangThai         = hoaDon.TrangThai,
+                    trangThaiThanhToan= (hoaDon.TrangThai == "Huy")
+                                        ? "Đã hủy"
+                                        : LayTrangThaiThanhToan(hoaDon.TongTien, daThanhToan),
+                    tenChuTro         = chuTro?.HoTen,
+                    sdtChuTro         = chuTro?.SoDienThoai,
+                    tenNhaTro         = hoaDon.Phong?.NhaTro?.TenNhaTro,
+                    diaChi            = hoaDon.Phong?.NhaTro?.DiaChi,
+                    dichVuSuDung      = chiTietDichVu.Select(ct => LayTenDichVuTuLoaiKhoan(ct.LoaiKhoan)).ToList(),
+                    ghiChu            = (string?)null   // Mô hình hiện tại chưa có GhiChu — để null
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Loi($"Lỗi xuất PDF: {ex.Message}"));
+            }
+        }
+
+        // GET: api/HoaDon/ExportExcel?kyHoaDon=2026-05&trangThai=...&maPhong=...
+        // Trả về file CSV (UTF-8 BOM) để Excel mở đúng tiếng Việt
+        [HttpGet("ExportExcel")]
+        public async Task<IActionResult> ExportExcel(
+            [FromQuery] string? kyHoaDon   = null,
+            [FromQuery] string? trangThai  = null,
+            [FromQuery] int?    maPhong    = null)
+        {
+            try
+            {
+                var role   = GetCurrentRole();
+                var userId = GetCurrentUserId();
+
+                IQueryable<HoaDon> query = _context.HoaDon
+                    .Include(h => h.Phong).ThenInclude(p => p.NhaTro).ThenInclude(n => n.ChuTro)
+                    .Include(h => h.NguoiThue)
+                    .Include(h => h.ChiSoDien)
+                    .Include(h => h.ChiSoNuoc)
+                    .Include(h => h.ChiTietHoaDon);
+
+                if (role == VaiTroConst.ChuTro)
+                    query = query.Where(h => h.Phong.NhaTro.MaChuTro == userId);
+                else if (role == VaiTroConst.NguoiDung)
+                    query = query.Where(h => h.NguoiThue.MaNguoiDung == userId);
+
+                if (!string.IsNullOrWhiteSpace(kyHoaDon))
+                    query = query.Where(h => h.KyHoaDon == kyHoaDon.Trim());
+
+                if (maPhong.HasValue)
+                    query = query.Where(h => h.MaPhong == maPhong.Value);
+
+                var list = await query.OrderByDescending(h => h.NgayLap).ToListAsync();
+
+                // Tính tiền đã thanh toán
+                var maHoaDons = list.Select(h => h.MaHoaDon).ToList();
+                var thanhToanDict = await _context.ThanhToan
+                    .Where(t => maHoaDons.Contains(t.MaHoaDon))
+                    .GroupBy(t => t.MaHoaDon)
+                    .Select(g => new { g.Key, Sum = g.Sum(x => x.TongTien) })
+                    .ToDictionaryAsync(x => x.Key, x => x.Sum);
+
+                // Lọc theo trạng thái (sau khi tính toán)
+                var rows = list.Select(h =>
+                {
+                    var da = thanhToanDict.TryGetValue(h.MaHoaDon, out var p) ? p : 0m;
+                    var con = Math.Max(h.TongTien - da, 0m);
+                    var tt = h.TrangThai == "Huy" ? "Đã hủy" : LayTrangThaiThanhToan(h.TongTien, da);
+
+                    return new
+                    {
+                        MaHoaDon         = h.MaHoaDon,
+                        TenPhong         = h.Phong?.TenPhong ?? "",
+                        TenNguoiThue     = h.NguoiThue?.HoTen ?? "",
+                        KyHoaDon         = h.KyHoaDon,
+                        TenLoaiHoaDon    = LayTenLoaiHoaDon(h.LoaiHoaDon),
+                        TienPhong        = LayTienTheoChiTiet(h.ChiTietHoaDon, "TienPhong") > 0
+                                           ? LayTienTheoChiTiet(h.ChiTietHoaDon, "TienPhong")
+                                           : (ChuanHoaLoaiHoaDon(h.LoaiHoaDon) == "ThuePhong" ? (h.Phong?.GiaPhong ?? 0m) : 0m),
+                        TienDien         = LayTienTheoChiTiet(h.ChiTietHoaDon, "TienDien") > 0
+                                           ? LayTienTheoChiTiet(h.ChiTietHoaDon, "TienDien")
+                                           : (h.ChiSoDien?.TienDien ?? 0m),
+                        TienNuoc         = LayTienTheoChiTiet(h.ChiTietHoaDon, "TienNuoc") > 0
+                                           ? LayTienTheoChiTiet(h.ChiTietHoaDon, "TienNuoc")
+                                           : (h.ChiSoNuoc?.TienNuoc ?? 0m),
+                        TienDichVu       = h.ChiTietHoaDon?.Where(ct => ct.LoaiKhoan.StartsWith("DichVu")).Sum(ct => ct.SoTien) ?? 0m,
+                        TienPhatSinhKhac = h.TienPhatSinhKhac,
+                        TongTien         = h.TongTien,
+                        DaThanhToan      = da,
+                        ConLai           = con,
+                        TrangThaiThanhToan = tt,
+                        NgayLap          = h.NgayLap.ToString("dd/MM/yyyy")
+                    };
+                });
+
+                if (!string.IsNullOrWhiteSpace(trangThai))
+                    rows = rows.Where(r => r.TrangThaiThanhToan == trangThai.Trim());
+
+                var dataRows = rows.ToList();
+
+                // Build CSV
+                var sb = new System.Text.StringBuilder();
+                // BOM UTF-8 cho Excel
+                sb.Append('\uFEFF');
+                sb.AppendLine("Mã HĐ,Phòng,Người thuê,Kỳ hóa đơn,Loại hóa đơn,Tiền phòng,Tiền điện,Tiền nước,Tiền dịch vụ,Phát sinh khác,Tổng tiền,Đã thanh toán,Còn lại,Trạng thái,Ngày lập");
+
+                foreach (var r in dataRows)
+                {
+                    string Esc(string? s)
+                    {
+                        if (s == null) return "";
+                        if (s.Contains(',') || s.Contains('"') || s.Contains('\n'))
+                            return $"\"{s.Replace("\"", "\"\"")}\"";
+                        return s;
+                    }
+
+                    sb.AppendLine(string.Join(",",
+                        r.MaHoaDon,
+                        Esc(r.TenPhong),
+                        Esc(r.TenNguoiThue),
+                        Esc(r.KyHoaDon),
+                        Esc(r.TenLoaiHoaDon),
+                        r.TienPhong,
+                        r.TienDien,
+                        r.TienNuoc,
+                        r.TienDichVu,
+                        r.TienPhatSinhKhac,
+                        r.TongTien,
+                        r.DaThanhToan,
+                        r.ConLai,
+                        Esc(r.TrangThaiThanhToan),
+                        Esc(r.NgayLap)
+                    ));
+                }
+
+                var fileName = $"hoa-don{(string.IsNullOrWhiteSpace(kyHoaDon) ? "" : $"-{kyHoaDon}")}.csv";
+                var bytes    = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+                return File(bytes, "text/csv; charset=utf-8", fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse<object>.Loi($"Lỗi xuất Excel: {ex.Message}"));
             }
         }
     }

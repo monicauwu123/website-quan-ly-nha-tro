@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -6,6 +6,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services;
 
 namespace DoAnSE104.Controllers
 {
@@ -20,10 +21,12 @@ namespace DoAnSE104.Controllers
         private const string DaLapHopDong = "DaLapHopDong";
 
         private readonly ApplicationDbContext _context;
+        private readonly INotificationEmailService _notificationEmailService;
 
-        public YeuCauThueController(ApplicationDbContext context)
+        public YeuCauThueController(ApplicationDbContext context, INotificationEmailService notificationEmailService)
         {
             _context = context;
+            _notificationEmailService = notificationEmailService;
         }
 
         private int GetCurrentUserId()
@@ -66,10 +69,10 @@ namespace DoAnSE104.Controllers
                 y.TrangThai,
                 TrangThaiText = y.TrangThai switch
                 {
-                    ChoDuyet => "Chờ duyệt",
-                    DaChapNhan => "Đã chấp nhận",
-                    DaLapHopDong => "Đã lập hợp đồng",
-                    TuChoi => "Từ chối",
+                    ChoDuyet => "Chá» duyá»‡t",
+                    DaChapNhan => "ÄÃ£ cháº¥p nháº­n",
+                    DaLapHopDong => "ÄÃ£ láº­p há»£p Ä‘á»“ng",
+                    TuChoi => "Tá»« chá»‘i",
                     _ => y.TrangThai
                 },
                 y.GhiChuNguoiDung,
@@ -142,7 +145,7 @@ namespace DoAnSE104.Controllers
 
                 var yeuCau = await BaseQuery().FirstOrDefaultAsync(y => y.MaYeuCau == id);
                 if (yeuCau == null)
-                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy yêu cầu thuê"));
+                    return NotFound(ApiResponse<object>.Loi("KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u thuÃª"));
 
                 if (role == VaiTroConst.NguoiDung && yeuCau.MaNguoiDung != userId)
                     return Forbid();
@@ -168,22 +171,22 @@ namespace DoAnSE104.Controllers
                 var userId = GetCurrentUserId();
 
                 if (dto.SoThangMuonThue < 1 || dto.SoThangMuonThue > 60)
-                    return BadRequest(ApiResponse<object>.Loi("Số tháng muốn thuê phải từ 1 đến 60"));
+                    return BadRequest(ApiResponse<object>.Loi("Sá»‘ thÃ¡ng muá»‘n thuÃª pháº£i tá»« 1 Ä‘áº¿n 60"));
 
                 var phong = await _context.Phong
                     .Include(p => p.NhaTro)
                     .FirstOrDefaultAsync(p => p.MaPhong == dto.MaPhong);
 
                 if (phong == null)
-                    return NotFound(ApiResponse<object>.Loi("Phòng không tồn tại"));
+                    return NotFound(ApiResponse<object>.Loi("PhÃ²ng khÃ´ng tá»“n táº¡i"));
 
                 if (phong.SucChua > 0 && phong.SoNguoiHienTai >= phong.SucChua)
-                    return BadRequest(ApiResponse<object>.Loi("Phòng đã đủ số người, không thể gửi yêu cầu thuê"));
+                    return BadRequest(ApiResponse<object>.Loi("PhÃ²ng Ä‘Ã£ Ä‘á»§ sá»‘ ngÆ°á»i, khÃ´ng thá»ƒ gá»­i yÃªu cáº§u thuÃª"));
 
                 var daCoHopDongHieuLuc = await _context.HopDong
                     .AnyAsync(h => h.Phong.MaPhong == dto.MaPhong && (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
                 if (daCoHopDongHieuLuc)
-                    return BadRequest(ApiResponse<object>.Loi("Phòng này đã có hợp đồng hiệu lực"));
+                    return BadRequest(ApiResponse<object>.Loi("PhÃ²ng nÃ y Ä‘Ã£ cÃ³ há»£p Ä‘á»“ng hiá»‡u lá»±c"));
 
                 var daCoYeuCauChoDuyet = await _context.YeuCauThue.AnyAsync(y =>
                     y.MaNguoiDung == userId &&
@@ -191,7 +194,7 @@ namespace DoAnSE104.Controllers
                     y.TrangThai == ChoDuyet);
 
                 if (daCoYeuCauChoDuyet)
-                    return BadRequest(ApiResponse<object>.Loi("Bạn đã gửi yêu cầu thuê phòng này và đang chờ chủ trọ duyệt"));
+                    return BadRequest(ApiResponse<object>.Loi("Báº¡n Ä‘Ã£ gá»­i yÃªu cáº§u thuÃª phÃ²ng nÃ y vÃ  Ä‘ang chá» chá»§ trá» duyá»‡t"));
 
                 var yeuCau = new YeuCauThue
                 {
@@ -208,7 +211,7 @@ namespace DoAnSE104.Controllers
                 await _context.SaveChangesAsync();
 
                 return CreatedAtAction(nameof(GetYeuCauThue), new { id = yeuCau.MaYeuCau },
-                    ApiResponse<YeuCauThue>.Ok(yeuCau, "Gửi yêu cầu thuê thành công"));
+                    ApiResponse<YeuCauThue>.Ok(yeuCau, "Gá»­i yÃªu cáº§u thuÃª thÃ nh cÃ´ng"));
             }
             catch (Exception ex)
             {
@@ -242,7 +245,7 @@ namespace DoAnSE104.Controllers
 
                         if (yeuCau == null)
                         {
-                            ketQua = NotFound(ApiResponse<object>.Loi("Không tìm thấy yêu cầu thuê"));
+                            ketQua = NotFound(ApiResponse<object>.Loi("KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u thuÃª"));
                             await transaction.RollbackAsync();
                             return;
                         }
@@ -256,7 +259,7 @@ namespace DoAnSE104.Controllers
 
                         if (yeuCau.TrangThai != ChoDuyet && yeuCau.TrangThai != DaChapNhan)
                         {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("Yêu cầu này đã được xử lý"));
+                            ketQua = BadRequest(ApiResponse<object>.Loi("YÃªu cáº§u nÃ y Ä‘Ã£ Ä‘Æ°á»£c xá»­ lÃ½"));
                             await transaction.RollbackAsync();
                             return;
                         }
@@ -264,7 +267,7 @@ namespace DoAnSE104.Controllers
                         var soThangThue = dto.SoThangThue ?? yeuCau.SoThangMuonThue;
                         if (soThangThue < 1 || soThangThue > 60)
                         {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("Số tháng thuê phải từ 1 đến 60"));
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Sá»‘ thÃ¡ng thuÃª pháº£i tá»« 1 Ä‘áº¿n 60"));
                             await transaction.RollbackAsync();
                             return;
                         }
@@ -273,28 +276,28 @@ namespace DoAnSE104.Controllers
 
                         if (ngayKetThucHopDong <= dto.NgayBatDau)
                         {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("Ngày kết thúc phải lớn hơn ngày bắt đầu"));
+                            ketQua = BadRequest(ApiResponse<object>.Loi("NgÃ y káº¿t thÃºc pháº£i lá»›n hÆ¡n ngÃ y báº¯t Ä‘áº§u"));
                             await transaction.RollbackAsync();
                             return;
                         }
 
                         if (dto.TienCoc < 0)
                         {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("Tiền cọc phải lớn hơn hoặc bằng 0"));
+                            ketQua = BadRequest(ApiResponse<object>.Loi("Tiá»n cá»c pháº£i lá»›n hÆ¡n hoáº·c báº±ng 0"));
                             await transaction.RollbackAsync();
                             return;
                         }
 
                         if (yeuCau.Phong.GiaPhong <= 0)
                         {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("Giá thuê phải lớn hơn 0"));
+                            ketQua = BadRequest(ApiResponse<object>.Loi("GiÃ¡ thuÃª pháº£i lá»›n hÆ¡n 0"));
                             await transaction.RollbackAsync();
                             return;
                         }
 
                         if (yeuCau.Phong.SucChua > 0 && yeuCau.Phong.SoNguoiHienTai >= yeuCau.Phong.SucChua)
                         {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("Phòng đã đủ số người, không thể lập hợp đồng"));
+                            ketQua = BadRequest(ApiResponse<object>.Loi("PhÃ²ng Ä‘Ã£ Ä‘á»§ sá»‘ ngÆ°á»i, khÃ´ng thá»ƒ láº­p há»£p Ä‘á»“ng"));
                             await transaction.RollbackAsync();
                             return;
                         }
@@ -305,7 +308,7 @@ namespace DoAnSE104.Controllers
 
                         if (phongDangCoHopDongHieuLuc)
                         {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("Phòng này đã có hợp đồng còn hiệu lực"));
+                            ketQua = BadRequest(ApiResponse<object>.Loi("PhÃ²ng nÃ y Ä‘Ã£ cÃ³ há»£p Ä‘á»“ng cÃ²n hiá»‡u lá»±c"));
                             await transaction.RollbackAsync();
                             return;
                         }
@@ -322,7 +325,7 @@ namespace DoAnSE104.Controllers
                                 SDT = yeuCau.NguoiDung.SoDienThoai,
                                 MaPhong = yeuCau.MaPhong,
                                 MaNguoiDung = yeuCau.MaNguoiDung,
-                                QuocTich = "Việt Nam"
+                                QuocTich = "Viá»‡t Nam"
                             };
 
                             _context.NguoiThue.Add(nguoiThue);
@@ -360,13 +363,14 @@ namespace DoAnSE104.Controllers
                             yeuCau.Phong.SoNguoiHienTai += 1;
 
                         var trangThaiDaThue = await _context.TrangThai
-                            .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("Đã thuê") || t.TenTrangThai.Contains("Da thue") || t.TenTrangThai.Contains("thuê"));
+                            .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("ÄÃ£ thuÃª") || t.TenTrangThai.Contains("Da thue") || t.TenTrangThai.Contains("thuÃª"));
 
                         if (trangThaiDaThue != null)
                             yeuCau.Phong.MaTrangThai = trangThaiDaThue.MaTrangThai;
 
                         await _context.SaveChangesAsync();
                         await transaction.CommitAsync();
+                        await _notificationEmailService.GuiEmailYeuCauThueAsync(id, true);
 
                         ketQua = Ok(ApiResponse<object>.Ok(new
                         {
@@ -376,7 +380,7 @@ namespace DoAnSE104.Controllers
                             yeuCau.MaPhong,
                             SoThangThue = soThangThue,
                             NgayKetThuc = ngayKetThucHopDong
-                        }, "Đã chấp nhận yêu cầu và lập hợp đồng thành công"));
+                        }, "ÄÃ£ cháº¥p nháº­n yÃªu cáº§u vÃ  láº­p há»£p Ä‘á»“ng thÃ nh cÃ´ng"));
                     }
                     catch
                     {
@@ -385,7 +389,7 @@ namespace DoAnSE104.Controllers
                     }
                 });
 
-                return ketQua ?? StatusCode(500, ApiResponse<object>.Loi("Không thể xử lý yêu cầu thuê"));
+                return ketQua ?? StatusCode(500, ApiResponse<object>.Loi("KhÃ´ng thá»ƒ xá»­ lÃ½ yÃªu cáº§u thuÃª"));
             }
             catch (Exception ex)
             {
@@ -408,13 +412,13 @@ namespace DoAnSE104.Controllers
                     .FirstOrDefaultAsync(y => y.MaYeuCau == id);
 
                 if (yeuCau == null)
-                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy yêu cầu thuê"));
+                    return NotFound(ApiResponse<object>.Loi("KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u thuÃª"));
 
                 if (role == VaiTroConst.ChuTro && yeuCau.Phong.NhaTro.MaChuTro != userId)
                     return Forbid();
 
                 if (yeuCau.TrangThai != ChoDuyet)
-                    return BadRequest(ApiResponse<object>.Loi("Chỉ có thể từ chối yêu cầu đang chờ duyệt"));
+                    return BadRequest(ApiResponse<object>.Loi("Chá»‰ cÃ³ thá»ƒ tá»« chá»‘i yÃªu cáº§u Ä‘ang chá» duyá»‡t"));
 
                 yeuCau.TrangThai = TuChoi;
                 yeuCau.GhiChuChuTro = dto.GhiChuChuTro;
@@ -422,7 +426,8 @@ namespace DoAnSE104.Controllers
 
                 await _context.SaveChangesAsync();
 
-                return Ok(ApiResponse<object>.Ok(null!, "Đã từ chối yêu cầu thuê"));
+                await _notificationEmailService.GuiEmailYeuCauThueAsync(id, false);
+                return Ok(ApiResponse<object>.Ok(null!, "ÄÃ£ tá»« chá»‘i yÃªu cáº§u thuÃª"));
             }
             catch (Exception ex)
             {
@@ -444,7 +449,7 @@ namespace DoAnSE104.Controllers
                     .FirstOrDefaultAsync(y => y.MaYeuCau == id);
 
                 if (yeuCau == null)
-                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy yêu cầu thuê"));
+                    return NotFound(ApiResponse<object>.Loi("KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u thuÃª"));
 
                 if (role == VaiTroConst.NguoiDung && yeuCau.MaNguoiDung != userId)
                     return Forbid();
@@ -452,23 +457,23 @@ namespace DoAnSE104.Controllers
                 if (role == VaiTroConst.ChuTro && yeuCau.Phong.NhaTro.MaChuTro != userId)
                     return Forbid();
 
-                // Đã lập hợp đồng → giữ lịch sử, không thao tác
+                // ÄÃ£ láº­p há»£p Ä‘á»“ng â†’ giá»¯ lá»‹ch sá»­, khÃ´ng thao tÃ¡c
                 if (yeuCau.TrangThai == DaLapHopDong)
                     return BadRequest(ApiResponse<object>.Loi(
-                        "Yêu cầu đã được lập hợp đồng. Không thể xóa để giữ lịch sử dữ liệu."));
+                        "YÃªu cáº§u Ä‘Ã£ Ä‘Æ°á»£c láº­p há»£p Ä‘á»“ng. KhÃ´ng thá»ƒ xÃ³a Ä‘á»ƒ giá»¯ lá»‹ch sá»­ dá»¯ liá»‡u."));
 
-                // Đang chờ duyệt → Xóa cứng (hủy bỏ yêu cầu chưa xử lý)
+                // Äang chá» duyá»‡t â†’ XÃ³a cá»©ng (há»§y bá» yÃªu cáº§u chÆ°a xá»­ lÃ½)
                 if (yeuCau.TrangThai == ChoDuyet)
                 {
                     _context.YeuCauThue.Remove(yeuCau);
                     await _context.SaveChangesAsync();
-                    return Ok(ApiResponse<object>.Ok(null!, "Đã hủy yêu cầu thuê thành công"));
+                    return Ok(ApiResponse<object>.Ok(null!, "ÄÃ£ há»§y yÃªu cáº§u thuÃª thÃ nh cÃ´ng"));
                 }
 
-                // Đã từ chối / đã chấp nhận nhưng chưa lập hợp đồng → giữ lịch sử
+                // ÄÃ£ tá»« chá»‘i / Ä‘Ã£ cháº¥p nháº­n nhÆ°ng chÆ°a láº­p há»£p Ä‘á»“ng â†’ giá»¯ lá»‹ch sá»­
                 return Ok(ApiResponse<object>.Ok(null!,
-                    $"Yêu cầu thuê có trạng thái \"{yeuCau.TrangThai}\" đã được giữ lại để lưu lịch sử. " +
-                    "Chỉ có thể hủy yêu cầu đang chờ duyệt."));
+                    $"YÃªu cáº§u thuÃª cÃ³ tráº¡ng thÃ¡i \"{yeuCau.TrangThai}\" Ä‘Ã£ Ä‘Æ°á»£c giá»¯ láº¡i Ä‘á»ƒ lÆ°u lá»‹ch sá»­. " +
+                    "Chá»‰ cÃ³ thá»ƒ há»§y yÃªu cáº§u Ä‘ang chá» duyá»‡t."));
             }
             catch (Exception ex)
             {
@@ -477,3 +482,4 @@ namespace DoAnSE104.Controllers
         }
     }
 }
+

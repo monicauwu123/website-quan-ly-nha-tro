@@ -39,8 +39,9 @@ applyRoleUI();
 let currentSection = 'overview';
 let currentSubSection = 'dien';
 let selectedDienNuocNhaTroId = null;
+let selectedRoomHouseId = null;
 let currentData = [];
-let lookups = { nhatro: [], loaiphong: [], trangthai: [], phong: [], nguoithue: [], hoadon: [], hinhthuc: [] };
+let lookups = { nhatro: [], loaiphong: [], trangthai: [], phong: [], nguoithue: [], dichvu: [], hoadon: [], hinhthuc: [] };
 window.lookups = lookups;
 
 // --- FORMATTERS ---
@@ -133,6 +134,52 @@ function normalizeArrayResponse(value) {
 }
 window.normalizeArrayResponse = normalizeArrayResponse;
 
+function parseJsonArraySafe(value) {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return String(value).split(',').map(x => x.trim()).filter(Boolean);
+    }
+}
+window.parseJsonArraySafe = parseJsonArraySafe;
+
+function getImageListFromEntity(item) {
+    const images = parseJsonArraySafe(item?.danhSachHinhAnh);
+    if (item?.hinhAnh && !images.includes(item.hinhAnh)) images.unshift(item.hinhAnh);
+    return images.filter(Boolean);
+}
+window.getImageListFromEntity = getImageListFromEntity;
+
+function getServiceIdsFromItem(item) {
+    return parseJsonArraySafe(item?.dichVuGanPhong).map(Number).filter(Number.isFinite);
+}
+window.getServiceIdsFromItem = getServiceIdsFromItem;
+
+function servicesForRoom(item, loaiDichVu = null) {
+    const ids = new Set(getServiceIdsFromItem(item));
+    const houseId = Number(item?.maNhaTro || 0);
+    return normalizeArrayResponse(lookups.dichvu).filter(dv => {
+        if (loaiDichVu && dv.loaiDichVu !== loaiDichVu) return false;
+        if (ids.has(Number(dv.maDichVu))) return true;
+        return houseId
+            && Number(dv.maNhaTro) === houseId
+            && (dv.loaiDichVu === 'TienIch' || dv.loaiDichVu === 'TinhPhi');
+    });
+}
+window.servicesForRoom = servicesForRoom;
+
+function renderServiceBadges(item, loaiDichVu = null) {
+    const services = servicesForRoom(item, loaiDichVu);
+    if (!services.length) return '<span style="color:var(--text-light);">---</span>';
+    return services.slice(0, 6).map(dv =>
+        `<span class="badge badge-blue" style="margin:0 .25rem .25rem 0;">${escapeHtmlDashboard(dv.tenDichVu || '')}</span>`
+    ).join('') + (services.length > 6 ? `<span style="color:var(--text-light);font-size:.8rem;">+${services.length - 6}</span>` : '');
+}
+window.renderServiceBadges = renderServiceBadges;
+
 // ==========================================
 // TOAST NOTIFICATIONS
 // ==========================================
@@ -156,6 +203,7 @@ async function loadLookups() {
         apiFetch('/api/TrangThai'),
         apiFetch('/api/Phong'),
         apiFetch('/api/NguoiThue'),
+        apiFetch('/api/DichVu'),
     ]);
     lookups.nhatro = normalizeArrayResponse(results[0].value);
     lookups.loaiphong = normalizeArrayResponse(results[1].value);
@@ -165,6 +213,7 @@ async function loadLookups() {
     }
     lookups.phong = normalizeArrayResponse(results[3].value);
     lookups.nguoithue = normalizeArrayResponse(results[4].value);
+    lookups.dichvu = normalizeArrayResponse(results[5].value);
 
     // Bổ sung lookups cho Thanh toán
     try {
@@ -262,6 +311,9 @@ function activateNav(section, el) {
 }
 
 function showSection(section, el, skipHashUpdate = false) {
+    if (CURRENT_ROLE === 'NguoiDung' && section === 'nhatro') {
+        section = 'phong';
+    }
     currentSection = section;
 
     if (!skipHashUpdate) {
@@ -505,6 +557,7 @@ function renderNguoiDungOverview(data) {
 // ROOM GRID
 // ==========================================
 async function renderRoomGrid() {
+    if (CURRENT_ROLE !== 'NguoiDung') selectedRoomHouseId = null;
     const _addBtn = document.getElementById('addBtn');
     if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
         _addBtn.style.display = 'inline-flex';
@@ -514,6 +567,20 @@ async function renderRoomGrid() {
     }
     const container = document.getElementById('genericSection');
     container.innerHTML = `
+        ${CURRENT_ROLE === 'NguoiDung' ? `
+        <div class="room-house-browser">
+            <div class="room-house-browser-head">
+                <div>
+                    <h2>Chọn nhà trọ để xem phòng</h2>
+                    <p>Xem ảnh nhà trọ, dịch vụ được cung cấp và danh sách phòng bên dưới.</p>
+                </div>
+                <button class="btn btn-secondary" onclick="selectRoomHouse(null)">
+                    <i class="fas fa-border-all"></i> Tất cả nhà trọ
+                </button>
+            </div>
+            <div id="roomHouseSelector" class="room-house-selector"></div>
+        </div>
+        ` : ''}
         <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center;">
             <div style="flex:1;min-width:200px;position:relative;">
                 <i class="fas fa-search" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
@@ -528,11 +595,58 @@ async function renderRoomGrid() {
 
     try {
         currentData = await apiFetch('/api/Phong');
-        renderRooms(currentData);
+        if (CURRENT_ROLE === 'NguoiDung') renderRoomHouseSelector();
+        filterRooms();
     } catch (e) {
         showToast('Lỗi tải danh sách phòng', 'error');
     }
 }
+
+function renderRoomHouseSelector() {
+    const selector = document.getElementById('roomHouseSelector');
+    if (!selector) return;
+
+    const houses = normalizeArrayResponse(lookups.nhatro).filter(h =>
+        normalizeArrayResponse(currentData).some(r => Number(r.maNhaTro) === Number(h.maNhaTro))
+    );
+
+    if (!houses.length) {
+        selector.innerHTML = '<div class="empty-state-inline">Chưa có nhà trọ nào có phòng đang hiển thị.</div>';
+        return;
+    }
+
+    selector.innerHTML = houses.map(house => {
+        const images = getImageListFromEntity(house);
+        const count = normalizeArrayResponse(currentData).filter(r => Number(r.maNhaTro) === Number(house.maNhaTro)).length;
+        const active = selectedRoomHouseId && Number(selectedRoomHouseId) === Number(house.maNhaTro);
+        const services = normalizeArrayResponse(lookups.dichvu).filter(dv =>
+            Number(dv.maNhaTro) === Number(house.maNhaTro) && dv.loaiDichVu !== 'TienNghi'
+        );
+
+        return `
+            <button type="button" class="room-house-card ${active ? 'active' : ''}" onclick="selectRoomHouse(${house.maNhaTro})">
+                <div class="room-house-thumb">
+                    ${images[0] ? `<img src="${escapeHtmlDashboard(images[0])}" alt="" onerror="this.style.display='none'">` : `<i class="fas fa-building"></i>`}
+                </div>
+                <div class="room-house-body">
+                    <strong>${escapeHtmlDashboard(house.tenNhaTro || 'Nhà trọ')}</strong>
+                    <span>${escapeHtmlDashboard(house.diaChi || '')}</span>
+                    <small>${count} phòng - ${services.length} dịch vụ/tiện ích</small>
+                    <div class="room-house-badges">
+                        ${services.slice(0, 4).map(x => `<span class="badge badge-green">${escapeHtmlDashboard(x.tenDichVu || '')}</span>`).join('')}
+                    </div>
+                </div>
+                ${images.length ? `<span class="room-house-photo-count" onclick="event.stopPropagation(); openHouseGallery(${house.maNhaTro});"><i class="fas fa-images"></i> ${images.length}</span>` : ''}
+            </button>`;
+    }).join('');
+}
+
+function selectRoomHouse(maNhaTro) {
+    selectedRoomHouseId = maNhaTro ? Number(maNhaTro) : null;
+    renderRoomHouseSelector();
+    filterRooms();
+}
+window.selectRoomHouse = selectRoomHouse;
 
 function renderRooms(rooms) {
     const grid = document.getElementById('roomGrid');
@@ -546,19 +660,37 @@ function renderRooms(rooms) {
         const house = lookups.nhatro.find(n => n.maNhaTro === r.maNhaTro);
         const loai = lookups.loaiphong.find(l => l.maLoaiPhong === r.maLoaiPhong);
         const color = r.maTrangThai === 1 ? '#22c55e' : r.maTrangThai === 2 ? '#ef4444' : '#f59e0b';
+        const images = getImageListFromEntity(r);
+        const houseImages = getImageListFromEntity(house);
+        const imageUrl = images[0] || houseImages[0];
+        const tienIch = servicesForRoom(r, 'TienIch');
+        const tienNghi = servicesForRoom(r, 'TienNghi');
+        const dichVuTinhPhi = servicesForRoom(r, 'TinhPhi');
         return `<div class="data-card animate-fade-in" style="border-top:4px solid ${color};padding:1.25rem;display:flex;flex-direction:column;">
-            ${r.hinhAnh ? `<img src="${r.hinhAnh}" style="width:100%;height:140px;object-fit:cover;border-radius:0.5rem;margin-bottom:1rem;" onerror="this.style.display='none'">` : ''}
+            ${imageUrl ? `
+            <div class="room-card-image" onclick="${images.length ? `openRoomGallery(${r.maPhong})` : `openHouseGallery(${r.maNhaTro})`}">
+                <img src="${escapeHtmlDashboard(imageUrl)}" onerror="this.style.display='none'">
+                <span><i class="fas fa-images"></i> ${(images.length || houseImages.length)} ảnh</span>
+            </div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem;">
-                <h3 style="font-size:1.1rem;font-weight:700;flex:1;">${r.tenPhong}</h3>
+                <h3 style="font-size:1.1rem;font-weight:700;flex:1;">${escapeHtmlDashboard(r.tenPhong)}</h3>
                 <span class="badge" style="background:${color}20;color:${color};margin-left:0.5rem;white-space:nowrap;">${status?.tenTrangThai || '---'}</span>
             </div>
             <div style="font-size:0.875rem;color:var(--text-light);flex:1;display:flex;flex-direction:column;gap:0.4rem;margin-bottom:1rem;">
-                <p><i class="fas fa-building" style="width:1.25rem;color:var(--primary);"></i> ${house?.tenNhaTro || '---'}</p>
-                ${loai ? `<p><i class="fas fa-tag" style="width:1.25rem;color:var(--primary);"></i> ${loai.tenLoaiPhong}</p>` : ''}
+                <p><i class="fas fa-building" style="width:1.25rem;color:var(--primary);"></i> ${escapeHtmlDashboard(house?.tenNhaTro || '---')}</p>
+                ${house?.diaChi ? `<p><i class="fas fa-map-marker-alt" style="width:1.25rem;color:var(--primary);"></i> ${escapeHtmlDashboard(house.diaChi)}</p>` : ''}
+                ${loai ? `<p><i class="fas fa-tag" style="width:1.25rem;color:var(--primary);"></i> ${escapeHtmlDashboard(loai.tenLoaiPhong)}</p>` : ''}
                 ${r.dienTich ? `<p><i class="fas fa-expand-arrows-alt" style="width:1.25rem;color:var(--primary);"></i> ${r.dienTich} m²</p>` : ''}
                 <p><i class="fas fa-money-bill-wave" style="width:1.25rem;color:var(--primary);"></i> <strong style="color:var(--text);">${fmtCurrency(r.giaPhong)}</strong>/tháng</p>
                 <p><i class="fas fa-users" style="width:1.25rem;color:var(--primary);"></i> ${r.soNguoiHienTai}/${r.sucChua} người</p>
+                ${tienNghi.length ? `<div><i class="fas fa-bed" style="width:1.25rem;color:var(--primary);"></i> ${tienNghi.slice(0, 5).map(x => `<span class="badge badge-blue" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}</span>`).join('')}</div>` : ''}
+                ${tienIch.length ? `<div><i class="fas fa-shield-alt" style="width:1.25rem;color:var(--primary);"></i> ${tienIch.slice(0, 5).map(x => `<span class="badge badge-green" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}</span>`).join('')}</div>` : ''}
+                ${dichVuTinhPhi.length ? `<div><i class="fas fa-concierge-bell" style="width:1.25rem;color:var(--primary);"></i> ${dichVuTinhPhi.slice(0, 5).map(x => `<span class="badge badge-warning" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}${x.tiendichvu ? ' - ' + fmtCurrency(x.tiendichvu) : ''}</span>`).join('')}</div>` : ''}
             </div>
+            ${(CURRENT_ROLE === 'NguoiDung' && houseImages.length) ? `
+            <button class="btn btn-secondary" style="margin-bottom:.65rem;padding:.5rem;font-size:.875rem;" onclick="openHouseGallery(${r.maNhaTro})">
+                <i class="fas fa-images"></i> Xem ảnh nhà trọ
+            </button>` : ''}
             ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
             <div style="display:flex;gap:0.5rem;">
                 <button class="btn btn-primary" style="flex:1;padding:0.5rem;font-size:0.875rem;" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Chỉnh sửa</button>
@@ -577,10 +709,67 @@ function filterRooms() {
     const q = (document.getElementById('roomSearch')?.value || '').toLowerCase();
     const sf = document.getElementById('roomStatusFilter')?.value;
     let data = currentData;
-    if (q) data = data.filter(r => (r.tenPhong || '').toLowerCase().includes(q) || (r.diaChiPhong || '').toLowerCase().includes(q));
+    if (selectedRoomHouseId) data = data.filter(r => Number(r.maNhaTro) === Number(selectedRoomHouseId));
+    if (q) data = data.filter(r => {
+        const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(r.maNhaTro));
+        return (r.tenPhong || '').toLowerCase().includes(q)
+            || (r.diaChiPhong || '').toLowerCase().includes(q)
+            || (house?.tenNhaTro || '').toLowerCase().includes(q)
+            || (house?.diaChi || '').toLowerCase().includes(q);
+    });
     if (sf) data = data.filter(r => r.maTrangThai == sf);
     renderRooms(data);
 }
+
+function openRoomGallery(maPhong) {
+    const room = normalizeArrayResponse(currentData).find(r => Number(r.maPhong) === Number(maPhong))
+        || normalizeArrayResponse(lookups.phong).find(r => Number(r.maPhong) === Number(maPhong));
+    const house = room ? lookups.nhatro.find(n => Number(n.maNhaTro) === Number(room.maNhaTro)) : null;
+    openImageGallery(getImageListFromEntity(room), room?.tenPhong || 'Ảnh phòng', house?.tenNhaTro || '');
+}
+window.openRoomGallery = openRoomGallery;
+
+function openHouseGallery(maNhaTro) {
+    const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(maNhaTro));
+    openImageGallery(getImageListFromEntity(house), house?.tenNhaTro || 'Ảnh nhà trọ', house?.diaChi || '');
+}
+window.openHouseGallery = openHouseGallery;
+
+function openImageGallery(images, title, subtitle) {
+    const list = normalizeArrayResponse(images).filter(Boolean);
+    const modal = document.getElementById('universalModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalFields');
+    if (!modal || !modalBody) return;
+
+    if (modalTitle) modalTitle.textContent = title || 'Xem ảnh';
+    modalBody.innerHTML = list.length ? `
+        <div class="gallery-preview">
+            ${subtitle ? `<p>${escapeHtmlDashboard(subtitle)}</p>` : ''}
+            <img id="galleryMainImage" src="${escapeHtmlDashboard(list[0])}" alt="" onerror="this.style.display='none'">
+            <div class="gallery-thumbs">
+                ${list.map((url, idx) => `
+                    <button type="button" class="${idx === 0 ? 'active' : ''}" onclick="setGalleryImage('${escapeHtmlDashboard(url).replaceAll("'", "\\'")}', this)">
+                        <img src="${escapeHtmlDashboard(url)}" alt="" onerror="this.style.display='none'">
+                    </button>`).join('')}
+            </div>
+        </div>` : '<div class="empty-state-inline">Chưa có ảnh để xem trước.</div>';
+
+    const form = document.getElementById('modalForm');
+    if (form) form.onsubmit = e => e.preventDefault();
+    const saveBtn = document.querySelector('#universalModal .btn-primary');
+    if (saveBtn) saveBtn.style.display = 'none';
+    modal.style.display = 'flex';
+}
+window.openImageGallery = openImageGallery;
+
+function setGalleryImage(url, button) {
+    const img = document.getElementById('galleryMainImage');
+    if (img) img.src = url;
+    document.querySelectorAll('.gallery-thumbs button').forEach(btn => btn.classList.remove('active'));
+    if (button) button.classList.add('active');
+}
+window.setGalleryImage = setGalleryImage;
 
 // ==========================================
 // GENERIC TABLE
@@ -629,11 +818,15 @@ async function loadGenericSection(section) {
         return;
     }
 
+    if (section === 'hoadon') {
+        extraToolbarHtml = `<div id="hoaDonFilterBarWrapper"></div>`;
+    }
+
     if (section === 'hoadon' && (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
 
         const now = new Date();
         const kyDefault = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        extraToolbarHtml = `
+        extraToolbarHtml += `
             <div class="data-card" style="margin-bottom:1rem;">
                 <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
                     <div class="form-group" style="margin-bottom:0;min-width:220px;">
@@ -668,6 +861,13 @@ async function loadGenericSection(section) {
     try {
         const rawData = await apiFetch(cfg.endpoint);
         currentData = normalizeArrayResponse(rawData);
+        if (section === 'hoadon' && window.HoaDonExcel) {
+            window._hoaDonAllData = currentData;
+            window._hoaDonCache = window._hoaDonCache || {};
+            currentData.forEach(x => { window._hoaDonCache[x.maHoaDon] = x; });
+            window.HoaDonExcel.attachToolbar?.();
+            window.HoaDonExcel.refreshFilters?.();
+        }
         renderTable(cfg, currentData, section);
     } catch (e) {
         const tbody = document.getElementById('genericTableBody');
@@ -718,7 +918,8 @@ function renderTable(cfg, data, section) {
             if (isHuy) {
                 actionHtml = `<span class="badge badge-red">Đã hủy</span>`;
             } else {
-                actionHtml = `<button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>`;
+                actionHtml = `<button class="btn-action btn-edit" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In</button>
+                    <button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>`;
                 if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
                     actionHtml += `
                     <button class="btn-action btn-edit" onclick="editItem('hoadon',${item.maHoaDon})"><i class="fas fa-edit"></i> Sửa</button>
@@ -1072,10 +1273,50 @@ function buildModal(title, fields, item, onSubmit) {
                 </select>
             </div>`;
         }
+        if (f.type === 'optionsMap') {
+            return `<div class="form-group">
+                <label for="f_${f.id}">${f.label}${f.required ? ' <span style="color:var(--error)">*</span>' : ''}</label>
+                <select id="f_${f.id}" class="form-control" ${f.required ? 'required' : ''}>
+                    ${f.options.map(o => `<option value="${o.value}" ${displayVal === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                </select>
+            </div>`;
+        }
+        if (f.type === 'hiddenJsonArray') {
+            return `<input type="hidden" id="f_${f.id}" value='${escapeHtmlDashboard(displayVal)}'>`;
+        }
+        if (f.type === 'serviceCheckboxes') {
+            const selectedIds = new Set(parseJsonArraySafe(displayVal).map(Number));
+            const currentHouseId = Number(item.maNhaTro || 0);
+            const services = normalizeArrayResponse(lookups.dichvu)
+                .filter(dv => dv.loaiDichVu === 'TienIch' || dv.loaiDichVu === 'TienNghi')
+                .filter(dv => !currentHouseId || Number(dv.maNhaTro) === currentHouseId);
+            return `<div class="form-group" style="grid-column:1/-1;">
+                <label>${f.label}</label>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.45rem;padding:.75rem;border:1px solid #e5e7eb;border-radius:.65rem;background:#f8fafc;">
+                    ${services.length ? services.map(dv => {
+                        const typeLabel = dv.loaiDichVu === 'TienIch' ? 'Tiện ích' : 'Tiện nghi';
+                        const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(dv.maNhaTro));
+                        return `<label style="display:flex;gap:.5rem;align-items:flex-start;font-size:.9rem;">
+                            <input type="checkbox" name="f_${f.id}" value="${dv.maDichVu}" ${selectedIds.has(Number(dv.maDichVu)) ? 'checked' : ''} style="margin-top:.2rem;">
+                            <span><strong>${escapeHtmlDashboard(dv.tenDichVu)}</strong><br><small style="color:var(--text-light);">${typeLabel}${house ? ' - ' + escapeHtmlDashboard(house.tenNhaTro) : ''}</small></span>
+                        </label>`;
+                    }).join('') : '<span style="color:var(--text-light);">Chưa có tiện ích/tiện nghi. Hãy thêm trong mục Dịch vụ.</span>'}
+                </div>
+            </div>`;
+        }
         if (f.type === 'textarea') {
             return `<div class="form-group" style="grid-column:1/-1;">
                 <label for="f_${f.id}">${f.label}${f.required ? ' <span style="color:var(--error)">*</span>' : ''}</label>
                 <textarea id="f_${f.id}" class="form-control" ${f.required ? 'required' : ''}>${displayVal}</textarea>
+            </div>`;
+        }
+        if (f.type === 'fileMultiple') {
+            const urls = parseJsonArraySafe(displayVal || item.danhSachHinhAnh || item.hinhAnh);
+            return `<div class="form-group" style="grid-column:1/-1;">
+                <label for="f_${f.id}">${f.label}</label>
+                ${urls.length ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem;">${urls.map(url => `<img src="${url}" style="width:86px;height:58px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" onerror="this.style.display='none'">`).join('')}</div>` : ''}
+                <input type="file" id="f_${f.id}" class="form-control" accept="image/jpeg,image/png,image/webp" multiple>
+                <small style="color:var(--text-light);display:block;margin-top:.35rem;">JPG, PNG hoặc WEBP, tối đa 5MB mỗi ảnh.</small>
             </div>`;
         }
         if (f.type === 'file') {
@@ -1103,8 +1344,36 @@ function buildModal(title, fields, item, onSubmit) {
         e.preventDefault();
         const payload = {};
 
-        // Handle file uploads first if any
-        const fileEl = document.getElementById('f_fileUpload');
+        // Handle image uploads first if any
+        for (const f of fields.filter(x => x.type === 'fileMultiple')) {
+            const fileEl = document.getElementById(`f_${f.id}`);
+            if (!fileEl || fileEl.files.length === 0) continue;
+
+            try {
+                const uploader = API[f.uploadTarget || 'phong']?.uploadImage;
+                if (!uploader) throw new Error('Không tìm thấy API upload ảnh');
+
+                showToast('Đang tải ảnh lên...', 'info');
+                const oldUrls = parseJsonArraySafe(document.getElementById('f_danhSachHinhAnh')?.value || item.danhSachHinhAnh || item.hinhAnh);
+                const newUrls = [];
+
+                for (const file of Array.from(fileEl.files)) {
+                    const uploadRes = await uploader(file);
+                    const imageUrl = uploadRes?.url || uploadRes?.duLieu?.url;
+                    if (!imageUrl) throw new Error('Backend không trả về đường dẫn ảnh');
+                    newUrls.push(imageUrl);
+                }
+
+                const allUrls = [...oldUrls, ...newUrls].filter(Boolean);
+                payload.danhSachHinhAnh = JSON.stringify(allUrls);
+                payload.hinhAnh = allUrls[0] || null;
+            } catch (e) {
+                showToast('Lỗi upload ảnh: ' + (e.message || 'Không tải được ảnh'), 'error');
+                return;
+            }
+        }
+
+        const fileEl = fields.some(f => f.id === 'fileUpload' && f.type === 'file') ? document.getElementById('f_fileUpload') : null;
         if (fileEl && fileEl.files.length > 0) {
             try {
                 showToast('Đang tải ảnh phòng lên...', 'info');
@@ -1158,8 +1427,15 @@ function buildModal(title, fields, item, onSubmit) {
         }
 
         fields.forEach(f => {
-            if (['fileUpload', 'anhCccdMatTruoc', 'anhCccdMatSau'].includes(f.id)) return; // Handled separately
+            if (['fileUpload', 'fileUploadNhaTro', 'anhCccdMatTruoc', 'anhCccdMatSau'].includes(f.id) || f.type === 'fileMultiple') return; // Handled separately
             const el = document.getElementById(`f_${f.id}`);
+            if (f.type === 'hiddenJsonArray' && Object.prototype.hasOwnProperty.call(payload, f.id)) {
+                return;
+            }
+            if (f.type === 'serviceCheckboxes') {
+                payload[f.id] = JSON.stringify(Array.from(document.querySelectorAll(`input[name="f_${f.id}"]:checked`)).map(x => Number(x.value)));
+                return;
+            }
             if (!el) return;
             const v = el.value;
             if (f.type === 'number') {
@@ -1227,6 +1503,7 @@ function openModal(id = null) {
 
 function closeModal() {
     document.getElementById('universalModal').style.display = 'none';
+    resetModalFooter();
 }
 
 

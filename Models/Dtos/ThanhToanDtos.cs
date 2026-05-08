@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+
 namespace DoAnSE104.Models.Dtos
 {
     /// <summary>
@@ -19,7 +21,8 @@ namespace DoAnSE104.Models.Dtos
         /// <summary>Ghi chú thêm</summary>
         public string? GhiChu { get; set; }
 
-        // Ảnh biên lai được nhận riêng qua IFormFile trong Controller
+        /// <summary>Ảnh biên lai thanh toán</summary>
+        public IFormFile? AnhBienLai { get; set; }
     }
 
     /// <summary>

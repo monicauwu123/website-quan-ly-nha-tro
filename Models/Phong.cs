@@ -45,6 +45,12 @@ namespace DoAnSE104.Models
         [MaxLength(255)]
         public string? HinhAnh { get; set; }
 
+        /// <summary>JSON array các URL ảnh của phòng.</summary>
+        public string? DanhSachHinhAnh { get; set; }
+
+        /// <summary>JSON array MaDichVu được gắn để hiển thị tiện ích/tiện nghi của phòng.</summary>
+        public string? DichVuGanPhong { get; set; }
+
         [MaxLength(255)]
         public string? DiaChiPhong { get; set; }
      

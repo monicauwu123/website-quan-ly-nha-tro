@@ -15,6 +15,14 @@ namespace DoAnSE104.Models
         [Range(0, 9999999999999, ErrorMessage = "Giá dịch vụ phải là số hợp lệ")]
         public float Tiendichvu { get; set; }
 
+        /// <summary>
+        /// Phân loại dùng chung: TinhPhi | TienIch | TienNghi.
+        /// TinhPhi được dùng cho đăng ký dịch vụ và hóa đơn.
+        /// TienIch/TienNghi dùng để hiển thị tiện ích nhà trọ, tiện nghi phòng.
+        /// </summary>
+        [MaxLength(30)]
+        public string LoaiDichVu { get; set; } = "TinhPhi";
+
         /// <summary>Nhà trọ sở hữu dịch vụ này.</summary>
         public int? MaNhaTro { get; set; }
 

@@ -32,6 +32,215 @@ namespace DoAnSE104.Data
         // ── Thông Báo ────────────────────────────────────────────────────────────
         public DbSet<ThongBao> ThongBao { get; set; }
         public DbSet<ThongBaoDaDoc> ThongBaoDaDoc { get; set; }
+        public DbSet<EmailLog> EmailLog { get; set; }
+
+        /// <summary>
+        /// Project hiện dùng EnsureCreated(), nên database cũ sẽ không tự nhận cột mới như migration.
+        /// Hàm này bổ sung các cột mở rộng theo cách idempotent để người khác tải project chạy trực tiếp.
+        /// </summary>
+        public void EnsureCustomSchema()
+        {
+            Database.ExecuteSqlRaw(@"
+IF OBJECT_ID('Users', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('Users', 'CCCD') IS NULL ALTER TABLE Users ADD CCCD NVARCHAR(20) NULL;
+    IF COL_LENGTH('Users', 'NgaySinh') IS NULL ALTER TABLE Users ADD NgaySinh DATETIME2 NULL;
+    IF COL_LENGTH('Users', 'GioiTinh') IS NULL ALTER TABLE Users ADD GioiTinh NVARCHAR(10) NULL;
+    IF COL_LENGTH('Users', 'QuocTich') IS NULL ALTER TABLE Users ADD QuocTich NVARCHAR(50) NULL;
+    IF COL_LENGTH('Users', 'DiaChi') IS NULL ALTER TABLE Users ADD DiaChi NVARCHAR(255) NULL;
+    IF COL_LENGTH('Users', 'NoiCongTac') IS NULL ALTER TABLE Users ADD NoiCongTac NVARCHAR(100) NULL;
+    IF COL_LENGTH('Users', 'AnhCccdMatTruoc') IS NULL ALTER TABLE Users ADD AnhCccdMatTruoc NVARCHAR(500) NULL;
+    IF COL_LENGTH('Users', 'AnhCccdMatSau') IS NULL ALTER TABLE Users ADD AnhCccdMatSau NVARCHAR(500) NULL;
+    IF COL_LENGTH('Users', 'TenNganHang') IS NULL ALTER TABLE Users ADD TenNganHang NVARCHAR(100) NULL;
+    IF COL_LENGTH('Users', 'MaNganHang') IS NULL ALTER TABLE Users ADD MaNganHang NVARCHAR(50) NULL;
+    IF COL_LENGTH('Users', 'SoTaiKhoan') IS NULL ALTER TABLE Users ADD SoTaiKhoan NVARCHAR(50) NULL;
+    IF COL_LENGTH('Users', 'TenChuTaiKhoan') IS NULL ALTER TABLE Users ADD TenChuTaiKhoan NVARCHAR(100) NULL;
+    IF COL_LENGTH('Users', 'NoiDungChuyenKhoanMacDinh') IS NULL ALTER TABLE Users ADD NoiDungChuyenKhoanMacDinh NVARCHAR(255) NULL;
+    IF COL_LENGTH('Users', 'PasswordResetToken') IS NULL ALTER TABLE Users ADD PasswordResetToken NVARCHAR(200) NULL;
+    IF COL_LENGTH('Users', 'PasswordResetTokenExpiry') IS NULL ALTER TABLE Users ADD PasswordResetTokenExpiry DATETIME2 NULL;
+END
+
+IF OBJECT_ID('NhaTro', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('NhaTro', 'MaChuTro') IS NULL ALTER TABLE NhaTro ADD MaChuTro INT NULL;
+    IF COL_LENGTH('NhaTro', 'TrangThai') IS NULL ALTER TABLE NhaTro ADD TrangThai NVARCHAR(30) NOT NULL CONSTRAINT DF_NhaTro_TrangThai DEFAULT 'HoatDong';
+END
+
+IF COL_LENGTH('NhaTro', 'HinhAnh') IS NULL
+BEGIN
+    ALTER TABLE NhaTro ADD HinhAnh NVARCHAR(255) NULL;
+END
+
+IF COL_LENGTH('NhaTro', 'DanhSachHinhAnh') IS NULL
+BEGIN
+    ALTER TABLE NhaTro ADD DanhSachHinhAnh NVARCHAR(MAX) NULL;
+END
+
+IF OBJECT_ID('NguoiThue', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('NguoiThue', 'MaNguoiDung') IS NULL ALTER TABLE NguoiThue ADD MaNguoiDung INT NULL;
+    IF COL_LENGTH('NguoiThue', 'TrangThai') IS NULL ALTER TABLE NguoiThue ADD TrangThai NVARCHAR(30) NOT NULL CONSTRAINT DF_NguoiThue_TrangThai DEFAULT 'DangThue';
+    IF COL_LENGTH('NguoiThue', 'NgaySinh') IS NULL ALTER TABLE NguoiThue ADD NgaySinh DATETIME2 NULL;
+    IF COL_LENGTH('NguoiThue', 'GioiTinh') IS NULL ALTER TABLE NguoiThue ADD GioiTinh NVARCHAR(10) NULL;
+    IF COL_LENGTH('NguoiThue', 'QuocTich') IS NULL ALTER TABLE NguoiThue ADD QuocTich NVARCHAR(50) NULL;
+    IF COL_LENGTH('NguoiThue', 'NoiCongTac') IS NULL ALTER TABLE NguoiThue ADD NoiCongTac NVARCHAR(100) NULL;
+    IF COL_LENGTH('NguoiThue', 'AnhCccdMatTruoc') IS NULL ALTER TABLE NguoiThue ADD AnhCccdMatTruoc NVARCHAR(500) NULL;
+    IF COL_LENGTH('NguoiThue', 'AnhCccdMatSau') IS NULL ALTER TABLE NguoiThue ADD AnhCccdMatSau NVARCHAR(500) NULL;
+END
+
+IF OBJECT_ID('LoaiPhong', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('LoaiPhong', 'MaNhaTro') IS NULL ALTER TABLE LoaiPhong ADD MaNhaTro INT NULL;
+    IF COL_LENGTH('LoaiPhong', 'MaChuTro') IS NULL ALTER TABLE LoaiPhong ADD MaChuTro INT NULL;
+    IF COL_LENGTH('LoaiPhong', 'TrangThai') IS NULL ALTER TABLE LoaiPhong ADD TrangThai NVARCHAR(30) NOT NULL CONSTRAINT DF_LoaiPhong_TrangThai DEFAULT 'DangSuDung';
+END
+
+IF OBJECT_ID('DichVu', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('DichVu', 'MaNhaTro') IS NULL ALTER TABLE DichVu ADD MaNhaTro INT NULL;
+    IF COL_LENGTH('DichVu', 'MaChuTro') IS NULL ALTER TABLE DichVu ADD MaChuTro INT NULL;
+    IF COL_LENGTH('DichVu', 'TrangThai') IS NULL ALTER TABLE DichVu ADD TrangThai NVARCHAR(30) NOT NULL CONSTRAINT DF_DichVu_TrangThai DEFAULT 'DangSuDung';
+END
+
+IF COL_LENGTH('Phong', 'DanhSachHinhAnh') IS NULL
+BEGIN
+    ALTER TABLE Phong ADD DanhSachHinhAnh NVARCHAR(MAX) NULL;
+END
+
+IF COL_LENGTH('Phong', 'DichVuGanPhong') IS NULL
+BEGIN
+    ALTER TABLE Phong ADD DichVuGanPhong NVARCHAR(MAX) NULL;
+END
+
+IF COL_LENGTH('DichVu', 'LoaiDichVu') IS NULL
+BEGIN
+    ALTER TABLE DichVu ADD LoaiDichVu NVARCHAR(30) NOT NULL CONSTRAINT DF_DichVu_LoaiDichVu DEFAULT 'TinhPhi';
+END
+
+UPDATE DichVu
+SET LoaiDichVu = 'TinhPhi'
+WHERE LoaiDichVu IS NULL OR LTRIM(RTRIM(LoaiDichVu)) = '';
+
+IF OBJECT_ID('HopDong', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('HopDong', 'TrangThai') IS NULL ALTER TABLE HopDong ADD TrangThai NVARCHAR(20) NOT NULL CONSTRAINT DF_HopDong_TrangThai DEFAULT 'DangHieuLuc';
+END
+
+IF OBJECT_ID('HoaDon', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('HoaDon', 'LoaiHoaDon') IS NULL ALTER TABLE HoaDon ADD LoaiHoaDon NVARCHAR(20) NOT NULL CONSTRAINT DF_HoaDon_LoaiHoaDon DEFAULT 'HangThang';
+    IF COL_LENGTH('HoaDon', 'TrangThai') IS NULL ALTER TABLE HoaDon ADD TrangThai NVARCHAR(20) NOT NULL CONSTRAINT DF_HoaDon_TrangThai DEFAULT 'ChuaThanhToan';
+END
+
+IF OBJECT_ID(N'FK_HoaDon_ChiSoDien_MaDien', N'F') IS NOT NULL
+BEGIN
+    ALTER TABLE HoaDon DROP CONSTRAINT FK_HoaDon_ChiSoDien_MaDien;
+END
+
+IF OBJECT_ID(N'FK_HoaDon_ChiSoNuoc_MaNuoc', N'F') IS NOT NULL
+BEGIN
+    ALTER TABLE HoaDon DROP CONSTRAINT FK_HoaDon_ChiSoNuoc_MaNuoc;
+END
+
+IF OBJECT_ID('HoaDon', 'U') IS NOT NULL AND COL_LENGTH('HoaDon', 'MaDien') IS NOT NULL
+BEGIN
+    ALTER TABLE HoaDon ALTER COLUMN MaDien INT NULL;
+END
+
+IF OBJECT_ID('HoaDon', 'U') IS NOT NULL AND COL_LENGTH('HoaDon', 'MaNuoc') IS NOT NULL
+BEGIN
+    ALTER TABLE HoaDon ALTER COLUMN MaNuoc INT NULL;
+END
+
+IF OBJECT_ID('ThanhToan', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('ThanhToan', 'HinhAnhBienLai') IS NULL ALTER TABLE ThanhToan ADD HinhAnhBienLai NVARCHAR(500) NULL;
+    IF COL_LENGTH('ThanhToan', 'MaGiaoDich') IS NULL ALTER TABLE ThanhToan ADD MaGiaoDich NVARCHAR(100) NULL;
+    IF COL_LENGTH('ThanhToan', 'TrangThaiXacNhan') IS NULL ALTER TABLE ThanhToan ADD TrangThaiXacNhan NVARCHAR(20) NULL;
+    IF COL_LENGTH('ThanhToan', 'LyDoTuChoi') IS NULL ALTER TABLE ThanhToan ADD LyDoTuChoi NVARCHAR(500) NULL;
+    IF COL_LENGTH('ThanhToan', 'NguoiXacNhanId') IS NULL ALTER TABLE ThanhToan ADD NguoiXacNhanId INT NULL;
+    IF COL_LENGTH('ThanhToan', 'NgayXacNhan') IS NULL ALTER TABLE ThanhToan ADD NgayXacNhan DATETIME2 NULL;
+END
+
+IF OBJECT_ID('DangKyDichVu', 'U') IS NULL AND OBJECT_ID('Users', 'U') IS NOT NULL AND OBJECT_ID('Phong', 'U') IS NOT NULL AND OBJECT_ID('DichVu', 'U') IS NOT NULL
+BEGIN
+    CREATE TABLE DangKyDichVu (
+        MaDangKyDichVu INT NOT NULL IDENTITY,
+        MaNguoiDung INT NOT NULL,
+        MaPhong INT NOT NULL,
+        MaDichVu INT NOT NULL,
+        MaNguoiThue INT NULL,
+        NgayDangKy DATETIME2 NOT NULL DEFAULT GETDATE(),
+        NgayHuy DATETIME2 NULL,
+        NgayHetHan DATETIME2 NULL,
+        KyDangKy NVARCHAR(7) NULL,
+        TrangThai NVARCHAR(30) NOT NULL DEFAULT 'DangSuDung',
+        GhiChu NVARCHAR(500) NULL,
+        CONSTRAINT PK_DangKyDichVu PRIMARY KEY (MaDangKyDichVu)
+    );
+END
+
+IF OBJECT_ID('DangKyDichVu', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('DangKyDichVu', 'NgayHetHan') IS NULL ALTER TABLE DangKyDichVu ADD NgayHetHan DATETIME2 NULL;
+    IF COL_LENGTH('DangKyDichVu', 'KyDangKy') IS NULL ALTER TABLE DangKyDichVu ADD KyDangKy NVARCHAR(7) NULL;
+END
+
+IF OBJECT_ID('YeuCauThue', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('YeuCauThue', 'MaNguoiThue') IS NULL ALTER TABLE YeuCauThue ADD MaNguoiThue INT NULL;
+    IF COL_LENGTH('YeuCauThue', 'MaHopDong') IS NULL ALTER TABLE YeuCauThue ADD MaHopDong INT NULL;
+    IF COL_LENGTH('YeuCauThue', 'NgayXuLy') IS NULL ALTER TABLE YeuCauThue ADD NgayXuLy DATETIME2 NULL;
+    IF COL_LENGTH('YeuCauThue', 'SoThangMuonThue') IS NULL ALTER TABLE YeuCauThue ADD SoThangMuonThue INT NOT NULL CONSTRAINT DF_YeuCauThue_SoThangMuonThue DEFAULT(1);
+    IF COL_LENGTH('YeuCauThue', 'NgayBatDauMongMuon') IS NULL ALTER TABLE YeuCauThue ADD NgayBatDauMongMuon DATETIME2 NULL;
+END
+
+IF OBJECT_ID('YeuCauGiaHan', 'U') IS NULL AND OBJECT_ID('HopDong', 'U') IS NOT NULL AND OBJECT_ID('Users', 'U') IS NOT NULL
+BEGIN
+    CREATE TABLE YeuCauGiaHan (
+        MaYeuCauGiaHan INT NOT NULL IDENTITY,
+        MaHopDong INT NOT NULL,
+        MaNguoiDung INT NOT NULL,
+        NgayGui DATETIME2 NOT NULL DEFAULT GETDATE(),
+        TrangThai NVARCHAR(30) NOT NULL DEFAULT 'ChoDuyet',
+        NgayKetThucCu DATETIME2 NULL,
+        NgayKetThucMoiDeXuat DATETIME2 NOT NULL,
+        NgayKetThucMoiChuTro DATETIME2 NULL,
+        TienCocMoi DECIMAL(18,2) NULL,
+        NoiDungDieuKhoanMoi NVARCHAR(1000) NULL,
+        GhiChuNguoiDung NVARCHAR(500) NULL,
+        GhiChuChuTro NVARCHAR(500) NULL,
+        NgayXuLy DATETIME2 NULL,
+        CONSTRAINT PK_YeuCauGiaHan PRIMARY KEY (MaYeuCauGiaHan)
+    );
+END
+
+IF OBJECT_ID('EmailLog', 'U') IS NULL
+BEGIN
+    CREATE TABLE EmailLog (
+        EmailLogId INT NOT NULL IDENTITY,
+        EventType NVARCHAR(50) NOT NULL,
+        EntityType NVARCHAR(50) NOT NULL,
+        EntityId INT NOT NULL,
+        RecipientEmail NVARCHAR(255) NOT NULL,
+        RecipientName NVARCHAR(255) NULL,
+        ReferenceDate DATETIME2 NULL,
+        Subject NVARCHAR(255) NOT NULL,
+        Status NVARCHAR(20) NOT NULL DEFAULT 'Sent',
+        ErrorMessage NVARCHAR(1000) NULL,
+        SentAt DATETIME2 NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT PK_EmailLog PRIMARY KEY (EmailLogId)
+    );
+END
+
+IF OBJECT_ID('EmailLog', 'U') IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM sys.indexes WHERE name = 'IX_EmailLog_Dedup' AND object_id = OBJECT_ID('EmailLog')
+)
+BEGIN
+    CREATE INDEX IX_EmailLog_Dedup ON EmailLog(EventType, EntityType, EntityId, RecipientEmail, ReferenceDate);
+END
+");
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -80,6 +289,11 @@ namespace DoAnSE104.Data
                 .HasForeignKey(dv => dv.MaNhaTro)
                 .OnDelete(DeleteBehavior.NoAction)
                 .IsRequired(false);
+
+            modelBuilder.Entity<DichVu>()
+                .Property(dv => dv.LoaiDichVu)
+                .HasMaxLength(30)
+                .HasDefaultValue("TinhPhi");
 
             modelBuilder.Entity<DichVu>()
                 .HasOne(dv => dv.ChuTro)
@@ -304,6 +518,9 @@ namespace DoAnSE104.Data
 
             modelBuilder.Entity<ThongBaoDaDoc>()
                 .HasIndex(td => new { td.MaNguoiDung, td.NgayDoc });
+
+            modelBuilder.Entity<EmailLog>()
+                .HasIndex(e => new { e.EventType, e.EntityType, e.EntityId, e.RecipientEmail, e.ReferenceDate });
         }
     }
 }

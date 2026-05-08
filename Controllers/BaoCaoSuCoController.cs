@@ -6,6 +6,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Helpers;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
+using DoAnSE104.Services;
 
 namespace DoAnSE104.Controllers
 {
@@ -20,10 +21,12 @@ namespace DoAnSE104.Controllers
         private const string Huy = "Huy";
 
         private readonly ApplicationDbContext _context;
+        private readonly INotificationEmailService _notificationEmailService;
 
-        public BaoCaoSuCoController(ApplicationDbContext context)
+        public BaoCaoSuCoController(ApplicationDbContext context, INotificationEmailService notificationEmailService)
         {
             _context = context;
+            _notificationEmailService = notificationEmailService;
         }
 
         private int GetCurrentUserId()
@@ -251,6 +254,7 @@ namespace DoAnSE104.Controllers
 
                 _context.BaoCaoSuCo.Add(baoCao);
                 await _context.SaveChangesAsync();
+                await _notificationEmailService.GuiEmailBaoCaoSuCoMoiAsync(baoCao.MaBaoCao);
 
                 return CreatedAtAction(nameof(GetBaoCaoSuCo), new { id = baoCao.MaBaoCao },
                     ApiResponse<object>.Ok(new { baoCao.MaBaoCao }, "Gửi báo cáo sự cố thành công"));

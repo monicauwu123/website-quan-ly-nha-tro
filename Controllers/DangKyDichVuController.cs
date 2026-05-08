@@ -181,6 +181,7 @@ namespace DoAnSE104.Controllers
 
             var dichVu = await _context.DichVu
                 .Where(dv => dv.MaNhaTro == phong.MaNhaTro)
+                .Where(dv => dv.LoaiDichVu == "TinhPhi")
                 .OrderBy(dv => dv.TenDichVu)
                 .Select(dv => new
                 {
@@ -215,7 +216,8 @@ namespace DoAnSE104.Controllers
 
             var dichVu = await _context.DichVu.FirstOrDefaultAsync(dv =>
                 dv.MaDichVu == dto.MaDichVu
-                && dv.MaNhaTro == phong.MaNhaTro);
+                && dv.MaNhaTro == phong.MaNhaTro
+                && dv.LoaiDichVu == "TinhPhi");
 
             if (dichVu == null)
                 return BadRequest(ApiResponse<object>.Loi("Dịch vụ không tồn tại hoặc không thuộc nhà trọ của phòng này"));

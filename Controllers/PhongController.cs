@@ -6,6 +6,7 @@ using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
+using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
 
 namespace DoAnSE104.Controllers
@@ -290,6 +291,8 @@ namespace DoAnSE104.Controllers
                     SoNguoiHienTai = phong.SoNguoiHienTai,
                     MoTa = phong.MoTa,
                     HinhAnh = phong.HinhAnh,
+                    DanhSachHinhAnh = phong.DanhSachHinhAnh,
+                    DichVuGanPhong = phong.DichVuGanPhong,
                     DiaChiPhong = phong.DiaChiPhong
                 };
 
@@ -310,18 +313,21 @@ namespace DoAnSE104.Controllers
         [HttpPost("UploadImage")]
         [HttpPost("upload-image")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
-        public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadImage([FromForm] UploadImageDto dto)
         {
             try
             {
+                var file = dto?.File;
                 if (file == null || file.Length == 0)
                     return BadRequest(ApiResponse<object>.Loi("Vui lòng chọn file ảnh"));
 
-                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                var allowedContentTypes = new[] { "image/jpeg", "image/png", "image/webp" };
                 var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-                if (!allowedExtensions.Contains(fileExtension))
-                    return BadRequest(ApiResponse<object>.Loi("Chỉ chấp nhận: .jpg, .jpeg, .png, .gif"));
+                if (!allowedExtensions.Contains(fileExtension) || !allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+                    return BadRequest(ApiResponse<object>.Loi("Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP"));
 
                 if (file.Length > 5 * 1024 * 1024)
                     return BadRequest(ApiResponse<object>.Loi("Kích thước file không được vượt quá 5MB"));

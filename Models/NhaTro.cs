@@ -19,6 +19,12 @@ namespace DoAnSE104.Models
         [MaxLength(255)]
         public string? MoTa { get; set; }
 
+        [MaxLength(255)]
+        public string? HinhAnh { get; set; }
+
+        /// <summary>JSON array các URL ảnh của nhà trọ.</summary>
+        public string? DanhSachHinhAnh { get; set; }
+
         /// <summary>FK tới User (ChuTro sở hữu nhà trọ này)</summary>
         public int? MaChuTro { get; set; }
 

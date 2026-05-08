@@ -350,11 +350,11 @@ namespace DoAnSE104.Controllers
         [HttpPost("gui-bien-lai")]
         [Authorize(Roles = VaiTroConst.NguoiDung)]
         [RequestSizeLimit(20 * 1024 * 1024)]
-        public async Task<ActionResult<ThanhToanDto>> GuiBienLai(
-            [FromForm] GuiBienLaiDto dto,
-            [FromForm] IFormFile? anhBienLai)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ThanhToanDto>> GuiBienLai([FromForm] GuiBienLaiDto dto)
         {
             var userId = GetCurrentUserId();
+            var anhBienLai = dto.AnhBienLai;
 
             // 1. Kiểm tra hóa đơn tồn tại
             var hoaDon = await _context.HoaDon.FindAsync(dto.MaHoaDon);

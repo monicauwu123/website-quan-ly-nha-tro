@@ -63,6 +63,8 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IRentalPeriodResetService, RentalPeriodResetService>();
 builder.Services.AddScoped<IMonthlyInvoiceService, MonthlyInvoiceService>();
 builder.Services.AddScoped<IThongBaoService, ThongBaoService>();
+builder.Services.AddScoped<INotificationEmailService, NotificationEmailService>();
+builder.Services.AddHostedService<EmailReminderBackgroundService>();
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
 builder.Services.AddControllers(options =>
@@ -181,6 +183,7 @@ using (var scope = app.Services.CreateScope())
         }
 
         context.Database.EnsureCreated();
+        context.EnsureCustomSchema();
 
         if (!context.TrangThai.Any())
         {

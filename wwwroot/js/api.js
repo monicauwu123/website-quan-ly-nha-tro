@@ -39,13 +39,56 @@ const API = {
         }
     },
 
+    nhatro: {
+        uploadImage: async (file) => {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch('/api/NhaTro/upload-image', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: formData
+            });
+
+            const text = await res.text();
+            let json = {};
+            try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+
+            if (!res.ok || json.thanhCong === false) {
+                throw new Error(extractApiErrorMessage(json) || 'Upload thất bại');
+            }
+
+            return json.duLieu || json;
+        }
+    },
+
     // 3. HÓA ĐƠN (INVOICES)
     hoadon: {
         getAll: () => apiFetch('/api/HoaDon'),
         getInfoByPhong: (phongId) => apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}`),
         taoHoaDonThang: (kyHoaDon) => apiFetch(`/api/HoaDon/TaoHoaDonThang${kyHoaDon ? `?kyHoaDon=${encodeURIComponent(kyHoaDon)}` : ''}`, 'POST'),
+        // Lấy JSON data hóa đơn để in (dùng với HoaDonPrint.openModal)
         exportPdf: (id) => {
-            window.open(`/api/HoaDon/ExportPdf/${id}`, '_blank');
+            return apiFetch(`/api/HoaDon/ExportPdf/${id}`);
+        },
+        // Xuất CSV/Excel từ backend với filter
+        exportExcelBackend: (params = {}) => {
+            const qs = new URLSearchParams();
+            if (params.kyHoaDon)  qs.set('kyHoaDon',  params.kyHoaDon);
+            if (params.trangThai) qs.set('trangThai',  params.trangThai);
+            if (params.maPhong)   qs.set('maPhong',    params.maPhong);
+            const token = localStorage.getItem('token');
+            return fetch(`/api/HoaDon/ExportExcel?${qs.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(res => {
+                if (!res.ok) throw new Error('Xuất Excel thất bại');
+                return res.blob();
+            }).then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `hoa-don.csv`; a.click();
+                URL.revokeObjectURL(url);
+            });
         }
     },
 

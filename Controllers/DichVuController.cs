@@ -26,6 +26,15 @@ namespace DoAnSE104.Controllers
         private string GetCurrentRole()
             => User.FindFirstValue(ClaimTypes.Role)!;
 
+        private static string ChuanHoaLoaiDichVu(string? loaiDichVu)
+        {
+            if (string.Equals(loaiDichVu, "TienIch", StringComparison.OrdinalIgnoreCase))
+                return "TienIch";
+            if (string.Equals(loaiDichVu, "TienNghi", StringComparison.OrdinalIgnoreCase))
+                return "TienNghi";
+            return "TinhPhi";
+        }
+
         private IQueryable<DichVu> ApplyRoleFilter(IQueryable<DichVu> query)
         {
             var role = GetCurrentRole();
@@ -81,9 +90,9 @@ namespace DoAnSE104.Controllers
             return Ok(tongTien);
         }
 
-        // GET: api/DichVu?maNhaTro=1
+        // GET: api/DichVu?maNhaTro=1&loaiDichVu=TinhPhi
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<DichVu>>> GetDichVu([FromQuery] int? maNhaTro = null)
+        public async Task<ActionResult<IEnumerable<DichVu>>> GetDichVu([FromQuery] int? maNhaTro = null, [FromQuery] string? loaiDichVu = null)
         {
             var query = ApplyRoleFilter(_context.DichVu
                 .Include(dv => dv.NhaTro)
@@ -97,8 +106,15 @@ namespace DoAnSE104.Controllers
                 query = query.Where(dv => dv.MaNhaTro == maNhaTro.Value);
             }
 
+            if (!string.IsNullOrWhiteSpace(loaiDichVu))
+            {
+                var loai = ChuanHoaLoaiDichVu(loaiDichVu);
+                query = query.Where(dv => dv.LoaiDichVu == loai);
+            }
+
             var danhSachDichVu = await query
                 .OrderBy(dv => dv.NhaTro != null ? dv.NhaTro.TenNhaTro : "")
+                .ThenBy(dv => dv.LoaiDichVu)
                 .ThenBy(dv => dv.TenDichVu)
                 .ToListAsync();
 
@@ -108,7 +124,7 @@ namespace DoAnSE104.Controllers
         [HttpGet("TheoNhaTro/{maNhaTro}")]
         public async Task<ActionResult<IEnumerable<DichVu>>> GetTheoNhaTro(int maNhaTro)
         {
-            return await GetDichVu((int?)maNhaTro);
+            return await GetDichVu((int?)maNhaTro, null);
         }
 
         // GET: api/DichVu/5
@@ -156,6 +172,8 @@ namespace DoAnSE104.Controllers
             if (dichVu.Tiendichvu < 0)
                 return BadRequest(ApiResponse<object>.Loi("Giá dịch vụ phải lớn hơn hoặc bằng 0"));
 
+            dichVu.LoaiDichVu = ChuanHoaLoaiDichVu(dichVu.LoaiDichVu);
+
             if (!await ChuTroCoQuyenNhaTro(dichVu.MaNhaTro))
                 return BadRequest(ApiResponse<object>.Loi("Vui lòng chọn nhà trọ hợp lệ trước khi thêm dịch vụ"));
 
@@ -184,6 +202,8 @@ namespace DoAnSE104.Controllers
             if (dichVu.Tiendichvu < 0)
                 return BadRequest(ApiResponse<object>.Loi("Giá dịch vụ phải lớn hơn hoặc bằng 0"));
 
+            dichVu.LoaiDichVu = ChuanHoaLoaiDichVu(dichVu.LoaiDichVu);
+
             if (!await ChuTroCoQuyenNhaTro(dichVu.MaNhaTro))
                 return BadRequest(ApiResponse<object>.Loi("Vui lòng chọn nhà trọ hợp lệ trước khi cập nhật dịch vụ"));
 
@@ -203,6 +223,7 @@ namespace DoAnSE104.Controllers
 
             existing.TenDichVu = dichVu.TenDichVu;
             existing.Tiendichvu = dichVu.Tiendichvu;
+            existing.LoaiDichVu = dichVu.LoaiDichVu;
             existing.MaNhaTro = dichVu.MaNhaTro;
 
             if (GetCurrentRole() == VaiTroConst.ChuTro)

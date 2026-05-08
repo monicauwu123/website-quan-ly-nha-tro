@@ -1,0 +1,408 @@
+/* Print and preview styles for invoices */
+
+@page {
+    size: A4;
+    margin: 14mm;
+}
+
+@media screen {
+    .print-only { display: none !important; }
+}
+
+#invoicePrintModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+#invoicePrintModal.open { display: flex; }
+
+.invoice-print-box {
+    width: min(900px, 96vw);
+    max-height: 94vh;
+    overflow: auto;
+    background: #f3f4f6;
+    border-radius: 10px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
+}
+
+.invoice-modal-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.invoice-modal-toolbar h3 {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.invoice-modal-toolbar .toolbar-btns {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-print-now,
+.btn-close-modal {
+    border: 0;
+    border-radius: 7px;
+    padding: 0.48rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 650;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-print-now {
+    color: #ffffff;
+    background: #15803d;
+}
+
+.btn-print-now:hover { background: #166534; }
+
+.btn-close-modal {
+    color: #374151;
+    background: #e5e7eb;
+}
+
+.btn-close-modal:hover { background: #d1d5db; }
+
+#invoicePrintContent {
+    box-sizing: border-box;
+    width: 210mm;
+    min-height: 297mm;
+    max-width: calc(96vw - 2rem);
+    margin: 1.25rem auto;
+    padding: 18mm;
+    background: #ffffff;
+    color: #111827;
+    font-family: "Plus Jakarta Sans", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
+}
+
+.inv-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1.25rem;
+    align-items: start;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #111827;
+}
+
+.inv-landlord-info h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    font-weight: 800;
+    color: #111827;
+}
+
+.inv-landlord-info p,
+.inv-doc-info .inv-date {
+    margin: 0.12rem 0;
+    color: #4b5563;
+    font-size: 0.82rem;
+}
+
+.inv-doc-info {
+    min-width: 145px;
+    text-align: right;
+}
+
+.inv-doc-info .inv-code {
+    display: inline-block;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid #111827;
+    border-radius: 4px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.inv-title {
+    margin: 1.35rem 0 1.25rem;
+    text-align: center;
+}
+
+.inv-title h1 {
+    margin: 0;
+    font-size: 1.45rem;
+    line-height: 1.2;
+    font-weight: 850;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    color: #111827;
+}
+
+.inv-title .inv-period {
+    margin: 0.35rem 0 0;
+    color: #4b5563;
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.inv-parties {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    margin-bottom: 1.1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.inv-party-section {
+    padding: 0.8rem 0.9rem;
+    background: #ffffff;
+}
+
+.inv-party-section + .inv-party-section {
+    border-left: 1px solid #d1d5db;
+}
+
+.inv-party-section h4 {
+    margin: 0 0 0.42rem;
+    color: #374151;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.inv-party-section p {
+    margin: 0.18rem 0;
+    color: #111827;
+    font-size: 0.9rem;
+}
+
+.inv-party-section p span {
+    color: #6b7280;
+    font-size: 0.82rem;
+}
+
+.inv-table {
+    width: 100%;
+    margin: 0 0 0.95rem;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.inv-table th,
+.inv-table td {
+    padding: 0.66rem 0.75rem;
+    border: 1px solid #d1d5db;
+}
+
+.inv-table thead th {
+    background: #f3f4f6;
+    color: #111827;
+    text-align: left;
+    font-weight: 800;
+}
+
+.inv-table thead th:last-child,
+.inv-table tbody td:last-child,
+.inv-table tfoot td:last-child {
+    text-align: right;
+}
+
+.inv-table tbody td {
+    color: #1f2937;
+}
+
+.inv-table tfoot td {
+    background: #f9fafb;
+    color: #111827;
+    font-weight: 850;
+    font-size: 1rem;
+}
+
+.inv-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.9rem 0 1rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 750;
+    color: #111827;
+    background: #ffffff;
+}
+
+.inv-status-row.paid { border-color: #86efac; color: #166534; background: #f0fdf4; }
+.inv-status-row.partial { border-color: #fcd34d; color: #92400e; background: #fffbeb; }
+.inv-status-row.unpaid { border-color: #fca5a5; color: #991b1b; background: #fef2f2; }
+.inv-status-row.cancelled { color: #4b5563; background: #f9fafb; }
+
+.inv-note {
+    margin-bottom: 1rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    background: #fffbeb;
+    color: #78350f;
+    font-size: 0.88rem;
+}
+
+.inv-note strong {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.inv-signatures {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1.8rem;
+    padding-top: 1.25rem;
+}
+
+.inv-sig-box {
+    text-align: center;
+}
+
+.inv-sig-box h5 {
+    margin: 0;
+    color: #111827;
+    font-size: 0.86rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.inv-sig-box p {
+    margin: 0.25rem 0 3.25rem;
+    color: #6b7280;
+    font-size: 0.78rem;
+}
+
+.inv-sig-line {
+    min-height: 1.25rem;
+    color: #374151;
+    font-size: 0.86rem;
+    font-style: italic;
+}
+
+.inv-footer {
+    margin-top: 1.1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    color: #6b7280;
+    text-align: center;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 760px) {
+    #invoicePrintContent {
+        width: 100%;
+        min-height: auto;
+        padding: 1.25rem;
+    }
+
+    .inv-header,
+    .inv-parties,
+    .inv-signatures {
+        grid-template-columns: 1fr;
+    }
+
+    .inv-doc-info { text-align: left; }
+
+    .inv-party-section + .inv-party-section {
+        border-left: 0;
+        border-top: 1px solid #d1d5db;
+    }
+}
+
+@media print {
+    html,
+    body {
+        width: auto !important;
+        min-height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    body > *:not(#invoicePrintModal) {
+        display: none !important;
+    }
+
+    #invoicePrintModal {
+        display: block !important;
+        position: static !important;
+        inset: auto !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    .invoice-print-box {
+        width: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    .invoice-modal-toolbar {
+        display: none !important;
+    }
+
+    #invoicePrintContent {
+        width: auto !important;
+        min-height: auto !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        color: #000000 !important;
+        font-family: Arial, sans-serif !important;
+        font-size: 10.5pt !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    .inv-header,
+    .inv-table th,
+    .inv-table td,
+    .inv-status-row,
+    .inv-parties,
+    .inv-party-section + .inv-party-section {
+        border-color: #000000 !important;
+    }
+
+    .inv-status-row,
+    .inv-party-section,
+    .inv-table thead th,
+    .inv-table tfoot td,
+    .inv-note {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    .inv-footer,
+    .inv-landlord-info p,
+    .inv-party-section p span,
+    .inv-sig-box p {
+        color: #333333 !important;
+    }
+}

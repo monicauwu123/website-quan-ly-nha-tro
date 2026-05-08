@@ -18,26 +18,6 @@ window.AppModules.hoadon = {
         { label: 'Đã thanh toán', key: 'daThanhToan', render: v => window.AppFormat.currency(v) },
         { label: 'Còn lại', key: 'conLai', render: v => `<strong style="color:${Number(v || 0) > 0 ? 'var(--error)' : 'var(--success)'}">${window.AppFormat.currency(v)}</strong>` },
         { label: 'Trạng thái', key: 'trangThaiThanhToan', render: v => `<span class="badge ${v === 'Đã thanh toán' ? 'badge-green' : v === 'Thanh toán một phần' ? 'badge-amber' : 'badge-red'}">${v || 'Chưa thanh toán'}</span>` },
-        { label: 'Ngày lập', key: 'ngayLap', render: v => window.AppFormat.date(v) },
-        {
-            label: 'Thao tác',
-            key: '_actions',
-            // render nhận cả row object (truyền qua row param trong table renderer)
-            renderRow: (row) => {
-                const role = localStorage.getItem('role') || '';
-                let btns = `<button class="btn" style="padding:0.2rem 0.5rem;background:#6366f1;color:white;" onclick="API.hoadon.exportPdf(${row.maHoaDon})"><i class="fas fa-file-pdf"></i> PDF</button>`;
-
-                // Nút "Gửi biên lai" chỉ hiện với NguoiDung và hóa đơn chưa thanh toán đủ
-                if (role === 'NguoiDung' && row.trangThai !== 'DaThanhToan' && row.trangThai !== 'Huy') {
-                    const rowJson = JSON.stringify(row).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    btns += ` <button class="btn" style="padding:0.2rem 0.5rem;background:#10b981;color:white;" 
-                                onclick="window.moModalGuiBienLai(JSON.parse(this.dataset.row))"
-                                data-row="${rowJson}">
-                                <i class="fas fa-receipt"></i> Gửi biên lai
-                              </button>`;
-                }
-                return btns;
-            }
-        }
+        { label: 'Ngày lập', key: 'ngayLap', render: v => window.AppFormat.date(v) }
     ]
 };

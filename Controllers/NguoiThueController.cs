@@ -253,11 +253,14 @@ namespace DoAnSE104.Controllers
 
         // POST: api/NguoiThue/upload-cccd-image
         [HttpPost("upload-cccd-image")]
+        [Consumes("multipart/form-data")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro},{VaiTroConst.NguoiDung}")]
-        public async Task<IActionResult> UploadCccdImage([FromForm] IFormFile file)
+        public async Task<IActionResult> UploadCccdImage([FromForm] UploadCccdImageDto dto)
         {
             try
             {
+                var file = dto?.File;
+
                 if (file == null || file.Length == 0)
                     return BadRequest(ApiResponse<object>.Loi("Vui lòng chọn file ảnh CCCD"));
 

@@ -41,10 +41,12 @@ namespace DoAnSE104.Services
     {
         private const string LoaiHoaDonHangThang = "HangThang";
         private readonly ApplicationDbContext _context;
+        private readonly INotificationEmailService _notificationEmailService;
 
-        public MonthlyInvoiceService(ApplicationDbContext context)
+        public MonthlyInvoiceService(ApplicationDbContext context, INotificationEmailService notificationEmailService)
         {
             _context = context;
+            _notificationEmailService = notificationEmailService;
         }
 
         public async Task<MonthlyInvoiceResult> TaoHoaDonHangThangAsync(string? kyHoaDon = null, int? maChuTro = null, DateTime? ngayLap = null)
@@ -144,7 +146,8 @@ namespace DoAnSE104.Services
                         .Include(dk => dk.DichVu)
                         .Where(dk => dk.MaPhong == hopDong.MaPhong
                             && dk.TrangThai == "DangSuDung"
-                            && dk.DichVu.MaNhaTro == phong.MaNhaTro)
+                            && dk.DichVu.MaNhaTro == phong.MaNhaTro
+                            && dk.DichVu.LoaiDichVu == "TinhPhi")
                         .ToListAsync();
 
                     var dichVuDangDung = dichVuDangDungRaw
@@ -198,6 +201,7 @@ namespace DoAnSE104.Services
                     item.GhiChu = "Tạo hóa đơn thành công.";
                     result.SoHoaDonDaTao++;
                     result.ChiTiet.Add(item);
+                    await _notificationEmailService.GuiEmailHoaDonMoiAsync(hoaDon.MaHoaDon);
                 }
                 catch (Exception ex)
                 {
