@@ -499,5 +499,66 @@ namespace DoAnSE104.Controllers
 
             return Ok(new { NguoiThue = nguoiThue, Phong = phong });
         }
+
+        // GET: api/HopDong/ExportPdf/5
+        [HttpGet("ExportPdf/{id}")]
+        public async Task<ActionResult<object>> ExportPdfHopDong(int id)
+        {
+            var role   = GetCurrentRole();
+            var userId = GetCurrentUserId();
+
+            var hd = await _context.HopDong
+                .Include(h => h.NguoiThue)
+                .Include(h => h.Phong)
+                    .ThenInclude(p => p.NhaTro)
+                        .ThenInclude(n => n.ChuTro)
+                .FirstOrDefaultAsync(h => h.MaHopDong == id);
+
+            if (hd == null)
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy hợp đồng"));
+
+            // Kiểm tra quyền
+            if (role == VaiTroConst.ChuTro)
+            {
+                if (hd.Phong?.NhaTro?.MaChuTro != userId)
+                    return Forbid();
+            }
+            else if (role == VaiTroConst.NguoiDung)
+            {
+                if (hd.NguoiThue?.MaNguoiDung != userId)
+                    return Forbid();
+            }
+
+            var chuTro = hd.Phong?.NhaTro?.ChuTro;
+
+            var result = new
+            {
+                maHopDong      = hd.MaHopDong,
+                maPhong        = hd.MaPhong,
+                tenPhong       = hd.Phong?.TenPhong ?? "---",
+                diaChiPhong    = hd.Phong?.DiaChiPhong ?? "",
+                tenNhaTro      = hd.Phong?.NhaTro?.TenNhaTro ?? "---",
+                diaChiNhaTro   = hd.Phong?.NhaTro?.DiaChi ?? "",
+                maNguoiThue    = hd.MaNguoiThue,
+                tenNguoiThue   = hd.NguoiThue?.HoTen ?? "---",
+                cccdNguoiThue  = hd.NguoiThue?.CCCD ?? "",
+                sdtNguoiThue   = hd.NguoiThue?.SDT ?? "",
+                emailNguoiThue = hd.NguoiThue?.Email ?? "",
+                diaChiNguoiThue= hd.NguoiThue?.DiaChi ?? "",
+                ngayBatDau     = hd.NgayBatDau,
+                ngayKetThuc    = hd.NgayKetThuc,
+                tienCoc        = hd.TienCoc,
+                giaPhong       = hd.Phong?.GiaPhong ?? 0,
+                noiDung        = hd.NoiDung ?? "",
+                trangThai      = hd.TrangThai,
+                trangThaiText  = GetTrangThaiText(hd.TrangThai, hd.NgayKetThuc),
+                tenChuTro      = chuTro?.HoTen ?? "---",
+                sdtChuTro      = chuTro?.SoDienThoai ?? "",
+                emailChuTro    = chuTro?.Email ?? "",
+                ngayLap        = DateTime.Now
+            };
+
+            return Ok(result);
+        }
     }
 }

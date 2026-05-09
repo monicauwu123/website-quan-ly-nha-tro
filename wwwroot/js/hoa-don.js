@@ -230,7 +230,61 @@ ${(hd.ghiChu || hd.tienPhatSinhKhac > 0) ? `
     }
 
     function doPrint() {
-        window.print();
+        const content = document.getElementById('invoicePrintContent');
+        if (!content) return;
+
+        const html = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Hóa Đơn Tiền Phòng</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Plus Jakarta Sans", Arial, sans-serif; font-size: 13px; color: #111827; line-height: 1.45; margin: 0; padding: 18mm; }
+  .inv-header { display: grid; grid-template-columns: 1fr auto; gap: 1.25rem; align-items: start; padding-bottom: 1rem; border-bottom: 2px solid #111827; }
+  .inv-landlord-info h2 { margin: 0 0 .35rem; font-size: 1.15rem; font-weight: 800; color: #111827; }
+  .inv-landlord-info p, .inv-doc-info .inv-date { margin: .12rem 0; color: #4b5563; font-size: .82rem; }
+  .inv-doc-info { min-width: 145px; text-align: right; }
+  .inv-doc-info .inv-code { display: inline-block; padding: .35rem .55rem; border: 1px solid #111827; border-radius: 4px; font-weight: 800; color: #111827; }
+  .inv-title { margin: 1.35rem 0 1.25rem; text-align: center; }
+  .inv-title h1 { margin: 0; font-size: 1.45rem; font-weight: 800; text-transform: uppercase; color: #111827; }
+  .inv-title .inv-period { margin: .35rem 0 0; color: #4b5563; font-size: .92rem; font-weight: 600; }
+  .inv-parties { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 1.1rem; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; }
+  .inv-party-section { padding: .8rem .9rem; background: #fff; }
+  .inv-party-section + .inv-party-section { border-left: 1px solid #d1d5db; }
+  .inv-party-section h4 { margin: 0 0 .42rem; color: #374151; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+  .inv-party-section p { margin: .18rem 0; color: #111827; font-size: .9rem; }
+  .inv-party-section p span { color: #6b7280; font-size: .82rem; }
+  .inv-table { width: 100%; margin: 0 0 .95rem; border-collapse: collapse; font-size: .9rem; }
+  .inv-table th, .inv-table td { padding: .66rem .75rem; border: 1px solid #d1d5db; }
+  .inv-table thead th { background: #f3f4f6; color: #111827; text-align: left; font-weight: 800; }
+  .inv-table thead th:last-child, .inv-table tbody td:last-child, .inv-table tfoot td:last-child { text-align: right; }
+  .inv-table tbody td { color: #1f2937; }
+  .inv-table tfoot td { background: #f9fafb; color: #111827; font-weight: 800; font-size: 1rem; }
+  .inv-status-row { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin: .9rem 0 1rem; padding: .7rem .85rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; font-weight: 700; color: #111827; background: #fff; }
+  .inv-status-row.paid { border-color: #86efac; color: #166534; background: #f0fdf4; }
+  .inv-status-row.partial { border-color: #fcd34d; color: #92400e; background: #fffbeb; }
+  .inv-status-row.unpaid { border-color: #fca5a5; color: #991b1b; background: #fef2f2; }
+  .inv-note { margin-bottom: 1rem; padding: .75rem .85rem; border: 1px solid #fcd34d; border-radius: 6px; background: #fffbeb; color: #78350f; font-size: .88rem; }
+  .inv-note strong { display: block; margin-bottom: .25rem; }
+  .inv-signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.8rem; padding-top: 1.25rem; }
+  .inv-sig-box { text-align: center; }
+  .inv-sig-box h5 { margin: 0; color: #111827; font-size: .86rem; font-weight: 800; text-transform: uppercase; }
+  .inv-sig-box p { margin: .25rem 0 3.25rem; color: #6b7280; font-size: .78rem; }
+  .inv-sig-line { min-height: 1.25rem; color: #374151; font-size: .86rem; font-style: italic; }
+  .inv-footer { margin-top: 1.1rem; padding-top: .75rem; border-top: 1px solid #e5e7eb; color: #6b7280; text-align: center; font-size: .78rem; }
+</style>
+</head>
+<body>${content.innerHTML}</body>
+</html>`;
+
+        const win = window.open('', '_blank', 'width=900,height=700');
+        if (!win) { alert('Trình duyệt đã chặn cửa sổ pop-up. Vui lòng cho phép pop-up cho trang này.'); return; }
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(() => { win.print(); }, 400);
     }
 
     return { openModal, closeModal, doPrint };

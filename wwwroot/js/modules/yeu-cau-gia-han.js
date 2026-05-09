@@ -172,12 +172,22 @@
             if (tienCoc !== '') payload.tienCocMoi = Number(tienCoc);
 
             try {
-                await apiFetch(`/api/YeuCauGiaHan/${maYeuCauGiaHan}/chap-nhan`, 'POST', payload);
+                const result = await apiFetch(`/api/YeuCauGiaHan/${maYeuCauGiaHan}/chap-nhan`, 'POST', payload);
                 showToast('Đã chấp nhận yêu cầu gia hạn và cập nhật hợp đồng!');
                 closeModal();
                 await loadLookups();
                 refreshData();
                 if (typeof window.capNhatSidebarBadges === 'function') window.capNhatSidebarBadges();
+
+                // Mở modal xuất PDF hợp đồng vừa gia hạn
+                const maHopDong = result?.data?.maHopDong || result?.maHopDong || yc?.maHopDong || yc?.hopDong?.maHopDong;
+                if (maHopDong && typeof HopDongPrint !== 'undefined') {
+                    setTimeout(() => {
+                        if (confirm('Hợp đồng đã được gia hạn thành công!\nBạn có muốn xem trước và xuất PDF hợp đồng ngay không?')) {
+                            HopDongPrint.openModal(maHopDong);
+                        }
+                    }, 300);
+                }
             } catch (err) {
                 showToast(err.message || 'Lỗi duyệt yêu cầu gia hạn', 'error');
             }

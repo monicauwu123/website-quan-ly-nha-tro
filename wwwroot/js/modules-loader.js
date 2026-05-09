@@ -24,6 +24,7 @@
         `js/modules/phong-dang-thue.js?v=${VERSION}`,
         `js/modules/khach-thue.js?v=${VERSION}`,
         `js/modules/hop-dong.js?v=${VERSION}`,
+        `js/hop-dong-print.js?v=${VERSION}`,
         `js/modules/yeu-cau-thue.js?v=${VERSION}`,
         `js/modules/hoa-don.js?v=${VERSION}`,
         `js/hoa-don.js?v=${VERSION}`,

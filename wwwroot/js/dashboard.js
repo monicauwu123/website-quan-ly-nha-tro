@@ -950,6 +950,13 @@ function renderTable(cfg, data, section) {
             } else if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
                 actionHtml = `<button class="btn-action btn-edit" onclick="openBaoCaoSuCoXuLyModal(${item.maBaoCao})"><i class="fas fa-clipboard-check"></i> Xử lý</button>`;
             }
+        } else if (section === 'hopdong') {
+            actionHtml = `<button class="btn-action" style="background:#6366f1;" onclick="HopDongPrint.openModal(${item.maHopDong})"><i class="fas fa-print"></i> In</button>`;
+            if (canWrite) {
+                actionHtml += `
+                <button class="btn-action btn-edit" onclick="editItem('hopdong',${item.maHopDong})"><i class="fas fa-edit"></i> Sửa</button>
+                <button class="btn-action btn-delete" onclick="deleteItem('hopdong',${item.maHopDong})"><i class="fas fa-trash"></i> Xóa</button>`;
+            }
         } else if (canWrite) {
             actionHtml = `
                 <button class="btn-action btn-edit" onclick="editItem('${section}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
@@ -1650,11 +1657,21 @@ async function openYeuCauThueDuyetModal(maYeuCau) {
         if (ngayKetThuc) payload.ngayKetThuc = ngayKetThuc;
 
         try {
-            await apiFetch(`/api/YeuCauThue/${maYeuCau}/chap-nhan`, 'POST', payload);
+            const result = await apiFetch(`/api/YeuCauThue/${maYeuCau}/chap-nhan`, 'POST', payload);
             showToast('Đã duyệt yêu cầu và lập hợp đồng!');
             closeModal();
             await loadLookups();
             refreshData();
+
+            // Mở modal xuất PDF hợp đồng vừa tạo
+            const maHopDong = result?.data?.maHopDong || result?.maHopDong;
+            if (maHopDong && typeof HopDongPrint !== 'undefined') {
+                setTimeout(() => {
+                    if (confirm('Hợp đồng đã được tạo thành công!\nBạn có muốn xem trước và xuất PDF hợp đồng ngay không?')) {
+                        HopDongPrint.openModal(maHopDong);
+                    }
+                }, 300);
+            }
         } catch (e) {
             showToast(e.message || 'Lỗi duyệt yêu cầu thuê', 'error');
         }
