@@ -4,7 +4,7 @@
 // ==========================================
 
 (function () {
-    const VERSION = '6.3';
+    const VERSION = '6.4';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
@@ -40,6 +40,7 @@
 
     const appScripts = [
         `js/dashboard.js?v=${VERSION}`,
+        `js/modules/yeu-cau-gia-han.js?v=${VERSION}`,
         `js/account.js?v=${VERSION}`
     ];
 

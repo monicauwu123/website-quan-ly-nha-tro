@@ -185,6 +185,15 @@ const API = {
         delete: (id) => apiFetch(`/api/YeuCauThue/${id}`, 'DELETE'),
     },
 
+    // 7b. YÊU CẦU GIA HẠN HỢP ĐỒNG
+    yeucaugiahan: {
+        getAll: () => apiFetch('/api/YeuCauGiaHan'),
+        create: (data) => apiFetch('/api/YeuCauGiaHan', 'POST', data),
+        accept: (id, data) => apiFetch(`/api/YeuCauGiaHan/${id}/chap-nhan`, 'POST', data),
+        reject: (id, data) => apiFetch(`/api/YeuCauGiaHan/${id}/tu-choi`, 'POST', data),
+        delete: (id) => apiFetch(`/api/YeuCauGiaHan/${id}`, 'DELETE'),
+    },
+
     // 8. ĐIỆN & NƯỚC
     dien: {
         getAll: () => apiFetch('/api/ChiSoDien'),
