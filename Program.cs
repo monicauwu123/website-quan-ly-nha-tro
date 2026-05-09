@@ -396,13 +396,13 @@ static void SeedSampleData(ApplicationDbContext context)
     var trangThaiDaThue = GetTrangThaiId(context, "thuê", "thue");
     var trangThaiSuaChua = GetTrangThaiId(context, "sửa", "sua");
 
-    var phongA101 = new Phong { TenPhong = "A101", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongThuongA.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 22, GiaPhong = 2500000, SucChua = 2, SoNguoiHienTai = 1, MoTa = "Phòng đang có hợp đồng", DiaChiPhong = "Tầng 1" };
-    var phongA102 = new Phong { TenPhong = "A102", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongVipA.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 28, GiaPhong = 3500000, SucChua = 3, SoNguoiHienTai = 0, MoTa = "Phòng trống để test yêu cầu thuê", DiaChiPhong = "Tầng 1" };
-    var phongA201 = new Phong { TenPhong = "A201", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongThuongA.MaLoaiPhong, MaTrangThai = trangThaiSuaChua, DienTich = 20, GiaPhong = 2300000, SucChua = 2, SoNguoiHienTai = 0, MoTa = "Phòng đang sửa chữa", DiaChiPhong = "Tầng 2" };
-    var phongB101 = new Phong { TenPhong = "B101", MaNhaTro = nhaTroB.MaNhaTro, MaLoaiPhong = loaiPhongSinhVienB.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 18, GiaPhong = 1800000, SucChua = 2, SoNguoiHienTai = 1, MoTa = "Phòng sinh viên đang thuê", DiaChiPhong = "Dãy B" };
-    var phongB102 = new Phong { TenPhong = "B102", MaNhaTro = nhaTroB.MaNhaTro, MaLoaiPhong = loaiPhongSinhVienB.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 18, GiaPhong = 1800000, SucChua = 2, SoNguoiHienTai = 0, MoTa = "Phòng trống giá tốt", DiaChiPhong = "Dãy B" };
-    var phongC301 = new Phong { TenPhong = "C301", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 32, GiaPhong = 4500000, SucChua = 3, SoNguoiHienTai = 1, MoTa = "Căn hộ mini đang thuê", DiaChiPhong = "Tầng 3" };
-    var phongC302 = new Phong { TenPhong = "C302", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 35, GiaPhong = 4800000, SucChua = 3, SoNguoiHienTai = 0, MoTa = "Căn hộ trống có ban công", DiaChiPhong = "Tầng 3" };
+    var phongA101 = new Phong { TenPhong = "A101", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongThuongA.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 22, GiaPhong = 2500000, SucChua = 2, MoTa = "Phòng đang có hợp đồng", DiaChiPhong = "Tầng 1" };
+    var phongA102 = new Phong { TenPhong = "A102", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongVipA.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 28, GiaPhong = 3500000, SucChua = 3, MoTa = "Phòng trống để test yêu cầu thuê", DiaChiPhong = "Tầng 1" };
+    var phongA201 = new Phong { TenPhong = "A201", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongThuongA.MaLoaiPhong, MaTrangThai = trangThaiSuaChua, DienTich = 20, GiaPhong = 2300000, SucChua = 2, MoTa = "Phòng đang sửa chữa", DiaChiPhong = "Tầng 2" };
+    var phongB101 = new Phong { TenPhong = "B101", MaNhaTro = nhaTroB.MaNhaTro, MaLoaiPhong = loaiPhongSinhVienB.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 18, GiaPhong = 1800000, SucChua = 2, MoTa = "Phòng sinh viên đang thuê", DiaChiPhong = "Dãy B" };
+    var phongB102 = new Phong { TenPhong = "B102", MaNhaTro = nhaTroB.MaNhaTro, MaLoaiPhong = loaiPhongSinhVienB.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 18, GiaPhong = 1800000, SucChua = 2, MoTa = "Phòng trống giá tốt", DiaChiPhong = "Dãy B" };
+    var phongC301 = new Phong { TenPhong = "C301", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 32, GiaPhong = 4500000, SucChua = 3, MoTa = "Căn hộ mini đang thuê", DiaChiPhong = "Tầng 3" };
+    var phongC302 = new Phong { TenPhong = "C302", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 35, GiaPhong = 4800000, SucChua = 3, MoTa = "Căn hộ trống có ban công", DiaChiPhong = "Tầng 3" };
 
     context.Phong.AddRange(phongA101, phongA102, phongA201, phongB101, phongB102, phongC301, phongC302);
     context.SaveChanges();
@@ -515,11 +515,11 @@ static void SeedSampleData(ApplicationDbContext context)
     context.Users.AddRange(nguoiDung4, nguoiDung5, nguoiDung6, nguoiDung7);
     context.SaveChanges();
 
-    var phongA103 = new Phong { TenPhong = "A103", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongThuongA.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 24, GiaPhong = 2700000, SucChua = 2, SoNguoiHienTai = 1, MoTa = "Phòng có hợp đồng vừa hết hạn để test tự trả về trống", DiaChiPhong = "Tầng 1" };
-    var phongA202 = new Phong { TenPhong = "A202", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongVipA.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 30, GiaPhong = 3700000, SucChua = 3, SoNguoiHienTai = 2, MoTa = "Phòng sắp hết hạn hợp đồng trong vài ngày", DiaChiPhong = "Tầng 2" };
-    var phongB103 = new Phong { TenPhong = "B103", MaNhaTro = nhaTroB.MaNhaTro, MaLoaiPhong = loaiPhongSinhVienB.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 16, GiaPhong = 1600000, SucChua = 1, SoNguoiHienTai = 1, MoTa = "Phòng thuê theo kỳ tháng, có dịch vụ tháng cũ cần hết hạn", DiaChiPhong = "Dãy B" };
-    var phongC303 = new Phong { TenPhong = "C303", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiSuaChua, DienTich = 34, GiaPhong = 4700000, SucChua = 3, SoNguoiHienTai = 0, MoTa = "Căn hộ đang sửa chữa để test filter trạng thái", DiaChiPhong = "Tầng 3" };
-    var phongC304 = new Phong { TenPhong = "C304", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 36, GiaPhong = 5000000, SucChua = 4, SoNguoiHienTai = 0, MoTa = "Căn hộ trống để test yêu cầu thuê nhiều tháng", DiaChiPhong = "Tầng 4" };
+    var phongA103 = new Phong { TenPhong = "A103", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongThuongA.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 24, GiaPhong = 2700000, SucChua = 2, MoTa = "Phòng có hợp đồng vừa hết hạn để test tự trả về trống", DiaChiPhong = "Tầng 1" };
+    var phongA202 = new Phong { TenPhong = "A202", MaNhaTro = nhaTroA.MaNhaTro, MaLoaiPhong = loaiPhongVipA.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 30, GiaPhong = 3700000, SucChua = 3, MoTa = "Phòng sắp hết hạn hợp đồng trong vài ngày", DiaChiPhong = "Tầng 2" };
+    var phongB103 = new Phong { TenPhong = "B103", MaNhaTro = nhaTroB.MaNhaTro, MaLoaiPhong = loaiPhongSinhVienB.MaLoaiPhong, MaTrangThai = trangThaiDaThue, DienTich = 16, GiaPhong = 1600000, SucChua = 1, MoTa = "Phòng thuê theo kỳ tháng, có dịch vụ tháng cũ cần hết hạn", DiaChiPhong = "Dãy B" };
+    var phongC303 = new Phong { TenPhong = "C303", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiSuaChua, DienTich = 34, GiaPhong = 4700000, SucChua = 3, MoTa = "Căn hộ đang sửa chữa để test filter trạng thái", DiaChiPhong = "Tầng 3" };
+    var phongC304 = new Phong { TenPhong = "C304", MaNhaTro = nhaTroC.MaNhaTro, MaLoaiPhong = loaiCanHoC.MaLoaiPhong, MaTrangThai = trangThaiTrong, DienTich = 36, GiaPhong = 5000000, SucChua = 4, MoTa = "Căn hộ trống để test yêu cầu thuê nhiều tháng", DiaChiPhong = "Tầng 4" };
 
     context.Phong.AddRange(phongA103, phongA202, phongB103, phongC303, phongC304);
     context.SaveChanges();

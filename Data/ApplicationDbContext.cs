@@ -239,6 +239,27 @@ IF OBJECT_ID('EmailLog', 'U') IS NOT NULL AND NOT EXISTS (
 BEGIN
     CREATE INDEX IX_EmailLog_Dedup ON EmailLog(EventType, EntityType, EntityId, RecipientEmail, ReferenceDate);
 END
+
+-- Đồng bộ trạng thái phòng theo hợp đồng hiệu lực
+-- Phòng đang có HĐ hiệu lực → Đã thuê (MaTrangThai = 2)
+-- Phòng không có HĐ hiệu lực → Còn trống (MaTrangThai = 1)
+-- Phòng đang sửa chữa (MaTrangThai = 3) giữ nguyên
+IF OBJECT_ID('Phong', 'U') IS NOT NULL AND OBJECT_ID('HopDong', 'U') IS NOT NULL
+BEGIN
+    UPDATE Phong SET MaTrangThai = 2
+    WHERE MaTrangThai = 1
+      AND EXISTS (SELECT 1 FROM HopDong WHERE HopDong.MaPhong = Phong.MaPhong
+          AND HopDong.TrangThai = 'DangHieuLuc'
+          AND HopDong.NgayBatDau <= GETDATE()
+          AND (HopDong.NgayKetThuc IS NULL OR HopDong.NgayKetThuc >= GETDATE()));
+
+    UPDATE Phong SET MaTrangThai = 1
+    WHERE MaTrangThai = 2
+      AND NOT EXISTS (SELECT 1 FROM HopDong WHERE HopDong.MaPhong = Phong.MaPhong
+          AND HopDong.TrangThai = 'DangHieuLuc'
+          AND HopDong.NgayBatDau <= GETDATE()
+          AND (HopDong.NgayKetThuc IS NULL OR HopDong.NgayKetThuc >= GETDATE()));
+END
 ");
         }
 

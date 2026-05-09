@@ -36,9 +36,6 @@ namespace DoAnSE104.Models
         [Required]
         public int SucChua { get; set; }
 
-        [Required]
-        public int SoNguoiHienTai { get; set; }
-
         [MaxLength(255)]
         public string? MoTa { get; set; }
 

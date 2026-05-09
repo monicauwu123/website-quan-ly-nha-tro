@@ -201,6 +201,16 @@ namespace DoAnSE104.Controllers
             yeuCau.GhiChuChuTro = dto.GhiChuChuTro;
             yeuCau.NgayXuLy = DateTime.Now;
 
+            // Đảm bảo phòng ở trạng thái "Đã thuê" sau khi gia hạn thành công.
+            var phong = await _context.Phong.FindAsync(yeuCau.HopDong.MaPhong);
+            if (phong != null)
+            {
+                var trangThaiDaThue = await _context.TrangThai
+                    .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("thuê") || t.TenTrangThai.Contains("thue"));
+                if (trangThaiDaThue != null)
+                    phong.MaTrangThai = trangThaiDaThue.MaTrangThai;
+            }
+
             await _context.SaveChangesAsync();
 
             return Ok(ApiResponse<object>.Ok(new

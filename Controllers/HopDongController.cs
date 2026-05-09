@@ -299,12 +299,9 @@ namespace DoAnSE104.Controllers
             var phongCanCapNhat = await _context.Phong.FindAsync(dto.MaPhong);
             if (phongCanCapNhat != null)
             {
-                phongCanCapNhat.SoNguoiHienTai = Math.Min(phongCanCapNhat.SoNguoiHienTai + 1, phongCanCapNhat.SucChua);
-
-                var trangThaiDaThue = _context.TrangThai
-                    .AsEnumerable()
-                    .FirstOrDefault(t => t.TenTrangThai.Contains("thuê", StringComparison.OrdinalIgnoreCase)
-                                      || t.TenTrangThai.Contains("thue", StringComparison.OrdinalIgnoreCase));
+                // Chuyển phòng sang trạng thái "Đã thuê" khi có hợp đồng hiệu lực.
+                var trangThaiDaThue = await _context.TrangThai
+                    .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("thuê") || t.TenTrangThai.Contains("thue"));
                 if (trangThaiDaThue != null)
                     phongCanCapNhat.MaTrangThai = trangThaiDaThue.MaTrangThai;
             }

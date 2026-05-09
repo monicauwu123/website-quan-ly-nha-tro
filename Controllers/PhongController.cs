@@ -47,21 +47,14 @@ namespace DoAnSE104.Controllers
 
         private IQueryable<Phong> ChiLayPhongConTrong(IQueryable<Phong> query)
         {
-            var now = DateTime.Now;
-
+            // Chỉ hiển thị phòng có trạng thái "Còn trống".
+            // Trạng thái là nguồn sự thật duy nhất — khi tạo/duyệt hợp đồng hoặc gia hạn,
+            // phòng được chuyển sang "Đã thuê"; khi hợp đồng kết thúc sẽ chuyển lại "Còn trống".
             return query.Where(p =>
-                (p.SucChua <= 0 || p.SoNguoiHienTai < p.SucChua) &&
-                !_context.HopDong.Any(h =>
-                    h.MaPhong == p.MaPhong &&
-                    h.NgayBatDau <= now &&
-                    (h.NgayKetThuc == null || h.NgayKetThuc >= now)) &&
-                (
-                    p.MaTrangThai == 1 ||
-                    p.TrangThai.TenTrangThai.Contains("trống") ||
-                    p.TrangThai.TenTrangThai.Contains("Trống") ||
-                    p.TrangThai.TenTrangThai.Contains("trong") ||
-                    p.TrangThai.TenTrangThai.Contains("Trong")
-                )
+                p.TrangThai.TenTrangThai.Contains("trống") ||
+                p.TrangThai.TenTrangThai.Contains("Trống") ||
+                p.TrangThai.TenTrangThai.Contains("trong") ||
+                p.TrangThai.TenTrangThai.Contains("Trong")
             );
         }
 
@@ -75,12 +68,6 @@ namespace DoAnSE104.Controllers
 
             if (phong.SucChua < 0)
                 return "Sức chứa phải lớn hơn hoặc bằng 0";
-
-            if (phong.SoNguoiHienTai < 0)
-                return "Số người hiện tại phải lớn hơn hoặc bằng 0";
-
-            if (phong.SucChua < phong.SoNguoiHienTai)
-                return "Sức chứa phải lớn hơn hoặc bằng số người hiện tại";
 
             var role = GetCurrentRole();
             var userId = GetCurrentUserId();
@@ -288,7 +275,6 @@ namespace DoAnSE104.Controllers
                     DienTich = phong.DienTich,
                     GiaPhong = phong.GiaPhong,
                     SucChua = phong.SucChua,
-                    SoNguoiHienTai = phong.SoNguoiHienTai,
                     MoTa = phong.MoTa,
                     HinhAnh = phong.HinhAnh,
                     DanhSachHinhAnh = phong.DanhSachHinhAnh,

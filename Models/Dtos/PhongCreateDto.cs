@@ -9,7 +9,6 @@
         public float DienTich { get; set; }
         public decimal GiaPhong { get; set; }
         public int SucChua { get; set; }
-        public int SoNguoiHienTai { get; set; }
         public string MoTa { get; set; }
         public string HinhAnh { get; set; }
         public string DiaChiPhong { get; set; }

@@ -186,7 +186,6 @@ namespace DoAnSE104.Services
             foreach (var phong in phongCanTrong)
             {
                 phong.MaTrangThai = trangThaiTrong.MaTrangThai;
-                phong.SoNguoiHienTai = 0;
             }
 
             return phongCanTrong.Count;

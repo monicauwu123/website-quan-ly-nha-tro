@@ -31,10 +31,6 @@ namespace DoAnSE104.Models.Dtos
         [Range(1, int.MaxValue)]
         public int SucChua { get; set; }
 
-        [Required]
-        [Range(0, int.MaxValue)]
-        public int SoNguoiHienTai { get; set; }
-
         [MaxLength(255)]
         public string? MoTa { get; set; }
 

@@ -180,9 +180,6 @@ namespace DoAnSE104.Controllers
                 if (phong == null)
                     return NotFound(ApiResponse<object>.Loi("PhÃ²ng khÃ´ng tá»“n táº¡i"));
 
-                if (phong.SucChua > 0 && phong.SoNguoiHienTai >= phong.SucChua)
-                    return BadRequest(ApiResponse<object>.Loi("PhÃ²ng Ä‘Ã£ Ä‘á»§ sá»‘ ngÆ°á»i, khÃ´ng thá»ƒ gá»­i yÃªu cáº§u thuÃª"));
-
                 var daCoHopDongHieuLuc = await _context.HopDong
                     .AnyAsync(h => h.Phong.MaPhong == dto.MaPhong && (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
                 if (daCoHopDongHieuLuc)
@@ -295,13 +292,6 @@ namespace DoAnSE104.Controllers
                             return;
                         }
 
-                        if (yeuCau.Phong.SucChua > 0 && yeuCau.Phong.SoNguoiHienTai >= yeuCau.Phong.SucChua)
-                        {
-                            ketQua = BadRequest(ApiResponse<object>.Loi("PhÃ²ng Ä‘Ã£ Ä‘á»§ sá»‘ ngÆ°á»i, khÃ´ng thá»ƒ láº­p há»£p Ä‘á»“ng"));
-                            await transaction.RollbackAsync();
-                            return;
-                        }
-
                         var phongDangCoHopDongHieuLuc = await _context.HopDong.AnyAsync(h =>
                             h.MaPhong == yeuCau.MaPhong &&
                             (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
@@ -357,14 +347,9 @@ namespace DoAnSE104.Controllers
                         yeuCau.GhiChuChuTro = dto.GhiChuChuTro;
                         yeuCau.NgayXuLy = DateTime.Now;
 
-                        if (yeuCau.Phong.SucChua > 0)
-                            yeuCau.Phong.SoNguoiHienTai = Math.Min(yeuCau.Phong.SoNguoiHienTai + 1, yeuCau.Phong.SucChua);
-                        else
-                            yeuCau.Phong.SoNguoiHienTai += 1;
-
+                        // Chuyển phòng sang trạng thái "Đã thuê" khi có hợp đồng hiệu lực.
                         var trangThaiDaThue = await _context.TrangThai
-                            .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("ÄÃ£ thuÃª") || t.TenTrangThai.Contains("Da thue") || t.TenTrangThai.Contains("thuÃª"));
-
+                            .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("thuê") || t.TenTrangThai.Contains("thue"));
                         if (trangThaiDaThue != null)
                             yeuCau.Phong.MaTrangThai = trangThaiDaThue.MaTrangThai;
 
