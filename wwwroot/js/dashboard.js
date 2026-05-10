@@ -258,6 +258,8 @@ function normalizeSectionFromHash() {
         'thanh-toan': 'thanhtoan',
         'dien-nuoc': 'diennuoc',
         'yeu-cau-thue': 'yeucauthue',
+        'yeuCauTongHop': 'yeucauthue',
+        'yeu-cau-tong-hop': 'yeucauthue',
         'bao-cao-su-co': 'baocaosuco',
         'thong-bao': 'thongbao',
         'bien-lai': 'bienlai',
@@ -415,141 +417,380 @@ async function loadOverview() {
     }
 }
 
+// ==========================================
+// OVERVIEW  –  Chủ trọ / Admin
+// ==========================================
 function renderChuTroAdminOverview(data) {
-    document.getElementById('sectionTitle').textContent = CURRENT_ROLE === 'ChuTro' ? 'Tổng quan nhà trọ của tôi' : 'Tổng quan hệ thống';
+    document.getElementById('sectionTitle').textContent =
+        CURRENT_ROLE === 'ChuTro' ? 'Tổng quan nhà trọ của tôi' : 'Tổng quan hệ thống';
 
-    const statsGrid = document.querySelector('#overviewSection .stats-grid');
-    statsGrid.innerHTML = `
-        <div class="stat-card stat-card-indigo">
+    const now = new Date();
+    const thangNam = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+
+    // ── KPI Cards ──────────────────────────────────────────────────────────
+    const tyLePhong = data.tongPhong ? Math.round((data.phongDangThue / data.tongPhong) * 100) : 0;
+
+    document.getElementById('dashStatsGrid').innerHTML = `
+        <div class="stat-card stat-card-indigo kpi-card" onclick="showSection('phong')">
             <div class="stat-icon"><i class="fas fa-building"></i></div>
-            <div class="stat-info"><h3>Tổng số nhà trọ</h3><div id="statTotalNhaTro" class="value">${data?.tongNhaTro ?? 0}</div></div>
+            <div class="stat-info">
+                <h3>Tổng số phòng</h3>
+                <div class="value">${data.tongPhong ?? 0}</div>
+                <div class="kpi-sub">${data.tongNhaTro ?? 0} nhà trọ</div>
+            </div>
         </div>
-        <div class="stat-card stat-card-blue">
+        <div class="stat-card stat-card-blue kpi-card" onclick="showSection('phong')">
+            <div class="stat-icon"><i class="fas fa-door-closed"></i></div>
+            <div class="stat-info">
+                <h3>Đang cho thuê</h3>
+                <div class="value">${data.phongDangThue ?? 0}</div>
+                <div class="kpi-bar-wrap"><div class="kpi-bar kpi-bar-blue" style="width:${tyLePhong}%"></div></div>
+                <div class="kpi-sub">${tyLePhong}% công suất</div>
+            </div>
+        </div>
+        <div class="stat-card stat-card-green kpi-card" onclick="showSection('phong')">
             <div class="stat-icon"><i class="fas fa-door-open"></i></div>
-            <div class="stat-info"><h3>Tổng số phòng</h3><div id="statTotalRooms" class="value">${data?.tongPhong ?? 0}</div></div>
+            <div class="stat-info">
+                <h3>Phòng trống</h3>
+                <div class="value">${data.phongTrong ?? 0}</div>
+                <div class="kpi-sub">${data.tongKhachThue ?? 0} khách thuê</div>
+            </div>
         </div>
-        <div class="stat-card stat-card-red">
-            <div class="stat-icon"><i class="fas fa-user-check"></i></div>
-            <div class="stat-info"><h3>Đang thuê</h3><div id="statOccupiedRooms" class="value">${data?.phongDangThue ?? 0}</div></div>
-        </div>
-        <div class="stat-card stat-card-green">
-            <div class="stat-icon"><i class="fas fa-door-open"></i></div>
-            <div class="stat-info"><h3>Phòng trống</h3><div id="statEmptyRooms" class="value">${data?.phongTrong ?? 0}</div></div>
-        </div>
-        <div class="stat-card stat-card-purple">
-            <div class="stat-icon"><i class="fas fa-users"></i></div>
-            <div class="stat-info"><h3>Khách thuê</h3><div id="statTotalTenants" class="value">${data?.tongKhachThue ?? 0}</div></div>
-        </div>
-        <div class="stat-card stat-card-purple">
-            <div class="stat-icon"><i class="fas fa-coins"></i></div>
-            <div class="stat-info"><h3>Doanh thu tháng</h3><div id="statRevenue" class="value">${fmtCurrency(data?.doanhThuThang ?? 0)}</div></div>
+        <div class="stat-card stat-card-green kpi-card revenue-card" onclick="showSection('thanhtoan')">
+            <div class="stat-icon" style="background:#d1fae5;color:#065f46;"><i class="fas fa-coins"></i></div>
+            <div class="stat-info">
+                <h3>Doanh thu ${thangNam}</h3>
+                <div class="value" style="font-size:1.25rem;">${fmtCurrency(data.doanhThuThang ?? 0)}</div>
+                <div class="kpi-sub">Đã thu thực tế</div>
+            </div>
         </div>
     `;
 
-    const rooms = data?.danhSachPhongGanDay || [];
-    const tbody = document.querySelector('#recentRoomsTable tbody');
-    const title = document.querySelector('#overviewSection .data-card h2');
-    if (title) title.textContent = 'Danh sách phòng gần đây';
+    // ── Alert Cards ────────────────────────────────────────────────────────
+    const alerts = [
+        {
+            count: data.hoaDonChuaThanhToan ?? 0,
+            label: 'Hóa đơn chưa thu',
+            icon: 'fa-file-invoice-dollar',
+            color: 'alert-orange',
+            section: 'hoadon',
+            urgent: (data.hoaDonChuaThanhToan ?? 0) > 0
+        },
+        {
+            count: data.yeuCauChoDuyet ?? 0,
+            label: 'Yêu cầu chờ duyệt',
+            icon: 'fa-clipboard-list',
+            color: 'alert-blue',
+            section: 'yeucauthue',
+            urgent: (data.yeuCauChoDuyet ?? 0) > 0
+        },
+        {
+            count: data.baoCaoMoi ?? 0,
+            label: 'Sự cố chưa xử lý',
+            icon: 'fa-exclamation-triangle',
+            color: 'alert-red',
+            section: 'baocaosuco',
+            urgent: (data.baoCaoMoi ?? 0) > 0
+        },
+        {
+            count: data.hopDongSapHetHan ?? 0,
+            label: 'Hợp đồng sắp hết hạn',
+            icon: 'fa-calendar-times',
+            color: 'alert-purple',
+            section: 'hopdong',
+            urgent: (data.hopDongSapHetHan ?? 0) > 0
+        }
+    ];
 
-    if (!rooms.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-light);">Chưa có phòng nào</td></tr>';
-        return;
-    }
+    document.getElementById('dashAlertRow').innerHTML = `
+        <div class="alert-grid">
+            ${alerts.map(a => `
+                <div class="alert-card ${a.color} ${a.urgent ? 'alert-urgent' : 'alert-ok'}" onclick="showSection('${a.section}')">
+                    <div class="alert-icon-wrap">
+                        <i class="fas ${a.icon}"></i>
+                    </div>
+                    <div class="alert-body">
+                        <div class="alert-count">${a.count}</div>
+                        <div class="alert-label">${a.label}</div>
+                    </div>
+                    ${a.urgent ? '<div class="alert-dot"></div>' : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
 
-    tbody.innerHTML = rooms.map(r => {
-        const cls = r.maTrangThai === 1 ? 'badge-success' : r.maTrangThai === 2 ? 'badge-danger' : 'badge-warning';
-        return `<tr>
-            <td><strong>${r.tenPhong || '---'}</strong></td>
-            <td>${r.tenNhaTro || '---'}</td>
-            <td>${fmtCurrency(r.giaPhong)}</td>
-            <td><span class="badge ${cls}">${r.trangThai || '---'}</span></td>
-            <td>
-                ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
-                <button class="btn-action btn-edit" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Sửa</button>
-                <button class="btn-action btn-delete" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i> Xóa</button>
-                ` : ''}
-            </td>
-        </tr>`;
-    }).join('');
+    // ── Main Grid ──────────────────────────────────────────────────────────
+    const sapHet = data.danhSachHopDongSapHet || [];
+    const rooms  = data.danhSachPhongGanDay || [];
+
+    const sapHetHtml = sapHet.length
+        ? sapHet.map(h => {
+            const days = Math.ceil((new Date(h.ngayKetThuc) - new Date()) / 86400000);
+            const urgentCls = days <= 7 ? 'badge-danger' : 'badge-warning';
+            return `<div class="mini-list-item">
+                <div class="mini-list-left">
+                    <i class="fas fa-calendar-alt" style="color:#8b5cf6;"></i>
+                    <div>
+                        <div class="mini-list-title">${h.tenPhong || '---'}</div>
+                        <div class="mini-list-sub">${h.tenNhaTro || ''}</div>
+                    </div>
+                </div>
+                <span class="badge ${urgentCls}">${days} ngày</span>
+            </div>`;
+          }).join('')
+        : '<div class="empty-state-sm"><i class="fas fa-check-circle" style="color:var(--success);"></i> Không có hợp đồng sắp hết hạn</div>';
+
+    const roomsHtml = rooms.length
+        ? rooms.slice(0, 8).map(r => {
+            const cls = r.maTrangThai === 1 ? 'badge-success' : r.maTrangThai === 2 ? 'badge-danger' : 'badge-warning';
+            return `<div class="mini-list-item">
+                <div class="mini-list-left">
+                    <i class="fas fa-door-open" style="color:var(--primary);"></i>
+                    <div>
+                        <div class="mini-list-title">${r.tenPhong || '---'}</div>
+                        <div class="mini-list-sub">${r.tenNhaTro || ''}</div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <span class="badge ${cls}">${r.trangThai || '---'}</span>
+                    <div style="font-size:.78rem;color:var(--text-light);margin-top:.2rem;">${fmtCurrency(r.giaPhong)}</div>
+                </div>
+            </div>`;
+          }).join('')
+        : '<div class="empty-state-sm">Chưa có phòng nào</div>';
+
+    // Biểu đồ doanh thu 6 tháng
+    const dt6 = data.doanhThu6Thang || [];
+    const maxDt = Math.max(...dt6.map(d => d.doanhThu), 1);
+    const chartHtml = dt6.length ? `
+        <div class="bar-chart-wrap">
+            ${dt6.map(d => {
+                const pct = Math.round((d.doanhThu / maxDt) * 100);
+                const isCurrentMonth = d.thang === `${(new Date().getMonth()+1).toString().padStart(2,'0')}/${new Date().getFullYear()}`;
+                return `<div class="bar-col">
+                    <div class="bar-val">${d.doanhThu > 0 ? fmtCurrency(d.doanhThu) : ''}</div>
+                    <div class="bar-outer">
+                        <div class="bar-inner ${isCurrentMonth ? 'bar-current' : ''}" style="height:${Math.max(pct,2)}%"></div>
+                    </div>
+                    <div class="bar-label">${d.thang}</div>
+                </div>`;
+            }).join('')}
+        </div>` : '';
+
+    document.getElementById('dashMainGrid').innerHTML = `
+        <div class="dash-main-grid">
+            <div class="data-card dash-card-lg">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-chart-bar" style="color:#6366f1;"></i> Doanh thu 6 tháng gần nhất</span>
+                </div>
+                ${chartHtml}
+            </div>
+
+            <div class="data-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-calendar-times" style="color:#8b5cf6;"></i> Hợp đồng sắp hết hạn</span>
+                    <button class="btn-link-sm" onclick="showSection('hopdong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                </div>
+                <div class="mini-list">${sapHetHtml}</div>
+            </div>
+
+            <div class="data-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-door-open" style="color:var(--primary);"></i> Danh sách phòng</span>
+                    <button class="btn-link-sm" onclick="showSection('phong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                </div>
+                <div class="mini-list">${roomsHtml}</div>
+            </div>
+        </div>
+    `;
 }
 
+
+// ==========================================
+// OVERVIEW  –  Người dùng
+// ==========================================
 function renderNguoiDungOverview(data) {
     document.getElementById('sectionTitle').textContent = 'Tổng quan của tôi';
 
     const tk = data?.taiKhoan || {};
     const phongList = data?.danhSachPhongDangThue || (data?.phongDangThue ? [data.phongDangThue] : []);
     const hopDongList = data?.danhSachHopDongHienTai || (data?.hopDongHienTai ? [data.hopDongHienTai] : []);
-    const hoaDonList = data?.danhSachHoaDonThangNay || (data?.hoaDonThangNay ? [data.hoaDonThangNay] : []);
+    const hoaDonChuaTT = data?.hoaDonChuaThanhToan || [];
+    const dichVuList = data?.dichVuDangDung || [];
+    const thongBaoList = data?.thongBaoChuaDoc || [];
+    const baoCaoList = data?.baoCaoGanDay || [];
+    const soHoaDonChuaTT = data?.soHoaDonChuaTT ?? hoaDonChuaTT.length;
+    const soThongBaoChuaDoc = data?.soThongBaoChuaDoc ?? thongBaoList.length;
 
-    const tongTien = data?.tongTienThangNay ?? hoaDonList.reduce((sum, h) => sum + (h.tongTien || 0), 0);
-    const daThanhToan = data?.daThanhToanThangNay ?? hoaDonList.reduce((sum, h) => sum + (h.daThanhToan || 0), 0);
-    const conLai = data?.conLaiThangNay ?? Math.max(tongTien - daThanhToan, 0);
-    const trangThai = data?.trangThaiThanhToan || (!hoaDonList.length ? 'Chưa có hóa đơn tháng này' : (conLai <= 0 ? 'Đã trả' : 'Chưa trả'));
-    const badgeClass = !hoaDonList.length ? 'badge-warning' : (conLai <= 0 ? 'badge-success' : 'badge-danger');
-
-    const phongText = phongList.length
-        ? `${phongList.length} phòng đang thuê`
-        : 'Chưa có phòng';
-
-    const phongSmall = phongList.length
-        ? phongList.slice(0, 3).map(p => `${p.tenPhong || 'Phòng'}${p.tenNhaTro ? ' - ' + p.tenNhaTro : ''}`).join('<br>')
-        : '';
-
-    const hopDongText = hopDongList.length
-        ? `${hopDongList.length} hợp đồng hiệu lực`
-        : 'Chưa có hợp đồng';
-
-    const hopDongSmall = hopDongList.length
-        ? hopDongList.slice(0, 2).map(h => `${fmtDate(h.ngayBatDau)} - ${fmtDate(h.ngayKetThuc)}`).join('<br>')
-        : '';
-
-    const statsGrid = document.querySelector('#overviewSection .stats-grid');
-    statsGrid.innerHTML = `
-        <div class="stat-card stat-card-indigo">
-            <div class="stat-icon"><i class="fas fa-user"></i></div>
-            <div class="stat-info"><h3>Thông tin tài khoản</h3><div class="value" style="font-size:1rem;line-height:1.45">${tk.hoTen || '---'}<br><small>${tk.email || '---'}</small><br><small>${tk.soDienThoai || '---'}</small></div></div>
+    // ── KPI Cards ──────────────────────────────────────────────────────────
+    document.getElementById('dashStatsGrid').innerHTML = `
+        <div class="stat-card stat-card-indigo kpi-card">
+            <div class="stat-icon"><i class="fas fa-user-circle"></i></div>
+            <div class="stat-info">
+                <h3>Tài khoản</h3>
+                <div class="value" style="font-size:1.1rem;line-height:1.3;">${tk.hoTen || '---'}</div>
+                <div class="kpi-sub">${tk.email || '---'}</div>
+            </div>
         </div>
-        <div class="stat-card stat-card-blue">
+        <div class="stat-card stat-card-blue kpi-card" onclick="showSection('phongdangthue')">
             <div class="stat-icon"><i class="fas fa-home"></i></div>
-            <div class="stat-info"><h3>Phòng đang thuê</h3><div class="value" style="font-size:1.15rem">${phongText}</div><small>${phongSmall}</small></div>
+            <div class="stat-info">
+                <h3>Phòng đang thuê</h3>
+                <div class="value">${phongList.length}</div>
+                <div class="kpi-sub">${phongList.map(p => p.tenPhong).join(', ') || 'Chưa có phòng'}</div>
+            </div>
         </div>
-        <div class="stat-card stat-card-green">
-            <div class="stat-icon"><i class="fas fa-file-contract"></i></div>
-            <div class="stat-info"><h3>Hợp đồng hiện tại</h3><div class="value" style="font-size:1rem;line-height:1.45">${hopDongText}</div>${hopDongSmall ? `<small>${hopDongSmall}</small>` : ''}</div>
+        <div class="stat-card ${soHoaDonChuaTT > 0 ? 'stat-card-red' : 'stat-card-green'} kpi-card" onclick="showSection('hoadon')">
+            <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
+            <div class="stat-info">
+                <h3>Hóa đơn chưa trả</h3>
+                <div class="value">${soHoaDonChuaTT}</div>
+                <div class="kpi-sub">${soHoaDonChuaTT > 0 ? 'Cần thanh toán' : 'Đã thanh toán hết'}</div>
+            </div>
         </div>
-        <div class="stat-card stat-card-purple">
-            <div class="stat-icon"><i class="fas fa-coins"></i></div>
-            <div class="stat-info"><h3>Tổng tiền tháng này</h3><div class="value">${hoaDonList.length ? fmtCurrency(tongTien) : '---'}</div>${hoaDonList.length ? `<small>${hoaDonList.length} hóa đơn</small>` : ''}</div>
-        </div>
-        <div class="stat-card stat-card-red">
-            <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
-            <div class="stat-info"><h3>Trạng thái thanh toán</h3><div class="value" style="font-size:1.1rem"><span class="badge ${badgeClass}">${trangThai}</span></div>${hoaDonList.length ? `<small>Còn lại: ${fmtCurrency(conLai)}</small>` : ''}</div>
+        <div class="stat-card ${soThongBaoChuaDoc > 0 ? 'stat-card-purple' : 'stat-card-green'} kpi-card" onclick="showSection('thongbao')">
+            <div class="stat-icon"><i class="fas fa-bell"></i></div>
+            <div class="stat-info">
+                <h3>Thông báo mới</h3>
+                <div class="value">${soThongBaoChuaDoc}</div>
+                <div class="kpi-sub">${soThongBaoChuaDoc > 0 ? 'Chưa đọc' : 'Đã đọc hết'}</div>
+            </div>
         </div>
     `;
 
-    const title = document.querySelector('#overviewSection .data-card h2');
-    if (title) title.textContent = 'Chi tiết hóa đơn tháng này';
+    // ── Alert Row ──────────────────────────────────────────────────────────
+    document.getElementById('dashAlertRow').innerHTML = soHoaDonChuaTT > 0 ? `
+        <div class="user-alert-banner" onclick="showSection('hoadon')">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>Bạn có <strong>${soHoaDonChuaTT} hóa đơn</strong> chưa thanh toán — Nhấn để xem chi tiết</span>
+            <i class="fas fa-arrow-right" style="margin-left:auto;"></i>
+        </div>` : '';
 
-    const tbody = document.querySelector('#recentRoomsTable tbody');
-    if (!hoaDonList.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-light);">Chưa có hóa đơn tháng này</td></tr>';
-        return;
-    }
+    // ── Rooms & contracts ──────────────────────────────────────────────────
+    const phongHtml = phongList.length
+        ? phongList.map(p => `
+            <div class="room-info-card">
+                <div class="room-info-icon"><i class="fas fa-door-open"></i></div>
+                <div>
+                    <div class="room-info-name">${p.tenPhong || '---'}</div>
+                    <div class="room-info-sub">${p.tenNhaTro || ''}</div>
+                    <div class="room-info-price">${fmtCurrency(p.giaPhong)}<span>/tháng</span></div>
+                </div>
+            </div>`).join('')
+        : '<div class="empty-state-sm"><i class="fas fa-home"></i> Chưa có phòng đang thuê</div>';
 
-    tbody.innerHTML = hoaDonList.map(h => {
-        const conLaiHoaDon = h.conLai ?? Math.max((h.tongTien || 0) - (h.daThanhToan || 0), 0);
-        const daTra = h.daThanhToan ?? Math.max((h.tongTien || 0) - conLaiHoaDon, 0);
-        const trangThaiHoaDon = h.trangThaiThanhToan || (conLaiHoaDon <= 0 ? 'Đã trả' : 'Chưa trả');
-        const cls = conLaiHoaDon <= 0 ? 'badge-success' : 'badge-danger';
+    // ── Hóa đơn chưa TT ───────────────────────────────────────────────────
+    const hoaDonHtml = hoaDonChuaTT.length
+        ? hoaDonChuaTT.map(h => `
+            <div class="mini-list-item">
+                <div class="mini-list-left">
+                    <i class="fas fa-file-invoice-dollar" style="color:#f59e0b;"></i>
+                    <div>
+                        <div class="mini-list-title">${h.tenPhong || '---'} — ${h.kyHoaDon || ''}</div>
+                        <div class="mini-list-sub">${fmtDate(h.ngayLap)}</div>
+                    </div>
+                </div>
+                <span style="font-weight:700;color:#dc2626;">${fmtCurrency(h.tongTien)}</span>
+            </div>`).join('')
+        : '<div class="empty-state-sm"><i class="fas fa-check-circle" style="color:var(--success);"></i> Không có hóa đơn nợ</div>';
 
-        return `<tr>
-            <td><strong>${h.kyHoaDon || '---'}</strong></td>
-            <td>${h.tenPhong || phongList.find(p => p.maPhong === h.maPhong)?.tenPhong || '---'}</td>
-            <td>${fmtCurrency(h.tongTien)}</td>
-            <td><span class="badge ${cls}">${trangThaiHoaDon}</span></td>
-            <td>Đã trả: ${fmtCurrency(daTra)}</td>
-        </tr>`;
-    }).join('');
+    // ── Dịch vụ đang dùng ─────────────────────────────────────────────────
+    const dichVuHtml = dichVuList.length
+        ? dichVuList.map(dv => `
+            <div class="mini-list-item">
+                <div class="mini-list-left">
+                    <i class="fas fa-cog" style="color:#06b6d4;"></i>
+                    <div>
+                        <div class="mini-list-title">${dv.tenDichVu || '---'}</div>
+                        <div class="mini-list-sub">${dv.tenPhong || ''}</div>
+                    </div>
+                </div>
+                <span class="badge badge-teal">${fmtCurrency(dv.tienDichVu)}</span>
+            </div>`).join('')
+        : '<div class="empty-state-sm">Chưa đăng ký dịch vụ nào</div>';
+
+    // ── Thông báo ──────────────────────────────────────────────────────────
+    const thongBaoHtml = thongBaoList.length
+        ? thongBaoList.map(tb => `
+            <div class="mini-list-item">
+                <div class="mini-list-left">
+                    <i class="fas fa-bell" style="color:#8b5cf6;"></i>
+                    <div>
+                        <div class="mini-list-title">${tb.tieuDe || '---'}</div>
+                        <div class="mini-list-sub">${fmtDate(tb.ngayTao)}</div>
+                    </div>
+                </div>
+                <span class="badge badge-info">Mới</span>
+            </div>`).join('')
+        : '<div class="empty-state-sm"><i class="fas fa-check-circle" style="color:var(--success);"></i> Không có thông báo mới</div>';
+
+    // ── Sự cố gần đây ─────────────────────────────────────────────────────
+    const baoCaoHtml = baoCaoList.length
+        ? baoCaoList.map(b => {
+            const statusMap = { Moi: ['badge-warning','Mới gửi'], DangXuLy: ['badge-info','Đang xử lý'], DaXuLy: ['badge-success','Đã xử lý'] };
+            const [cls, label] = statusMap[b.trangThai] || ['badge-secondary', b.trangThai || '---'];
+            const mucDoCls = b.mucDo === 'Khẩn cấp' ? 'badge-danger' : b.mucDo === 'Cao' ? 'badge-warning' : 'badge-secondary';
+            return `<div class="mini-list-item">
+                <div class="mini-list-left">
+                    <i class="fas fa-tools" style="color:#f59e0b;"></i>
+                    <div>
+                        <div class="mini-list-title">${b.tieuDe || '---'}</div>
+                        <div class="mini-list-sub">${b.tenPhong || ''} · ${fmtDate(b.ngayGui)}</div>
+                    </div>
+                </div>
+                <div style="text-align:right;display:flex;flex-direction:column;gap:.2rem;align-items:flex-end;">
+                    <span class="badge ${cls}">${label}</span>
+                    <span class="badge ${mucDoCls}" style="font-size:.7rem;">${b.mucDo || ''}</span>
+                </div>
+            </div>`;
+          }).join('')
+        : '<div class="empty-state-sm">Chưa có sự cố nào được gửi</div>';
+
+    document.getElementById('dashMainGrid').innerHTML = `
+        <div class="dash-user-grid">
+
+            <div class="data-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-home" style="color:var(--primary);"></i> Phòng đang thuê</span>
+                    <button class="btn-link-sm" onclick="showSection('phongdangthue')">Chi tiết <i class="fas fa-arrow-right"></i></button>
+                </div>
+                ${phongHtml}
+            </div>
+
+            <div class="data-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-file-invoice-dollar" style="color:#f59e0b;"></i> Hóa đơn chưa thanh toán</span>
+                    <button class="btn-link-sm" onclick="showSection('hoadon')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                </div>
+                <div class="mini-list">${hoaDonHtml}</div>
+            </div>
+
+            <div class="data-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-cog" style="color:#06b6d4;"></i> Dịch vụ đang dùng</span>
+                    <button class="btn-link-sm" onclick="showSection('dangkydichvu')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                </div>
+                <div class="mini-list">${dichVuHtml}</div>
+            </div>
+
+            <div class="data-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-bell" style="color:#8b5cf6;"></i> Thông báo chưa đọc</span>
+                    <button class="btn-link-sm" onclick="showSection('thongbao')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                </div>
+                <div class="mini-list">${thongBaoHtml}</div>
+            </div>
+
+            <div class="data-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-tools" style="color:#f59e0b;"></i> Sự cố gần đây</span>
+                    <button class="btn-link-sm" onclick="showSection('baocaosuco')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                </div>
+                <div class="mini-list">${baoCaoHtml}</div>
+            </div>
+
+        </div>
+    `;
 }
 
 

@@ -1,0 +1,253 @@
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD v2  –  KPI Cards, Alert Grid, Mini Lists, Charts
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── KPI enhancements ────────────────────────────────────────── */
+.kpi-card { cursor: pointer; position: relative; overflow: hidden; }
+.kpi-card::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(255,255,255,.06));
+    pointer-events: none;
+}
+.kpi-sub {
+    font-size: .76rem;
+    color: var(--text-light);
+    margin-top: .2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+}
+.kpi-bar-wrap {
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 99px;
+    margin: .35rem 0 .2rem;
+    overflow: hidden;
+}
+.kpi-bar { height: 100%; border-radius: 99px; transition: width .6s ease; }
+.kpi-bar-blue  { background: linear-gradient(90deg, var(--accent), var(--primary)); }
+
+/* ── Alert Grid ──────────────────────────────────────────────── */
+.alert-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+@media (max-width: 900px) { .alert-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .alert-grid { grid-template-columns: 1fr; } }
+
+.alert-card {
+    border-radius: .875rem;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    cursor: pointer;
+    position: relative;
+    transition: transform .18s, box-shadow .18s;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+.alert-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+.alert-icon-wrap {
+    width: 44px; height: 44px; border-radius: .75rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
+}
+.alert-count { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+.alert-label { font-size: .78rem; font-weight: 500; margin-top: .15rem; opacity: .85; }
+
+/* Urgent = có dữ liệu → màu đậm */
+.alert-urgent.alert-orange { background: linear-gradient(135deg,#fff7ed,#ffedd5); color: #92400e; }
+.alert-urgent.alert-orange .alert-icon-wrap { background: #fed7aa; color: #c2410c; }
+.alert-urgent.alert-blue   { background: linear-gradient(135deg,#eff6ff,#dbeafe); color: #1e40af; }
+.alert-urgent.alert-blue   .alert-icon-wrap { background: #bfdbfe; color: #1d4ed8; }
+.alert-urgent.alert-red    { background: linear-gradient(135deg,#fef2f2,#fee2e2); color: #991b1b; }
+.alert-urgent.alert-red    .alert-icon-wrap { background: #fecaca; color: #dc2626; }
+.alert-urgent.alert-purple { background: linear-gradient(135deg,#f5f3ff,#ede9fe); color: #5b21b6; }
+.alert-urgent.alert-purple .alert-icon-wrap { background: #ddd6fe; color: #7c3aed; }
+
+/* OK = 0 → màu nhạt xám */
+.alert-ok { background: var(--surface); color: var(--text-light); }
+.alert-ok .alert-icon-wrap { background: #f1f5f9; color: #94a3b8; }
+.alert-ok .alert-count { color: var(--text); }
+
+/* Dot nhấp nháy */
+.alert-dot {
+    position: absolute; top: .65rem; right: .65rem;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor; opacity: .9;
+    animation: pulseDot 1.6s ease-in-out infinite;
+}
+@keyframes pulseDot {
+    0%, 100% { transform: scale(1); opacity: .9; }
+    50%       { transform: scale(1.5); opacity: .4; }
+}
+
+/* ── Main layout grids ───────────────────────────────────────── */
+.dash-main-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+@media (max-width: 1100px) { .dash-main-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 680px)  { .dash-main-grid { grid-template-columns: 1fr; } }
+
+.dash-user-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+@media (max-width: 760px) { .dash-user-grid { grid-template-columns: 1fr; } }
+
+/* ── Card header ─────────────────────────────────────────────── */
+.dash-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--text);
+    gap: .5rem;
+}
+.dash-card-header span { display: flex; align-items: center; gap: .45rem; }
+
+.btn-link-sm {
+    background: none; border: none; cursor: pointer;
+    font-size: .78rem; color: var(--primary); font-weight: 600;
+    padding: .2rem .5rem; border-radius: .4rem;
+    display: flex; align-items: center; gap: .3rem;
+    transition: background .15s;
+    white-space: nowrap;
+}
+.btn-link-sm:hover { background: var(--primary-light); }
+
+/* ── Mini List ───────────────────────────────────────────────── */
+.mini-list { display: flex; flex-direction: column; gap: .5rem; }
+
+.mini-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .6rem .5rem;
+    border-radius: .6rem;
+    transition: background .15s;
+}
+.mini-list-item:hover { background: #f8fafc; }
+
+.mini-list-left {
+    display: flex; align-items: center; gap: .65rem;
+    min-width: 0;
+}
+.mini-list-left i { font-size: 1rem; flex-shrink: 0; }
+
+.mini-list-title {
+    font-size: .85rem; font-weight: 600;
+    color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 200px;
+}
+.mini-list-sub {
+    font-size: .76rem; color: var(--text-light); margin-top: .1rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.empty-state-sm {
+    text-align: center;
+    padding: 1.25rem;
+    color: var(--text-light);
+    font-size: .85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+}
+
+/* ── Bar Chart ───────────────────────────────────────────────── */
+.bar-chart-wrap {
+    display: flex;
+    align-items: flex-end;
+    gap: .6rem;
+    height: 180px;
+    padding: .5rem 0 0;
+}
+.bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    min-width: 0;
+}
+.bar-val {
+    font-size: .62rem; font-weight: 600; color: var(--text-light);
+    margin-bottom: .2rem; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 100%; text-align: center;
+}
+.bar-outer {
+    flex: 1; width: 100%; display: flex; align-items: flex-end;
+    background: #f1f5f9; border-radius: .4rem .4rem 0 0;
+}
+.bar-inner {
+    width: 100%; border-radius: .4rem .4rem 0 0;
+    background: linear-gradient(180deg, #a5f3fc, var(--accent));
+    transition: height .5s ease;
+}
+.bar-inner.bar-current {
+    background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+    box-shadow: 0 -2px 8px rgba(13,148,136,.35);
+}
+.bar-label {
+    font-size: .67rem; color: var(--text-light);
+    margin-top: .3rem; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%; text-align: center;
+}
+
+/* ── Room Info Card (NguoiDung) ──────────────────────────────── */
+.room-info-card {
+    display: flex; align-items: center; gap: .85rem;
+    padding: .85rem .75rem;
+    border: 1.5px solid var(--primary-light);
+    border-radius: .75rem;
+    background: linear-gradient(135deg,#f0fdf4,#ecfdf5);
+    margin-bottom: .6rem;
+}
+.room-info-icon {
+    width: 42px; height: 42px; border-radius: .65rem;
+    background: var(--primary-light); color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
+}
+.room-info-name  { font-weight: 700; font-size: .95rem; color: var(--text); }
+.room-info-sub   { font-size: .78rem; color: var(--text-light); margin-top: .1rem; }
+.room-info-price {
+    font-size: .85rem; font-weight: 700; color: var(--primary);
+    margin-top: .25rem;
+}
+.room-info-price span { font-weight: 400; color: var(--text-light); }
+
+/* ── User Alert Banner ───────────────────────────────────────── */
+.user-alert-banner {
+    display: flex; align-items: center; gap: .75rem;
+    background: linear-gradient(90deg,#fff7ed,#fffbeb);
+    border: 1.5px solid #fbbf24;
+    border-radius: .75rem;
+    padding: .9rem 1.25rem;
+    margin-bottom: 1.25rem;
+    cursor: pointer;
+    font-size: .88rem; color: #92400e; font-weight: 500;
+    transition: box-shadow .18s;
+}
+.user-alert-banner:hover { box-shadow: 0 0 0 3px rgba(251,191,36,.25); }
+.user-alert-banner i:first-child { color: #d97706; font-size: 1.1rem; flex-shrink: 0; }
