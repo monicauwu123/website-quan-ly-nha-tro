@@ -557,5 +557,59 @@ namespace DoAnSE104.Controllers
 
             return Ok(result);
         }
+
+        // GET: api/HopDong/ThongTinChuTro
+        // Trả về danh sách thông tin chủ trọ theo từng hợp đồng đang hiệu lực.
+        // Hỗ trợ người dùng thuê nhiều phòng ở nhiều nhà trọ khác nhau.
+        // Chỉ NguoiDung gọi được; ChuTro/Admin nhận 403.
+        [HttpGet("ThongTinChuTro")]
+        [Authorize(Roles = "NguoiDung")]
+        public async Task<ActionResult<object>> GetThongTinChuTro()
+        {
+            var userId = GetCurrentUserId();
+
+            var danhSachHopDong = await _context.HopDong
+                .Include(h => h.NguoiThue)
+                .Include(h => h.Phong)
+                    .ThenInclude(p => p.NhaTro)
+                        .ThenInclude(n => n.ChuTro)
+                .Where(h =>
+                    h.NguoiThue.MaNguoiDung == userId &&
+                    h.TrangThai != "Huy" &&
+                    h.TrangThai != "KetThuc" &&
+                    (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Today))
+                .OrderByDescending(h => h.NgayBatDau)
+                .ToListAsync();
+
+            if (!danhSachHopDong.Any())
+                return Ok(new { coChuTro = false, danhSach = Array.Empty<object>() });
+
+            var danhSach = danhSachHopDong
+                .Where(h => h.Phong?.NhaTro?.ChuTro != null)
+                .Select(h =>
+                {
+                    var ct = h.Phong!.NhaTro!.ChuTro!;
+                    var nt = h.Phong.NhaTro;
+                    return (object)new
+                    {
+                        maHopDong      = h.MaHopDong,
+                        tenPhong       = h.Phong.TenPhong ?? "",
+                        tenNhaTro      = nt.TenNhaTro ?? "",
+                        diaChiNhaTro   = nt.DiaChi ?? "",
+                        hoTen          = ct.HoTen ?? "",
+                        email          = ct.Email ?? "",
+                        soDienThoai    = ct.SoDienThoai ?? "",
+                        diaChi         = ct.DiaChi ?? "",
+                        tenNganHang    = ct.TenNganHang ?? "",
+                        maNganHang     = ct.MaNganHang ?? "",
+                        soTaiKhoan     = ct.SoTaiKhoan ?? "",
+                        tenChuTaiKhoan = ct.TenChuTaiKhoan ?? "",
+                        noiDungCK      = ct.NoiDungChuyenKhoanMacDinh ?? ""
+                    };
+                }).ToList();
+
+            return Ok(new { coChuTro = danhSach.Any(), danhSach });
+        }
+
     }
 }

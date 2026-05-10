@@ -99,6 +99,16 @@ namespace DoAnSE104.Services
                 VaiTro = dangKyDto.VaiTro
             };
 
+            // Lưu thông tin ngân hàng nếu là ChuTro
+            if (dangKyDto.VaiTro == VaiTroConst.ChuTro)
+            {
+                nguoiDung.TenNganHang = string.IsNullOrWhiteSpace(dangKyDto.TenNganHang) ? null : dangKyDto.TenNganHang.Trim();
+                nguoiDung.MaNganHang  = string.IsNullOrWhiteSpace(dangKyDto.MaNganHang)  ? null : dangKyDto.MaNganHang.Trim();
+                nguoiDung.SoTaiKhoan  = string.IsNullOrWhiteSpace(dangKyDto.SoTaiKhoan)  ? null : dangKyDto.SoTaiKhoan.Trim();
+                nguoiDung.TenChuTaiKhoan = string.IsNullOrWhiteSpace(dangKyDto.TenChuTaiKhoan) ? null : dangKyDto.TenChuTaiKhoan.Trim();
+                nguoiDung.NoiDungChuyenKhoanMacDinh = string.IsNullOrWhiteSpace(dangKyDto.NoiDungChuyenKhoanMacDinh) ? null : dangKyDto.NoiDungChuyenKhoanMacDinh.Trim();
+            }
+
             _context.Users.Add(nguoiDung);
             await _context.SaveChangesAsync();
 

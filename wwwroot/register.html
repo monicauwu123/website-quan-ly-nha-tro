@@ -171,6 +171,70 @@
             </div>
         </div>
 
+        <div id="chuTroExtraFields"
+             style="display:none;margin-top:1rem;border:1px solid #dbeafe;border-radius:1rem;padding:1rem;background:#eff6ff;">
+            <div style="font-weight:800;color:var(--text);margin-bottom:.75rem;">
+                <i class="fas fa-user-tie"></i> Thông tin cá nhân chủ trọ
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;">
+                <div class="form-group">
+                    <label>CCCD/CMND</label>
+                    <input type="text" id="ct_cccd" class="form-control" placeholder="Nhập số CCCD/CMND" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Ngày sinh</label>
+                    <input type="date" id="ct_ngaySinh" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Giới tính</label>
+                    <select id="ct_gioiTinh" class="form-control">
+                        <option value="">-- Chọn --</option>
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quốc tịch</label>
+                    <input type="text" id="ct_quocTich" class="form-control" value="Việt Nam" maxlength="50">
+                </div>
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Địa chỉ</label>
+                    <input type="text" id="ct_diaChi" class="form-control" placeholder="Địa chỉ hiện tại" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label>Nơi công tác</label>
+                    <input type="text" id="ct_noiCongTac" class="form-control" placeholder="Có thể để trống" maxlength="100">
+                </div>
+            </div>
+
+            <div style="font-weight:800;color:var(--text);margin:1rem 0 .75rem;">
+                <i class="fas fa-university"></i> Thông tin nhận thanh toán
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;">
+                <div class="form-group">
+                    <label>Tên ngân hàng</label>
+                    <input type="text" id="ct_tenNganHang" class="form-control" placeholder="VD: Vietcombank" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label>Mã ngân hàng VietQR</label>
+                    <input type="text" id="ct_maNganHang" class="form-control" placeholder="VD: VCB, BIDV, MB..." maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>Số tài khoản</label>
+                    <input type="text" id="ct_soTaiKhoan" class="form-control" placeholder="Số tài khoản nhận tiền" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>Tên chủ tài khoản</label>
+                    <input type="text" id="ct_tenChuTaiKhoan" class="form-control" placeholder="Tên trên tài khoản" maxlength="100">
+                </div>
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label>Nội dung chuyển khoản mặc định</label>
+                    <input type="text" id="ct_noiDungCK" class="form-control" placeholder="VD: Thanh toán hóa đơn {MaHoaDon} phòng {TenPhong}" maxlength="255">
+                </div>
+            </div>
+        </div>
+
         <div id="registerMsg"
              style="display:none;
                     font-size:.875rem;
@@ -215,8 +279,13 @@ function showRegisterMessage(message, type = 'error') {
 }
 
 function toggleNguoiDungFields() {
-    const isNguoiDung = vaiTroSelect.value === 'NguoiDung';
+    const val = vaiTroSelect.value;
+    const isNguoiDung = val === 'NguoiDung';
+    const isChuTro    = val === 'ChuTro';
+
     extraFields.style.display = isNguoiDung ? 'block' : 'none';
+    const chuTroFields = document.getElementById('chuTroExtraFields');
+    if (chuTroFields) chuTroFields.style.display = isChuTro ? 'block' : 'none';
 
     document.querySelectorAll('.user-required').forEach(el => {
         if (isNguoiDung) el.setAttribute('required', 'required');
@@ -300,6 +369,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
             anhCccdMatSau = await uploadCccdImage(backFile, 'ảnh CCCD mặt sau');
         }
 
+        const isChuTroReg = vaiTro === 'ChuTro';
         const payload = {
             tenDangNhap: tenDangNhap,
             matKhau: matKhau,
@@ -307,15 +377,29 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
             hoTen: hoTen,
             soDienThoai: soDienThoai,
             vaiTro: vaiTro,
-            cccd: vaiTro === 'NguoiDung' ? document.getElementById('cccd').value.trim() : null,
-            ngaySinh: vaiTro === 'NguoiDung' ? (document.getElementById('ngaySinh').value || null) : null,
-            gioiTinh: vaiTro === 'NguoiDung' ? document.getElementById('gioiTinh').value : null,
-            quocTich: vaiTro === 'NguoiDung' ? document.getElementById('quocTich').value.trim() : null,
-            diaChi: vaiTro === 'NguoiDung' ? document.getElementById('diaChi').value.trim() : null,
-            noiCongTac: vaiTro === 'NguoiDung' ? document.getElementById('noiCongTac').value.trim() : null,
+            cccd: vaiTro === 'NguoiDung' ? document.getElementById('cccd').value.trim()
+                : (isChuTroReg ? (document.getElementById('ct_cccd')?.value.trim() || null) : null),
+            ngaySinh: vaiTro === 'NguoiDung' ? (document.getElementById('ngaySinh').value || null)
+                : (isChuTroReg ? (document.getElementById('ct_ngaySinh')?.value || null) : null),
+            gioiTinh: vaiTro === 'NguoiDung' ? document.getElementById('gioiTinh').value
+                : (isChuTroReg ? (document.getElementById('ct_gioiTinh')?.value || null) : null),
+            quocTich: vaiTro === 'NguoiDung' ? document.getElementById('quocTich').value.trim()
+                : (isChuTroReg ? (document.getElementById('ct_quocTich')?.value.trim() || null) : null),
+            diaChi: vaiTro === 'NguoiDung' ? document.getElementById('diaChi').value.trim()
+                : (isChuTroReg ? (document.getElementById('ct_diaChi')?.value.trim() || null) : null),
+            noiCongTac: vaiTro === 'NguoiDung' ? document.getElementById('noiCongTac').value.trim()
+                : (isChuTroReg ? (document.getElementById('ct_noiCongTac')?.value.trim() || null) : null),
             anhCccdMatTruoc: anhCccdMatTruoc || null,
             anhCccdMatSau: anhCccdMatSau || null
         };
+        // Thông tin ngân hàng chỉ cho ChuTro
+        if (isChuTroReg) {
+            payload.tenNganHang = document.getElementById('ct_tenNganHang')?.value.trim() || null;
+            payload.maNganHang  = document.getElementById('ct_maNganHang')?.value.trim() || null;
+            payload.soTaiKhoan  = document.getElementById('ct_soTaiKhoan')?.value.trim() || null;
+            payload.tenChuTaiKhoan = document.getElementById('ct_tenChuTaiKhoan')?.value.trim() || null;
+            payload.noiDungChuyenKhoanMacDinh = document.getElementById('ct_noiDungCK')?.value.trim() || null;
+        }
 
         const response = await fetch('/api/Auth/dang-ky', {
             method: 'POST',

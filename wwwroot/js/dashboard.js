@@ -869,6 +869,9 @@ async function loadGenericSection(section) {
             window.HoaDonExcel.refreshFilters?.();
         }
         renderTable(cfg, currentData, section);
+        if (typeof cfg.afterRender === 'function') {
+            cfg.afterRender(currentData, section).catch(err => console.warn('afterRender error:', err));
+        }
     } catch (e) {
         const tbody = document.getElementById('genericTableBody');
         if (tbody) tbody.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;color:var(--error);padding:1.5rem;">Lỗi: ${e.message}</td></tr>`;
