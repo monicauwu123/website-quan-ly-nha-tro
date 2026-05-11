@@ -39,16 +39,16 @@ namespace DoAnSE104.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal TongTien { get; set; }
 
-        // NgÃ y láº­p hÃ³a Ä‘Æ¡n
+        // Ngày lập hóa đơn
         [Required]
         public DateTime NgayLap { get; set; }
 
-        // Ká»³ hÃ³a Ä‘Æ¡n, vÃ­ dá»¥: "2023-05"
+        // Kỳ hóa đơn, ví dụ: "2023-05"
         [Required]
         [MaxLength(7)]
         public string KyHoaDon { get; set; }
 
-        // Bá»™ sÆ°u táº­p chi tiáº¿t cÃ¡c khoáº£n tiá»n trong hÃ³a Ä‘Æ¡n (tiá»n phÃ²ng, tiá»n Ä‘iá»‡n, tiá»n nÆ°á»›c, dá»‹ch vá»¥...)
+        // Bộ sưu tập chi tiết các khoản tiền trong hóa đơn (tiền phòng, tiền điện, tiền nước, dịch vụ...)
         public ICollection<ChiTietHoaDon> ChiTietHoaDon { get; set; }
 
         /// <summary>

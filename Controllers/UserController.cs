@@ -37,7 +37,7 @@ namespace DoAnSE104.Controllers
 
             if (user == null)
             {
-                return NotFound(new { thongBao = "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng" });
+                return NotFound(new { thongBao = "Không tìm thấy người dùng" });
             }
 
             return user;
@@ -51,34 +51,34 @@ namespace DoAnSE104.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
-                return NotFound(new { thongBao = "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng" });
+                return NotFound(new { thongBao = "Không tìm thấy người dùng" });
             }
 
-            // Kiá»ƒm tra náº¿u lÃ  tÃ i khoáº£n admin thÃ¬ khÃ´ng cho phÃ©p thay Ä‘á»•i vai trÃ²
+            // Kiểm tra nếu là tài khoản admin thì không cho phép thay đổi vai trò
             if (user.VaiTro == "Admin" && userDto.VaiTro != "Admin")
             {
-                return BadRequest(new { thongBao = "KhÃ´ng thá»ƒ thay Ä‘á»•i vai trÃ² cá»§a tÃ i khoáº£n admin" });
+                return BadRequest(new { thongBao = "Không thể thay đổi vai trò của tài khoản admin" });
             }
 
-            // Kiá»ƒm tra tÃªn Ä‘Äƒng nháº­p Ä‘Ã£ tá»“n táº¡i chÆ°a (náº¿u cÃ³ thay Ä‘á»•i)
+            // Kiểm tra tên đăng nhập đã tồn tại chưa (nếu có thay đổi)
             if (user.TenDangNhap != userDto.TenDangNhap)
             {
                 if (await _context.Users.AnyAsync(u => u.TenDangNhap == userDto.TenDangNhap))
                 {
-                    return BadRequest(new { thongBao = "TÃªn Ä‘Äƒng nháº­p Ä‘Ã£ tá»“n táº¡i" });
+                    return BadRequest(new { thongBao = "Tên đăng nhập đã tồn tại" });
                 }
             }
 
-            // Kiá»ƒm tra email Ä‘Ã£ tá»“n táº¡i chÆ°a (náº¿u cÃ³ thay Ä‘á»•i)
+            // Kiểm tra email đã tồn tại chưa (nếu có thay đổi)
             if (user.Email != userDto.Email)
             {
                 if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
                 {
-                    return BadRequest(new { thongBao = "Email Ä‘Ã£ tá»“n táº¡i" });
+                    return BadRequest(new { thongBao = "Email đã tồn tại" });
                 }
             }
 
-            // Cáº­p nháº­t thÃ´ng tin
+            // Cập nhật thông tin
             user.HoTen = userDto.HoTen;
             user.TenDangNhap = userDto.TenDangNhap;
             user.Email = userDto.Email;
@@ -94,7 +94,7 @@ namespace DoAnSE104.Controllers
             {
                 if (!UserExists(id))
                 {
-                    return NotFound(new { thongBao = "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng" });
+                    return NotFound(new { thongBao = "Không tìm thấy người dùng" });
                 }
                 else
                 {
@@ -102,7 +102,7 @@ namespace DoAnSE104.Controllers
                 }
             }
 
-            return Ok(new { thongBao = "Cáº­p nháº­t thÃ´ng tin thÃ nh cÃ´ng" });
+            return Ok(new { thongBao = "Cập nhật thông tin thành công" });
         }
 
         // DELETE: api/User/5
@@ -113,19 +113,19 @@ namespace DoAnSE104.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
-                return NotFound(new { thongBao = "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng" });
+                return NotFound(new { thongBao = "Không tìm thấy người dùng" });
             }
 
-            // Kiá»ƒm tra náº¿u lÃ  tÃ i khoáº£n admin thÃ¬ khÃ´ng cho phÃ©p xÃ³a
+            // Kiểm tra nếu là tài khoản admin thì không cho phép xóa
             if (user.VaiTro == "Admin")
             {
-                return BadRequest(new { thongBao = "KhÃ´ng thá»ƒ xÃ³a tÃ i khoáº£n admin" });
+                return BadRequest(new { thongBao = "Không thể xóa tài khoản admin" });
             }
 
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
 
-            return Ok(new { thongBao = "XÃ³a ngÆ°á»i dÃ¹ng thÃ nh cÃ´ng" });
+            return Ok(new { thongBao = "Xóa người dùng thành công" });
         }
 
         // GET: api/User/profile
@@ -137,7 +137,7 @@ namespace DoAnSE104.Controllers
 
             if (user == null)
             {
-                return NotFound(new { thongBao = "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng" });
+                return NotFound(new { thongBao = "Không tìm thấy người dùng" });
             }
 
             return user;
@@ -152,19 +152,19 @@ namespace DoAnSE104.Controllers
 
             if (user == null)
             {
-                return NotFound(new { thongBao = "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng" });
+                return NotFound(new { thongBao = "Không tìm thấy người dùng" });
             }
 
-            // Kiá»ƒm tra email Ä‘Ã£ tá»“n táº¡i chÆ°a (náº¿u cÃ³ thay Ä‘á»•i)
+            // Kiểm tra email đã tồn tại chưa (nếu có thay đổi)
             if (user.Email != profileDto.Email)
             {
                 if (await _context.Users.AnyAsync(u => u.Email == profileDto.Email))
                 {
-                    return BadRequest(new { thongBao = "Email Ä‘Ã£ tá»“n táº¡i" });
+                    return BadRequest(new { thongBao = "Email đã tồn tại" });
                 }
             }
 
-            // Cáº­p nháº­t thÃ´ng tin
+            // Cập nhật thông tin
             user.HoTen = profileDto.HoTen;
             user.Email = profileDto.Email;
             user.SoDienThoai = profileDto.SoDienThoai;
@@ -177,7 +177,7 @@ namespace DoAnSE104.Controllers
             {
                 if (!UserExists(userId))
                 {
-                    return NotFound(new { thongBao = "KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng" });
+                    return NotFound(new { thongBao = "Không tìm thấy người dùng" });
                 }
                 else
                 {
@@ -185,7 +185,7 @@ namespace DoAnSE104.Controllers
                 }
             }
 
-            return Ok(new { thongBao = "Cáº­p nháº­t thÃ´ng tin thÃ nh cÃ´ng" });
+            return Ok(new { thongBao = "Cập nhật thông tin thành công" });
         }
 
         private bool UserExists(int id)

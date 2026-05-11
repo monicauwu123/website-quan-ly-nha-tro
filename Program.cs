@@ -9,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using DoAnSE104.Services;
+using DoAnSE104.Services.Interfaces;
 using DoAnSE104.Models;
 using DoAnSE104.Helpers;
 
@@ -64,6 +65,7 @@ builder.Services.AddScoped<IRentalPeriodResetService, RentalPeriodResetService>(
 builder.Services.AddScoped<IMonthlyInvoiceService, MonthlyInvoiceService>();
 builder.Services.AddScoped<IThongBaoService, ThongBaoService>();
 builder.Services.AddScoped<INotificationEmailService, NotificationEmailService>();
+builder.Services.AddScoped<IDeleteValidationService, DeleteValidationService>();
 builder.Services.AddHostedService<EmailReminderBackgroundService>();
 
 // ─── Controllers ──────────────────────────────────────────────────────────────

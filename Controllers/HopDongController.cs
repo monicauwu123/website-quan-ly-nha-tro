@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -7,6 +7,7 @@ using DoAnSE104.Models;
 using DoAnSE104.DTOs;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -16,10 +17,12 @@ namespace DoAnSE104.Controllers
     public class HopDongController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public HopDongController(ApplicationDbContext context)
+        public HopDongController(ApplicationDbContext context, IDeleteValidationService deleteValidationService)
         {
             _context = context;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -317,7 +320,7 @@ namespace DoAnSE104.Controllers
         public async Task<IActionResult> PutHopDong(int id, HopDongUpdateDto hopDongDto)
         {
             if (id != hopDongDto.MaHopDong)
-                return BadRequest("ID khÃ´ng khá»›p");
+                return BadRequest("ID không khớp");
 
             var hopDong = await _context.HopDong.FindAsync(id);
             if (hopDong == null)
@@ -347,7 +350,7 @@ namespace DoAnSE104.Controllers
             if (loiValidation != null)
                 return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
-            // Map cÃ¡c thuá»™c tÃ­nh tá»« DTO sang entity
+            // Map các thuộc tính từ DTO sang entity
             hopDong.MaPhong = hopDongDto.MaPhong;
             hopDong.MaNguoiThue = hopDongDto.MaNguoiThue;
             hopDong.NgayBatDau = hopDongDto.NgayBatDau;
@@ -396,69 +399,51 @@ namespace DoAnSE104.Controllers
             }
 
             // Kiểm tra hóa đơn liên quan
-            var dangConHieuLuc = hopDong.TrangThai == "DangHieuLuc"
-                && hopDong.NgayBatDau <= DateTime.Now
-                && (hopDong.NgayKetThuc == null || hopDong.NgayKetThuc >= DateTime.Now);
+            if (hopDong.TrangThai == "DangHieuLuc")
+                return BadRequest(new { message = "Không thể xóa hợp đồng đang hiệu lực. Vui lòng kết thúc hoặc hủy hợp đồng trước." });
 
-            var coHoaDon = await _context.HoaDon.AnyAsync(hd => hd.MaNguoiThue == hopDong.MaNguoiThue
-                && hd.MaPhong == hopDong.MaPhong);
-
-            if (dangConHieuLuc)
-            {
-                hopDong.TrangThai = (role == VaiTroConst.Admin) ? "Huy" : "KetThuc";
-                hopDong.NgayKetThuc = DateTime.Now;
-
-                var conHopDongKhac = await _context.HopDong.AnyAsync(h =>
-                    h.MaHopDong != hopDong.MaHopDong &&
-                    h.MaPhong == hopDong.MaPhong &&
-                    h.TrangThai == "DangHieuLuc" &&
-                    h.NgayBatDau <= DateTime.Now &&
-                    (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
-
-                if (!conHopDongKhac && hopDong.Phong != null)
-                {
-                    var trangThaiTrong = _context.TrangThai
-                        .AsEnumerable()
-                        .FirstOrDefault(t => t.TenTrangThai.Contains("trống", StringComparison.OrdinalIgnoreCase)
-                                          || t.TenTrangThai.Contains("trong", StringComparison.OrdinalIgnoreCase));
-
-                    if (trangThaiTrong != null)
-                        hopDong.Phong.MaTrangThai = trangThaiTrong.MaTrangThai;
-                }
-
-                await _context.SaveChangesAsync();
-
-                var tenTT = hopDong.TrangThai == "Huy" ? "Hủy hợp đồng" : "Kết thúc hợp đồng";
-                return Ok(ApiResponse<object>.Ok(null!,
-                    $"Hợp đồng đang còn hiệu lực. " +
-                    $"Đã chuyển sang trạng thái \"{tenTT}\"."));
-            }
-
-            if (!coHoaDon)
-            {
-                // Chưa có hóa đơn → Xóa cứng
-                _context.HopDong.Remove(hopDong);
-                await _context.SaveChangesAsync();
-                return Ok(ApiResponse<object>.Ok(null!, "Đã xóa hợp đồng thành công"));
-            }
-            else
-            {
-                // Đã có hóa đơn → Chuyển trạng thái KetThuc hoặc Huy
-                // Admin có thể hủy, ChuTro chỉ kết thúc
-                hopDong.TrangThai = (role == VaiTroConst.Admin) ? "Huy" : "KetThuc";
-                hopDong.NgayKetThuc = hopDong.NgayKetThuc ?? DateTime.Now;
-                await _context.SaveChangesAsync();
-
-                var tenTT = hopDong.TrangThai == "Huy" ? "Hủy hợp đồng" : "Kết thúc hợp đồng";
-                return Ok(ApiResponse<object>.Ok(null!,
-                    $"Hợp đồng đã có hóa đơn liên quan. " +
-                    $"Đã chuyển sang trạng thái \"{tenTT}\"."));
-            }
+            var result = await _deleteValidationService.DeleteHopDongAsync(id);
+            return this.ToActionResult(result);
         }
-
         private bool HopDongExists(int id)
         {
             return _context.HopDong.Any(e => e.MaHopDong == id);
+        }
+
+        [HttpPost("{id}/ket-thuc")]
+        [Authorize(Roles = "Admin,ChuTro")]
+        public async Task<IActionResult> KetThucHopDong(int id)
+        {
+            var hopDong = await _context.HopDong
+                .Include(h => h.Phong).ThenInclude(p => p.NhaTro)
+                .FirstOrDefaultAsync(h => h.MaHopDong == id);
+
+            if (hopDong == null)
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy hợp đồng."));
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && hopDong.Phong?.NhaTro?.MaChuTro != GetCurrentUserId())
+                return Forbid();
+
+            var result = await _deleteValidationService.KetThucHopDongAsync(id);
+            return this.ToActionResult(result);
+        }
+
+        [HttpPost("{id}/huy")]
+        [Authorize(Roles = "Admin,ChuTro")]
+        public async Task<IActionResult> HuyHopDong(int id)
+        {
+            var hopDong = await _context.HopDong
+                .Include(h => h.Phong).ThenInclude(p => p.NhaTro)
+                .FirstOrDefaultAsync(h => h.MaHopDong == id);
+
+            if (hopDong == null)
+                return NotFound(ApiResponse<object>.Loi("Không tìm thấy hợp đồng."));
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && hopDong.Phong?.NhaTro?.MaChuTro != GetCurrentUserId())
+                return Forbid();
+
+            var result = await _deleteValidationService.HuyHopDongAsync(id);
+            return this.ToActionResult(result);
         }
 
         // GET: api/HopDong/TaoMoi

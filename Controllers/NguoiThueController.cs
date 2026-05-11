@@ -8,6 +8,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -18,11 +19,13 @@ namespace DoAnSE104.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly Cloudinary _cloudinary;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public NguoiThueController(ApplicationDbContext context, Cloudinary cloudinary)
+        public NguoiThueController(ApplicationDbContext context, Cloudinary cloudinary, IDeleteValidationService deleteValidationService)
         {
             _context = context;
             _cloudinary = cloudinary;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -462,6 +465,9 @@ namespace DoAnSE104.Controllers
                     return Forbid();
 
                 // Kiểm tra dữ liệu liên quan
+                var result = await _deleteValidationService.DeleteNguoiThueAsync(id);
+                return this.ToActionResult(result);
+
                 var coHopDong    = await _context.HopDong.AnyAsync(h => h.MaNguoiThue == id);
                 var coHoaDon     = await _context.HoaDon.AnyAsync(hd => hd.MaNguoiThue == id);
                 var coThanhToan  = await _context.ThanhToan.AnyAsync(tt => tt.MaNguoiThue == id);

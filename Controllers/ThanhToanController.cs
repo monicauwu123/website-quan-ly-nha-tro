@@ -8,6 +8,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -18,11 +19,13 @@ namespace DoAnSE104.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly Cloudinary _cloudinary;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public ThanhToanController(ApplicationDbContext context, Cloudinary cloudinary)
+        public ThanhToanController(ApplicationDbContext context, Cloudinary cloudinary, IDeleteValidationService deleteValidationService)
         {
             _context = context;
             _cloudinary = cloudinary;
+            _deleteValidationService = deleteValidationService;
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────
@@ -325,6 +328,12 @@ namespace DoAnSE104.Controllers
 
             if (!await CoQuyenThanhToan(thanhToan))
                 return Forbid();
+
+            if (GetCurrentRole() == VaiTroConst.ChuTro && thanhToan.TrangThaiXacNhan != "ChoXacNhan")
+                return BadRequest(ApiResponse<object>.Loi("Chủ trọ chỉ có thể hủy thanh toán đang chờ xác nhận."));
+
+            var result = await _deleteValidationService.DeleteThanhToanAsync(id);
+            return this.ToActionResult(result);
 
             if (GetCurrentRole() == VaiTroConst.ChuTro)
                 return BadRequest(ApiResponse<object>.Loi(

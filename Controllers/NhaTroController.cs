@@ -8,6 +8,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -18,11 +19,13 @@ namespace DoAnSE104.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly Cloudinary _cloudinary;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public NhaTroController(ApplicationDbContext context, Cloudinary cloudinary)
+        public NhaTroController(ApplicationDbContext context, Cloudinary cloudinary, IDeleteValidationService deleteValidationService)
         {
             _context = context;
             _cloudinary = cloudinary;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -218,6 +221,9 @@ namespace DoAnSE104.Controllers
                 var role = GetCurrentRole();
                 if (role == VaiTroConst.ChuTro && nhaTro.MaChuTro != GetCurrentUserId())
                     return Forbid();
+
+                var result = await _deleteValidationService.DeleteNhaTroAsync(id);
+                return this.ToActionResult(result);
 
                 // Kiểm tra dữ liệu liên quan
                 var coPhong      = await _context.Phong.AnyAsync(p => p.MaNhaTro == id);

@@ -5,6 +5,7 @@ using System.Security.Claims;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -14,10 +15,12 @@ namespace DoAnSE104.Controllers
     public class DichVuController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public DichVuController(ApplicationDbContext context)
+        public DichVuController(ApplicationDbContext context, IDeleteValidationService deleteValidationService)
         {
             _context = context;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -259,6 +262,9 @@ namespace DoAnSE104.Controllers
             }
 
             // Kiểm tra dữ liệu liên quan
+            var result = await _deleteValidationService.DeleteDichVuAsync(id);
+            return this.ToActionResult(result);
+
             var coDangKy    = await _context.DangKyDichVu.AnyAsync(dk => dk.MaDichVu == id);
             var coLichSuGia = await _context.LichSuGiaDichVu.AnyAsync(l => l.MaDichVu == id);
 

@@ -5,6 +5,7 @@ using System.Security.Claims;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -14,10 +15,12 @@ namespace DoAnSE104.Controllers
     public class ChiSoDienController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public ChiSoDienController(ApplicationDbContext context)
+        public ChiSoDienController(ApplicationDbContext context, IDeleteValidationService deleteValidationService)
         {
             _context = context;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -215,6 +218,9 @@ namespace DoAnSE104.Controllers
 
             if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenPhong(chiSoDien.MaPhong))
                 return Forbid();
+
+            var result = await _deleteValidationService.DeleteChiSoDienAsync(id);
+            return this.ToActionResult(result);
 
             _context.ChiSoDien.Remove(chiSoDien);
             await _context.SaveChangesAsync();

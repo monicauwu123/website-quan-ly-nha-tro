@@ -7,6 +7,7 @@ using DoAnSE104.Helpers;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Services;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -22,11 +23,13 @@ namespace DoAnSE104.Controllers
 
         private readonly ApplicationDbContext _context;
         private readonly INotificationEmailService _notificationEmailService;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public BaoCaoSuCoController(ApplicationDbContext context, INotificationEmailService notificationEmailService)
+        public BaoCaoSuCoController(ApplicationDbContext context, INotificationEmailService notificationEmailService, IDeleteValidationService deleteValidationService)
         {
             _context = context;
             _notificationEmailService = notificationEmailService;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -335,6 +338,9 @@ namespace DoAnSE104.Controllers
                     }
 
                     // Đang xử lý / đã xử lý → giữ lịch sử
+                    var result = await _deleteValidationService.DeleteBaoCaoSuCoAsync(id);
+                    return this.ToActionResult(result);
+
                     return BadRequest(ApiResponse<object>.Loi(
                         $"Báo cáo đang ở trạng thái \"{TrangThaiText(baoCao.TrangThai)}\", " +
                         "không thể hủy để giữ lịch sử xử lý. Chỉ hủy được khi chủ trọ chưa tiếp nhận."));
@@ -352,6 +358,9 @@ namespace DoAnSE104.Controllers
                 }
 
                 // Admin: Xóa cứng
+                var adminResult = await _deleteValidationService.DeleteBaoCaoSuCoAsync(id);
+                return this.ToActionResult(adminResult);
+
                 _context.BaoCaoSuCo.Remove(baoCao);
                 await _context.SaveChangesAsync();
 

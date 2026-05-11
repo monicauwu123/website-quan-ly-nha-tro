@@ -7,6 +7,7 @@ using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
 using DoAnSE104.Services;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -19,17 +20,20 @@ namespace DoAnSE104.Controllers
         private readonly IRentalPeriodResetService _rentalPeriodResetService;
         private readonly IMonthlyInvoiceService _monthlyInvoiceService;
         private readonly INotificationEmailService _notificationEmailService;
+        private readonly IDeleteValidationService _deleteValidationService;
 
         public HoaDonController(
             ApplicationDbContext context,
             IRentalPeriodResetService rentalPeriodResetService,
             IMonthlyInvoiceService monthlyInvoiceService,
-            INotificationEmailService notificationEmailService)
+            INotificationEmailService notificationEmailService,
+            IDeleteValidationService deleteValidationService)
         {
             _context = context;
             _rentalPeriodResetService = rentalPeriodResetService;
             _monthlyInvoiceService = monthlyInvoiceService;
             _notificationEmailService = notificationEmailService;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -719,6 +723,9 @@ namespace DoAnSE104.Controllers
                     return Forbid();
 
                 // Kiểm tra đã thanh toán chưa
+                var result = await _deleteValidationService.DeleteHoaDonAsync(id);
+                return this.ToActionResult(result);
+
                 var coThanhToan = await _context.ThanhToan.AnyAsync(tt => tt.MaHoaDon == id);
 
                 if (!coThanhToan)

@@ -6,6 +6,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Helpers;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -19,10 +20,12 @@ namespace DoAnSE104.Controllers
         private const string DaTuChoi = "TuChoi";
 
         private readonly ApplicationDbContext _context;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public YeuCauGiaHanController(ApplicationDbContext context)
+        public YeuCauGiaHanController(ApplicationDbContext context, IDeleteValidationService deleteValidationService)
         {
             _context = context;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -259,6 +262,9 @@ namespace DoAnSE104.Controllers
                 return Forbid();
 
             // Chỉ hủy được khi đang chờ duyệt → Xóa cứng
+            var result = await _deleteValidationService.DeleteYeuCauGiaHanAsync(id);
+            return this.ToActionResult(result);
+
             if (yeuCau.TrangThai == ChoDuyet)
             {
                 _context.YeuCauGiaHan.Remove(yeuCau);

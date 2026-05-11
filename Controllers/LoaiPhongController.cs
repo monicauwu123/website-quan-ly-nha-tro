@@ -5,6 +5,7 @@ using System.Security.Claims;
 using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -14,10 +15,12 @@ namespace DoAnSE104.Controllers
     public class LoaiPhongController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public LoaiPhongController(ApplicationDbContext context)
+        public LoaiPhongController(ApplicationDbContext context, IDeleteValidationService deleteValidationService)
         {
             _context = context;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -191,6 +194,9 @@ namespace DoAnSE104.Controllers
                          (loaiPhong.MaNhaTro == null && loaiPhong.MaChuTro == userId);
                 if (!ok) return Forbid();
             }
+
+            var result = await _deleteValidationService.DeleteLoaiPhongAsync(id);
+            return this.ToActionResult(result);
 
             var coPhong = await _context.Phong.AnyAsync(p => p.MaLoaiPhong == id);
 

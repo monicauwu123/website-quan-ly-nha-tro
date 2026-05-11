@@ -8,6 +8,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -18,11 +19,13 @@ namespace DoAnSE104.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly Cloudinary _cloudinary;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public PhongController(ApplicationDbContext context, Cloudinary cloudinary)
+        public PhongController(ApplicationDbContext context, Cloudinary cloudinary, IDeleteValidationService deleteValidationService)
         {
             _context = context;
             _cloudinary = cloudinary;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -414,6 +417,9 @@ namespace DoAnSE104.Controllers
                 }
 
                 // Kiểm tra dữ liệu liên quan
+                var result = await _deleteValidationService.DeletePhongAsync(id);
+                return this.ToActionResult(result);
+
                 var coHopDong   = await _context.HopDong.AnyAsync(h => h.MaPhong == id);
                 var coHoaDon    = await _context.HoaDon.AnyAsync(hd => hd.MaPhong == id);
                 var coNguoiThue = await _context.NguoiThue.AnyAsync(nt => nt.MaPhong == id);

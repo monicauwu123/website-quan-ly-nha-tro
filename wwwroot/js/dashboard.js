@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // DASHBOARD.JS – Quản Lý Phòng Trọ PRO
 // ==========================================
 
@@ -427,7 +427,7 @@ function renderChuTroAdminOverview(data) {
     const now = new Date();
     const thangNam = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
 
-    // ── KPI Cards ──────────────────────────────────────────────────────────
+    // â”€â”€ KPI Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const tyLePhong = data.tongPhong ? Math.round((data.phongDangThue / data.tongPhong) * 100) : 0;
 
     document.getElementById('dashStatsGrid').innerHTML = `
@@ -466,7 +466,7 @@ function renderChuTroAdminOverview(data) {
         </div>
     `;
 
-    // ── Alert Cards ────────────────────────────────────────────────────────
+    // â”€â”€ Alert Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const alerts = [
         {
             count: data.hoaDonChuaThanhToan ?? 0,
@@ -519,7 +519,7 @@ function renderChuTroAdminOverview(data) {
         </div>
     `;
 
-    // ── Main Grid ──────────────────────────────────────────────────────────
+    // â”€â”€ Main Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const sapHet = data.danhSachHopDongSapHet || [];
     const rooms  = data.danhSachPhongGanDay || [];
 
@@ -622,7 +622,7 @@ function renderNguoiDungOverview(data) {
     const soHoaDonChuaTT = data?.soHoaDonChuaTT ?? hoaDonChuaTT.length;
     const soThongBaoChuaDoc = data?.soThongBaoChuaDoc ?? thongBaoList.length;
 
-    // ── KPI Cards ──────────────────────────────────────────────────────────
+    // â”€â”€ KPI Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     document.getElementById('dashStatsGrid').innerHTML = `
         <div class="stat-card stat-card-indigo kpi-card">
             <div class="stat-icon"><i class="fas fa-user-circle"></i></div>
@@ -658,7 +658,7 @@ function renderNguoiDungOverview(data) {
         </div>
     `;
 
-    // ── Alert Row ──────────────────────────────────────────────────────────
+    // â”€â”€ Alert Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     document.getElementById('dashAlertRow').innerHTML = soHoaDonChuaTT > 0 ? `
         <div class="user-alert-banner" onclick="showSection('hoadon')">
             <i class="fas fa-exclamation-circle"></i>
@@ -666,7 +666,7 @@ function renderNguoiDungOverview(data) {
             <i class="fas fa-arrow-right" style="margin-left:auto;"></i>
         </div>` : '';
 
-    // ── Rooms & contracts ──────────────────────────────────────────────────
+    // â”€â”€ Rooms & contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const phongHtml = phongList.length
         ? phongList.map(p => `
             <div class="room-info-card">
@@ -1197,9 +1197,15 @@ function renderTable(cfg, data, section) {
         } else if (section === 'hopdong') {
             actionHtml = `<button class="btn-action" style="background:#6366f1;" onclick="HopDongPrint.openModal(${item.maHopDong})"><i class="fas fa-print"></i> In</button>`;
             if (canWrite) {
-                actionHtml += `
-                <button class="btn-action btn-edit" onclick="editItem('hopdong',${item.maHopDong})"><i class="fas fa-edit"></i> Sửa</button>
+                actionHtml += `<button class="btn-action btn-edit" onclick="editItem('hopdong',${item.maHopDong})"><i class="fas fa-edit"></i> Sửa</button>`;
+                if (item.trangThai === 'DangHieuLuc') {
+                    actionHtml += `
+                <button class="btn-action" style="background:#0f766e;" onclick="ketThucHopDong(${item.maHopDong})"><i class="fas fa-flag-checkered"></i> Kết thúc hợp đồng</button>
+                <button class="btn-action btn-delete" onclick="huyHopDong(${item.maHopDong})"><i class="fas fa-ban"></i> Hủy hợp đồng</button>`;
+                } else {
+                    actionHtml += `
                 <button class="btn-action btn-delete" onclick="deleteItem('hopdong',${item.maHopDong})"><i class="fas fa-trash"></i> Xóa</button>`;
+                }
             }
         } else if (canWrite) {
             actionHtml = `
@@ -1465,7 +1471,7 @@ function openDienNuocModal(id = null) {
 function editDienNuoc(tab, id) { currentSubSection = tab; openDienNuocModal(id); }
 
 async function deleteDienNuoc(tab, id) {
-    if (!confirm('Bạn có chắc chắn muốn xóa?')) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa? Dữ liệu có thể được xóa mềm nếu đã phát sinh lịch sử.')) return;
     const cfg = tab === 'dien' ? dienModule : nuocModule;
     try {
         const result = await apiFetch(`${cfg.endpoint}/${id}`, 'DELETE');
@@ -2840,7 +2846,7 @@ function editItem(section, id) {
 }
 
 async function deleteItem(section, id) {
-    if (!confirm('Bạn có chắc chắn muốn xóa mục này?')) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa mục này? Dữ liệu có thể được xóa mềm nếu đã phát sinh lịch sử.')) return;
     const cfg = modules[section];
     if (!cfg) return;
     try {
@@ -2865,6 +2871,45 @@ async function deleteItem(section, id) {
     } catch (e) {
         showToast(e.message || 'Lỗi xóa dữ liệu', 'error');
     }
+}
+
+async function ketThucHopDong(id) {
+    if (!confirm('Kết thúc hợp đồng này? Hệ thống sẽ chặn nếu còn hóa đơn chưa thanh toán hoặc thanh toán chưa đủ.')) return;
+    try {
+        const result = await postHopDongAction(`/api/HopDong/${id}/ket-thuc`);
+        showToast(result?.thongBao || result?.message || 'Đã kết thúc hợp đồng');
+        refreshData();
+        loadLookups();
+    } catch (e) {
+        showToast(e.message || 'Lỗi kết thúc hợp đồng', 'error');
+    }
+}
+
+async function huyHopDong(id) {
+    if (!confirm('Hủy hợp đồng này? Nếu hợp đồng đã phát sinh dữ liệu, hệ thống chỉ chuyển sang trạng thái đã hủy.')) return;
+    try {
+        const result = await postHopDongAction(`/api/HopDong/${id}/huy`);
+        showToast(result?.thongBao || result?.message || 'Đã hủy hợp đồng');
+        refreshData();
+        loadLookups();
+    } catch (e) {
+        showToast(e.message || 'Lỗi hủy hợp đồng', 'error');
+    }
+}
+
+async function postHopDongAction(endpoint) {
+    const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    if (res.status === 401) { logout(); return null; }
+    const text = await res.text();
+    let json = {};
+    try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+    if (!res.ok || json.thanhCong === false) {
+        throw new Error(extractApiErrorMessage(json) || `Lỗi HTTP ${res.status}`);
+    }
+    return json;
 }
 
 async function taoHoaDonHangThangTuDong() {

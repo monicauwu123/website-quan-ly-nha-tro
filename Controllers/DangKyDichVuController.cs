@@ -6,6 +6,7 @@ using DoAnSE104.Data;
 using DoAnSE104.Models;
 using DoAnSE104.Models.Dtos;
 using DoAnSE104.Helpers;
+using DoAnSE104.Services.Interfaces;
 
 namespace DoAnSE104.Controllers
 {
@@ -15,10 +16,12 @@ namespace DoAnSE104.Controllers
     public class DangKyDichVuController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IDeleteValidationService _deleteValidationService;
 
-        public DangKyDichVuController(ApplicationDbContext context)
+        public DangKyDichVuController(ApplicationDbContext context, IDeleteValidationService deleteValidationService)
         {
             _context = context;
+            _deleteValidationService = deleteValidationService;
         }
 
         private int GetCurrentUserId()
@@ -277,6 +280,9 @@ namespace DoAnSE104.Controllers
 
             if (dangKy.TrangThai == TrangThaiHetHan)
                 return BadRequest(ApiResponse<object>.Loi("Đăng ký dịch vụ này đã hết hạn theo kỳ thuê"));
+
+            var result = await _deleteValidationService.DeleteDangKyDichVuAsync(id);
+            return this.ToActionResult(result);
 
             dangKy.TrangThai = TrangThaiDaHuy;
             dangKy.NgayHuy = DateTime.Now;
