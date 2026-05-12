@@ -26,6 +26,7 @@
         `js/modules/nguoi-thue-search.js?v=${VERSION}`,
         `js/modules/hop-dong.js?v=${VERSION}`,
         `js/modules/hop-dong-search.js?v=${VERSION}`,
+        `js/modules/hoa-don-search.js?v=${VERSION}`,
         `js/hop-dong-print.js?v=${VERSION}`,
         `js/modules/yeu-cau-thue.js?v=${VERSION}`,
         `js/modules/hoa-don.js?v=${VERSION}`,

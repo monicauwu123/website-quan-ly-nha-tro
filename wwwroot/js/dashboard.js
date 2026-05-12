@@ -1251,6 +1251,34 @@ async function loadGenericSection(section) {
         return;
     }
 
+    // ── Hóa đơn dùng module Search riêng ─────────────────────────────
+    if (section === 'hoadon') {
+        document.getElementById('genericSection').innerHTML = `
+            <div id="hdnToolbarSlot"></div>
+            <div class="data-card">
+                <div id="hdnTableSlot">
+                    <div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+                </div>
+                <div id="hdnPagingSlot"></div>
+            </div>`;
+
+        try {
+            const rawData = await apiFetch(cfg.endpoint);
+            currentData = normalizeArrayResponse(rawData);
+            if (window._HoaDonSearch) {
+                window._HoaDonSearch.init(currentData);
+            }
+        } catch (e) {
+            const slot = document.getElementById('hdnTableSlot');
+            if (slot) slot.innerHTML = `<div style="text-align:center;color:var(--error);padding:1.5rem;">Lỗi tải dữ liệu: ${e.message}</div>`;
+            showToast('Lỗi tải dữ liệu', 'error');
+        }
+        return;
+    }
+
+
+
+
     // ─────────────────────────────────────────────────────────────────
 
     document.getElementById('genericSection').innerHTML = `
@@ -1295,6 +1323,10 @@ function renderTable(cfg, data, section) {
     }
     if (section === 'nguoithue') {
         if (window._NguoiThueSearch) window._NguoiThueSearch.refresh(mergeNguoiThueDisplayRows(normalizeArrayResponse(data)));
+        return;
+    }
+    if (section === 'hoadon') {
+        if (window._HoaDonSearch) window._HoaDonSearch.refresh(normalizeArrayResponse(data));
         return;
     }
     const tbody = document.getElementById('genericTableBody');
