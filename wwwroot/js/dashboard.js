@@ -1148,12 +1148,7 @@ async function loadGenericSection(section) {
     document.getElementById('addBtn').onclick = () => openModal();
 
     let searchHtml = '';
-    if (section === 'nguoithue') {
-        searchHtml = `<div style="margin-bottom:1rem;max-width:420px;position:relative;">
-            <i class="fas fa-search" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
-            <input type="text" id="nguoiThueSearch" class="form-control" style="padding-left:2.5rem;" placeholder="Tìm theo tên, CCCD, SĐT, email..." oninput="searchNguoiThue(this.value)">
-        </div>`;
-    }
+
 
     let extraToolbarHtml = '';
     if (section === 'thongbao') {
@@ -1206,6 +1201,58 @@ async function loadGenericSection(section) {
             </div>`;
     }
 
+    if (section === 'nguoithue') {
+        document.getElementById('genericSection').innerHTML = `
+            <div id="ntToolbarSlot"></div>
+            <div class="data-card">
+                <div id="ntTableSlot">
+                    <div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+                </div>
+                <div id="ntPagingSlot"></div>
+            </div>`;
+
+        try {
+            const rawData = await apiFetch(cfg.endpoint);
+            currentData = normalizeArrayResponse(rawData);
+            const merged = mergeNguoiThueDisplayRows(currentData);
+            if (window._NguoiThueSearch) {
+                window._NguoiThueSearch.init(merged);
+            }
+        } catch (e) {
+            const slot = document.getElementById('ntTableSlot');
+            if (slot) slot.innerHTML = `<div style="text-align:center;color:var(--error);padding:1.5rem;">Lỗi tải dữ liệu: ${e.message}</div>`;
+            showToast('Lỗi tải dữ liệu', 'error');
+        }
+        return;
+    }
+
+    // ── Hợp đồng dùng module Search riêng ────────────────────────────
+    if (section === 'hopdong') {
+        document.getElementById('genericSection').innerHTML = `
+            <div id="hdToolbarSlot"></div>
+            <div class="data-card">
+                <div id="hdTableSlot">
+                    <div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>
+                </div>
+                <div id="hdPagingSlot"></div>
+            </div>`;
+
+        try {
+            const rawData = await apiFetch(cfg.endpoint);
+            currentData = normalizeArrayResponse(rawData);
+            if (window._HopDongSearch) {
+                window._HopDongSearch.init(currentData);
+            }
+        } catch (e) {
+            const slot = document.getElementById('hdTableSlot');
+            if (slot) slot.innerHTML = `<div style="text-align:center;color:var(--error);padding:1.5rem;">Lỗi tải dữ liệu: ${e.message}</div>`;
+            showToast('Lỗi tải dữ liệu', 'error');
+        }
+        return;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+
     document.getElementById('genericSection').innerHTML = `
         ${searchHtml}
         ${extraToolbarHtml}
@@ -1242,6 +1289,14 @@ async function loadGenericSection(section) {
 }
 
 function renderTable(cfg, data, section) {
+    if (section === 'hopdong') {
+        if (window._HopDongSearch) window._HopDongSearch.refresh(normalizeArrayResponse(data));
+        return;
+    }
+    if (section === 'nguoithue') {
+        if (window._NguoiThueSearch) window._NguoiThueSearch.refresh(mergeNguoiThueDisplayRows(normalizeArrayResponse(data)));
+        return;
+    }
     const tbody = document.getElementById('genericTableBody');
     if (!tbody) return;
 
@@ -1346,19 +1401,9 @@ function renderTable(cfg, data, section) {
 }
 
 async function searchNguoiThue(q) {
-    if (!q) { renderTable(modules.nguoithue, currentData, 'nguoithue'); return; }
-    try {
-        const results = await apiFetch(`/api/NguoiThue/Search?keyword=${encodeURIComponent(q)}`);
-        renderTable(modules.nguoithue, normalizeArrayResponse(results), 'nguoithue');
-    } catch {
-        const lower = q.toLowerCase();
-        const filtered = normalizeArrayResponse(currentData).filter(n =>
-            (n.hoTen || '').toLowerCase().includes(lower) ||
-            (n.cccd || '').includes(q) ||
-            (n.sdt || '').includes(q) ||
-            (n.email || '').toLowerCase().includes(lower)
-        );
-        renderTable(modules.nguoithue, filtered, 'nguoithue');
+    // Legacy wrapper – logic đã chuyển sang window._NguoiThueSearch
+    if (window._NguoiThueSearch) {
+        window._NguoiThueSearch.onKeyword(q || '');
     }
 }
 
