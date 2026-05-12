@@ -798,7 +798,7 @@ function renderNguoiDungOverview(data) {
 // ROOM GRID
 // ==========================================
 async function renderRoomGrid() {
-    if (CURRENT_ROLE !== 'NguoiDung') selectedRoomHouseId = null;
+    // ── Nút thêm mới ─────────────────────────────────────────────────
     const _addBtn = document.getElementById('addBtn');
     if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
         _addBtn.style.display = 'inline-flex';
@@ -806,14 +806,38 @@ async function renderRoomGrid() {
     } else {
         _addBtn.style.display = 'none';
     }
+
     const container = document.getElementById('genericSection');
+
+    // ── Admin / ChuTro → dùng PhongTable (bảng + filter + paging) ────
+    if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
+        if (typeof window.PhongTable === 'undefined' || typeof window.PhongTable.init !== 'function') {
+            container.innerHTML = `<div class="data-card" style="padding:2rem;text-align:center;color:var(--error);">
+                <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:.5rem;display:block;"></i>
+                <strong>Lỗi: Module PhongTable chưa được tải.</strong><br>
+                <span style="color:var(--text-light);font-size:.9rem;">Vui lòng đảm bảo đã thay file <code>wwwroot/js/modules/phong.js</code> bằng phiên bản mới nhất rồi tải lại trang.</span>
+            </div>`;
+            return;
+        }
+        await window.PhongTable.init(container);
+        // Đồng bộ currentData để editItem / deleteItem vẫn hoạt động
+        try {
+            const raw = await apiFetch('/api/Phong');
+            currentData = normalizeArrayResponse(raw);
+        } catch (_) {}
+        return;
+    }
+
+    // ── NguoiDung → giữ dạng card + bộ lọc đơn giản có paging ───────
+    selectedRoomHouseId = null;
+
     container.innerHTML = `
-        ${CURRENT_ROLE === 'NguoiDung' ? `
+        <!-- Browser nhà trọ cho NguoiDung -->
         <div class="room-house-browser">
             <div class="room-house-browser-head">
                 <div>
                     <h2>Chọn nhà trọ để xem phòng</h2>
-                    <p>Xem ảnh nhà trọ, dịch vụ được cung cấp và danh sách phòng bên dưới.</p>
+                    <p>Xem ảnh nhà trọ, dịch vụ và danh sách phòng còn trống.</p>
                 </div>
                 <button class="btn btn-secondary" onclick="selectRoomHouse(null)">
                     <i class="fas fa-border-all"></i> Tất cả nhà trọ
@@ -821,27 +845,143 @@ async function renderRoomGrid() {
             </div>
             <div id="roomHouseSelector" class="room-house-selector"></div>
         </div>
-        ` : ''}
-        <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center;">
+
+        <!-- Thanh tìm kiếm / lọc -->
+        <div style="display:flex;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap;align-items:center;">
             <div style="flex:1;min-width:200px;position:relative;">
                 <i class="fas fa-search" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
-                <input type="text" id="roomSearch" class="form-control" style="padding-left:2.5rem;" placeholder="Tìm kiếm tên phòng..." oninput="filterRooms()">
+                <input type="text" id="roomSearch" class="form-control" style="padding-left:2.5rem;"
+                    placeholder="Tìm tên phòng, nhà trọ..." oninput="filterRooms()">
             </div>
             <select id="roomStatusFilter" class="form-control" style="width:auto;min-width:160px;" onchange="filterRooms()">
                 <option value="">Tất cả trạng thái</option>
                 ${lookups.trangthai.map(t => `<option value="${t.maTrangThai}">${t.tenTrangThai}</option>`).join('')}
             </select>
+            <select id="roomLoaiFilter" class="form-control" style="width:auto;min-width:140px;" onchange="filterRooms()">
+                <option value="">Tất cả loại phòng</option>
+                ${lookups.loaiphong.map(l => `<option value="${l.maLoaiPhong}">${escapeHtmlDashboard(l.tenLoaiPhong)}</option>`).join('')}
+            </select>
+            <button class="btn btn-secondary" onclick="filterRooms()">
+                <i class="fas fa-sync-alt"></i> Làm mới
+            </button>
+            <button class="btn btn-secondary" onclick="clearRoomFilters()">
+                <i class="fas fa-times-circle"></i> Xóa bộ lọc
+            </button>
         </div>
-        <div id="roomGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;"></div>`;
+
+        <!-- Thông tin tổng kết + chọn số dòng -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem;">
+            <span id="roomInfo" style="font-size:.875rem;color:var(--text-light);"></span>
+            <div style="display:flex;align-items:center;gap:.5rem;">
+                <span style="font-size:.85rem;color:var(--text-light);">Hiển thị:</span>
+                <select id="roomPageSize" class="form-control" style="width:75px;padding:.35rem .5rem;" onchange="filterRooms()">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Grid phòng -->
+        <div id="roomGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;"></div>
+
+        <!-- Phân trang -->
+        <div id="roomPager" style="display:flex;justify-content:center;gap:.3rem;flex-wrap:wrap;margin-top:1.25rem;"></div>`;
 
     try {
         currentData = await apiFetch('/api/Phong');
-        if (CURRENT_ROLE === 'NguoiDung') renderRoomHouseSelector();
+        renderRoomHouseSelector();
+        _roomCurrentPage = 1;
         filterRooms();
     } catch (e) {
         showToast('Lỗi tải danh sách phòng', 'error');
     }
 }
+
+// ── Trạng thái phân trang cho card view (NguoiDung) ─────────────────
+let _roomCurrentPage = 1;
+
+function clearRoomFilters() {
+    const ids = ['roomSearch', 'roomStatusFilter', 'roomLoaiFilter'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    _roomCurrentPage = 1;
+    filterRooms();
+}
+window.clearRoomFilters = clearRoomFilters;
+
+function filterRooms() {
+    const q  = (document.getElementById('roomSearch')?.value   || '').toLowerCase();
+    const sf = document.getElementById('roomStatusFilter')?.value || '';
+    const lf = document.getElementById('roomLoaiFilter')?.value   || '';
+    const ps = parseInt(document.getElementById('roomPageSize')?.value) || 10;
+
+    let data = normalizeArrayResponse(currentData);
+
+    // Lọc nhà trọ (NguoiDung chọn nhà)
+    if (selectedRoomHouseId) data = data.filter(r => Number(r.maNhaTro) === Number(selectedRoomHouseId));
+
+    // Tìm kiếm text (không phân biệt hoa thường)
+    if (q) data = data.filter(r => {
+        const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(r.maNhaTro));
+        return (r.tenPhong   || '').toLowerCase().includes(q)
+            || (r.diaChiPhong || '').toLowerCase().includes(q)
+            || (house?.tenNhaTro || '').toLowerCase().includes(q)
+            || (house?.diaChi    || '').toLowerCase().includes(q)
+            || (r.moTa          || '').toLowerCase().includes(q);
+    });
+
+    // Filter trạng thái
+    if (sf) data = data.filter(r => String(r.maTrangThai) === sf);
+
+    // Filter loại phòng
+    if (lf) data = data.filter(r => String(r.maLoaiPhong) === lf);
+
+    const total = data.length;
+    const totalPg = Math.max(1, Math.ceil(total / ps));
+    if (_roomCurrentPage > totalPg) _roomCurrentPage = 1;
+
+    const start = (_roomCurrentPage - 1) * ps;
+    const pageData = data.slice(start, start + ps);
+
+    // Tổng kết
+    const infoEl = document.getElementById('roomInfo');
+    if (infoEl) {
+        const from = total === 0 ? 0 : start + 1;
+        const to   = Math.min(_roomCurrentPage * ps, total);
+        infoEl.textContent = `Hiển thị ${from}–${to} trong tổng số ${total} kết quả`;
+    }
+
+    renderRooms(pageData);
+    renderRoomPager(totalPg, ps, data);
+}
+
+function renderRoomPager(totalPg, ps, filteredData) {
+    const pager = document.getElementById('roomPager');
+    if (!pager) return;
+    if (totalPg <= 1) { pager.innerHTML = ''; return; }
+
+    const cp = _roomCurrentPage;
+    const btn = (label, page, disabled) =>
+        `<button class="pt-page-btn ${disabled ? 'disabled' : ''} ${page === cp && typeof label === 'number' ? 'active' : ''}"
+            ${disabled ? 'disabled' : ''} onclick="_roomGoPage(${page})">${label}</button>`;
+
+    const range = 2;
+    let pages = [];
+    for (let i = Math.max(1, cp - range); i <= Math.min(totalPg, cp + range); i++) pages.push(i);
+
+    pager.innerHTML = `
+        ${btn('<i class="fas fa-angle-double-left"></i>', 1,         cp === 1)}
+        ${btn('<i class="fas fa-angle-left"></i>',        cp - 1,    cp === 1)}
+        ${pages.map(p => btn(p, p, false)).join('')}
+        ${btn('<i class="fas fa-angle-right"></i>',       cp + 1,    cp >= totalPg)}
+        ${btn('<i class="fas fa-angle-double-right"></i>',totalPg,   cp >= totalPg)}`;
+}
+
+function _roomGoPage(p) {
+    _roomCurrentPage = p;
+    filterRooms();
+}
+window._roomGoPage = _roomGoPage;
 
 function renderRoomHouseSelector() {
     const selector = document.getElementById('roomHouseSelector');
@@ -857,13 +997,12 @@ function renderRoomHouseSelector() {
     }
 
     selector.innerHTML = houses.map(house => {
-        const images = getImageListFromEntity(house);
-        const count = normalizeArrayResponse(currentData).filter(r => Number(r.maNhaTro) === Number(house.maNhaTro)).length;
-        const active = selectedRoomHouseId && Number(selectedRoomHouseId) === Number(house.maNhaTro);
+        const images  = getImageListFromEntity(house);
+        const count   = normalizeArrayResponse(currentData).filter(r => Number(r.maNhaTro) === Number(house.maNhaTro)).length;
+        const active  = selectedRoomHouseId && Number(selectedRoomHouseId) === Number(house.maNhaTro);
         const services = normalizeArrayResponse(lookups.dichvu).filter(dv =>
             Number(dv.maNhaTro) === Number(house.maNhaTro) && dv.loaiDichVu !== 'TienNghi'
         );
-
         return `
             <button type="button" class="room-house-card ${active ? 'active' : ''}" onclick="selectRoomHouse(${house.maNhaTro})">
                 <div class="room-house-thumb">
@@ -884,6 +1023,7 @@ function renderRoomHouseSelector() {
 
 function selectRoomHouse(maNhaTro) {
     selectedRoomHouseId = maNhaTro ? Number(maNhaTro) : null;
+    _roomCurrentPage = 1;
     renderRoomHouseSelector();
     filterRooms();
 }
@@ -893,19 +1033,22 @@ function renderRooms(rooms) {
     const grid = document.getElementById('roomGrid');
     if (!grid) return;
     if (!rooms?.length) {
-        grid.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:2rem;grid-column:1/-1;">Không có phòng nào phù hợp.</p>';
+        grid.innerHTML = `<p style="color:var(--text-light);text-align:center;padding:2rem;grid-column:1/-1;">
+            <i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:.5rem;opacity:.4;"></i>
+            Không tìm thấy phòng phù hợp.
+        </p>`;
         return;
     }
     grid.innerHTML = rooms.map(r => {
-        const status = lookups.trangthai.find(t => t.maTrangThai === r.maTrangThai);
-        const house = lookups.nhatro.find(n => n.maNhaTro === r.maNhaTro);
-        const loai = lookups.loaiphong.find(l => l.maLoaiPhong === r.maLoaiPhong);
-        const color = r.maTrangThai === 1 ? '#22c55e' : r.maTrangThai === 2 ? '#ef4444' : '#f59e0b';
-        const images = getImageListFromEntity(r);
+        const status   = lookups.trangthai.find(t => t.maTrangThai === r.maTrangThai);
+        const house    = lookups.nhatro.find(n => n.maNhaTro === r.maNhaTro);
+        const loai     = lookups.loaiphong.find(l => l.maLoaiPhong === r.maLoaiPhong);
+        const color    = r.maTrangThai === 1 ? '#22c55e' : r.maTrangThai === 2 ? '#ef4444' : '#f59e0b';
+        const images   = getImageListFromEntity(r);
         const houseImages = getImageListFromEntity(house);
         const imageUrl = images[0] || houseImages[0];
-        const tienIch = servicesForRoom(r, 'TienIch');
-        const tienNghi = servicesForRoom(r, 'TienNghi');
+        const tienIch       = servicesForRoom(r, 'TienIch');
+        const tienNghi      = servicesForRoom(r, 'TienNghi');
         const dichVuTinhPhi = servicesForRoom(r, 'TinhPhi');
         return `<div class="data-card animate-fade-in" style="border-top:4px solid ${color};padding:1.25rem;display:flex;flex-direction:column;">
             ${imageUrl ? `
@@ -924,42 +1067,20 @@ function renderRooms(rooms) {
                 ${r.dienTich ? `<p><i class="fas fa-expand-arrows-alt" style="width:1.25rem;color:var(--primary);"></i> ${r.dienTich} m²</p>` : ''}
                 <p><i class="fas fa-money-bill-wave" style="width:1.25rem;color:var(--primary);"></i> <strong style="color:var(--text);">${fmtCurrency(r.giaPhong)}</strong>/tháng</p>
                 <p><i class="fas fa-users" style="width:1.25rem;color:var(--primary);"></i> Sức chứa: ${r.sucChua} người</p>
-                ${tienNghi.length ? `<div><i class="fas fa-bed" style="width:1.25rem;color:var(--primary);"></i> ${tienNghi.slice(0, 5).map(x => `<span class="badge badge-blue" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}</span>`).join('')}</div>` : ''}
-                ${tienIch.length ? `<div><i class="fas fa-shield-alt" style="width:1.25rem;color:var(--primary);"></i> ${tienIch.slice(0, 5).map(x => `<span class="badge badge-green" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}</span>`).join('')}</div>` : ''}
-                ${dichVuTinhPhi.length ? `<div><i class="fas fa-concierge-bell" style="width:1.25rem;color:var(--primary);"></i> ${dichVuTinhPhi.slice(0, 5).map(x => `<span class="badge badge-warning" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}${x.tiendichvu ? ' - ' + fmtCurrency(x.tiendichvu) : ''}</span>`).join('')}</div>` : ''}
+                ${tienNghi.length ? `<div><i class="fas fa-bed" style="width:1.25rem;color:var(--primary);"></i> ${tienNghi.slice(0,5).map(x=>`<span class="badge badge-blue" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}</span>`).join('')}</div>` : ''}
+                ${tienIch.length ? `<div><i class="fas fa-shield-alt" style="width:1.25rem;color:var(--primary);"></i> ${tienIch.slice(0,5).map(x=>`<span class="badge badge-green" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}</span>`).join('')}</div>` : ''}
+                ${dichVuTinhPhi.length ? `<div><i class="fas fa-concierge-bell" style="width:1.25rem;color:var(--primary);"></i> ${dichVuTinhPhi.slice(0,5).map(x=>`<span class="badge badge-warning" style="margin:.15rem;">${escapeHtmlDashboard(x.tenDichVu)}${x.tiendichvu?' - '+fmtCurrency(x.tiendichvu):''}</span>`).join('')}</div>` : ''}
             </div>
             ${(CURRENT_ROLE === 'NguoiDung' && houseImages.length) ? `
             <button class="btn btn-secondary" style="margin-bottom:.65rem;padding:.5rem;font-size:.875rem;" onclick="openHouseGallery(${r.maNhaTro})">
                 <i class="fas fa-images"></i> Xem ảnh nhà trọ
             </button>` : ''}
-            ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
-            <div style="display:flex;gap:0.5rem;">
-                <button class="btn btn-primary" style="flex:1;padding:0.5rem;font-size:0.875rem;" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Chỉnh sửa</button>
-                <button class="btn btn-danger" style="padding:0.5rem;" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i></button>
-            </div>
-            ` : CURRENT_ROLE === 'NguoiDung' ? `
+            ${CURRENT_ROLE === 'NguoiDung' ? `
             <div style="display:flex;gap:0.5rem;">
                 <button class="btn btn-primary" style="flex:1;padding:0.5rem;font-size:0.875rem;" onclick="openYeuCauThueModal(null, ${r.maPhong})"><i class="fas fa-paper-plane"></i> Gửi yêu cầu thuê</button>
-            </div>
-            ` : ''}
+            </div>` : ''}
         </div>`;
     }).join('');
-}
-
-function filterRooms() {
-    const q = (document.getElementById('roomSearch')?.value || '').toLowerCase();
-    const sf = document.getElementById('roomStatusFilter')?.value;
-    let data = currentData;
-    if (selectedRoomHouseId) data = data.filter(r => Number(r.maNhaTro) === Number(selectedRoomHouseId));
-    if (q) data = data.filter(r => {
-        const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(r.maNhaTro));
-        return (r.tenPhong || '').toLowerCase().includes(q)
-            || (r.diaChiPhong || '').toLowerCase().includes(q)
-            || (house?.tenNhaTro || '').toLowerCase().includes(q)
-            || (house?.diaChi || '').toLowerCase().includes(q);
-    });
-    if (sf) data = data.filter(r => r.maTrangThai == sf);
-    renderRooms(data);
 }
 
 function openRoomGallery(maPhong) {
