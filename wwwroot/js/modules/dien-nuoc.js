@@ -1,4 +1,4 @@
-// Module cấu hình: điện & nước
+﻿// Module cấu hình: điện & nước
 window.AppDienNuocModules = window.AppDienNuocModules || {};
 const _dnLookups = () => window.lookups || { phong: [] };
 window.AppDienNuocModules.dien = {

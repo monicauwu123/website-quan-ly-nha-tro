@@ -1,4 +1,4 @@
-// Module cấu hình: dichvu
+﻿// Module cấu hình: dichvu
 window.AppModules = window.AppModules || {};
 window.AppModules.dichvu = {
     title: 'Dịch Vụ',

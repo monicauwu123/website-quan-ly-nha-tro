@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module: bien-lai
  * Chức năng gửi biên lai thanh toán dành cho NguoiDung
  * và xem danh sách biên lai chờ xác nhận dành cho ChuTro/Admin
@@ -241,7 +241,7 @@ async function thucHienXacNhan(maThanhToan, chapNhan) {
             document.getElementById('modalXacNhanBienLai').remove();
             showToast(res.thongBao || 'Đã từ chối biên lai', 'warning');
             if (typeof renderBienLaiChoXacNhan === 'function') renderBienLaiChoXacNhan();
-            if (typeof capNhatBadgeBienLai === 'function') capNhatBadgeBienLai();
+            if (typeof window.refreshSidebarBadges === 'function') window.refreshSidebarBadges();
         } catch (err) {
             errorEl.textContent = err.message;
             errorEl.style.display = 'block';
@@ -252,7 +252,7 @@ async function thucHienXacNhan(maThanhToan, chapNhan) {
             document.getElementById('modalXacNhanBienLai').remove();
             showToast(res.thongBao || 'Đã xác nhận thanh toán thành công', 'success');
             if (typeof renderBienLaiChoXacNhan === 'function') renderBienLaiChoXacNhan();
-            if (typeof capNhatBadgeBienLai === 'function') capNhatBadgeBienLai();
+            if (typeof window.refreshSidebarBadges === 'function') window.refreshSidebarBadges();
         } catch (err) {
             errorEl.textContent = err.message;
             errorEl.style.display = 'block';
@@ -354,3 +354,4 @@ window.moModalXacNhanBienLai = moModalXacNhanBienLai;
 window.thucHienXacNhan = thucHienXacNhan;
 window.renderBienLaiChoXacNhan = renderBienLaiChoXacNhan;
 window.capNhatBadgeBienLai = capNhatBadgeBienLai;
+

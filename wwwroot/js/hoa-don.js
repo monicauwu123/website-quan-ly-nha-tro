@@ -1,4 +1,4 @@
-// Module cấu hình: hoadon
+﻿// Module cấu hình: hoadon
 // Đặt tại: wwwroot/js/modules/hoa-don.js
 // Chức năng bổ sung: In hóa đơn (window.print) + Xuất Excel (SheetJS / CSV fallback)
 

@@ -83,7 +83,7 @@ namespace DoAnSE104.Data
         {
             var data = new[]
             {
-                ("chutro1", "Nguyễn Minh Quân", "chutro1@example.com", "0901000001", "Vietcombank", "VCB"),
+                ("chutro", "Nguyễn Minh Quân", "chutro@example.com", "0901000001", "Vietcombank", "VCB"),
                 ("chutro2", "Trần Thị Thu Hà", "chutro2@example.com", "0901000002", "Techcombank", "TCB"),
                 ("chutro3", "Lê Hoàng Phúc", "chutro3@example.com", "0901000003", "ACB", "ACB"),
                 ("chutro4", "Phạm Gia Hân", "chutro4@example.com", "0901000004", "MB Bank", "MB"),

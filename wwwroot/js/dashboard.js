@@ -35,6 +35,19 @@ function applyRoleUI() {
 // Chạy ngay khi DOM sẵn sàng
 applyRoleUI();
 
+function applySidebarCollapsePreference() {
+    const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+}
+
+function toggleSidebarCollapse() {
+    const collapsed = !document.body.classList.contains('sidebar-collapsed');
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+}
+window.toggleSidebarCollapse = toggleSidebarCollapse;
+applySidebarCollapsePreference();
+
 // --- STATE ---
 let currentSection = 'overview';
 let currentSubSection = 'dien';
@@ -88,6 +101,10 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
         if (json && json.thanhCong === false) {
             throw new Error(extractApiErrorMessage(json) || 'Lỗi xử lý yêu cầu');
         }
+        if (['POST', 'PUT', 'DELETE'].includes(method) && typeof window.refreshSidebarBadges === 'function') {
+            setTimeout(() => window.refreshSidebarBadges(), 250);
+        }
+
         if (method === 'DELETE') {
             return json;
         }
@@ -318,6 +335,10 @@ function showSection(section, el, skipHashUpdate = false) {
     }
     currentSection = section;
 
+    if (typeof window.dismissSidebarBadgeForSection === 'function') {
+        window.dismissSidebarBadgeForSection(section);
+    }
+
     if (!skipHashUpdate) {
         const nextHash = '#' + sectionToHash(section);
         if (window.location.hash !== nextHash) {
@@ -382,7 +403,7 @@ function showSection(section, el, skipHashUpdate = false) {
                 <div class="section-header" style="margin-bottom:1rem;">
                     <div>
                         <h2 class="section-title"><i class="fas fa-receipt"></i> Biên lai chờ xác nhận</h2>
-                        <p class="section-subtitle">Danh sách biên lai người thuê đã gửi, cần xem xét và xác nhận</p>
+                        <p class="section-subtitle">Danh s�ch bi�n lai ngu?i thu� d� g?i, c?n xem x�t v� x�c nh?n</p>
                     </div>
                     <button class="btn btn-secondary" onclick="renderBienLaiChoXacNhan()">
                         <i class="fas fa-sync-alt"></i> Làm mới
@@ -461,7 +482,7 @@ function renderChuTroAdminOverview(data) {
             <div class="stat-info">
                 <h3>Doanh thu ${thangNam}</h3>
                 <div class="value" style="font-size:1.25rem;">${fmtCurrency(data.doanhThuThang ?? 0)}</div>
-                <div class="kpi-sub">Đã thu thực tế</div>
+                <div class="kpi-sub">�� thu th?c t?</div>
             </div>
         </div>
     `;
@@ -645,7 +666,7 @@ function renderNguoiDungOverview(data) {
             <div class="stat-info">
                 <h3>Hóa đơn chưa trả</h3>
                 <div class="value">${soHoaDonChuaTT}</div>
-                <div class="kpi-sub">${soHoaDonChuaTT > 0 ? 'Cần thanh toán' : 'Đã thanh toán hết'}</div>
+                <div class="kpi-sub">${soHoaDonChuaTT > 0 ? 'C?n thanh to�n' : '�� thanh to�n h?t'}</div>
             </div>
         </div>
         <div class="stat-card ${soThongBaoChuaDoc > 0 ? 'stat-card-purple' : 'stat-card-green'} kpi-card" onclick="showSection('thongbao')">
@@ -653,7 +674,7 @@ function renderNguoiDungOverview(data) {
             <div class="stat-info">
                 <h3>Thông báo mới</h3>
                 <div class="value">${soThongBaoChuaDoc}</div>
-                <div class="kpi-sub">${soThongBaoChuaDoc > 0 ? 'Chưa đọc' : 'Đã đọc hết'}</div>
+                <div class="kpi-sub">${soThongBaoChuaDoc > 0 ? 'Chua d?c' : '�� d?c h?t'}</div>
             </div>
         </div>
     `;
@@ -724,10 +745,10 @@ function renderNguoiDungOverview(data) {
             </div>`).join('')
         : '<div class="empty-state-sm"><i class="fas fa-check-circle" style="color:var(--success);"></i> Không có thông báo mới</div>';
 
-    // ── Sự cố gần đây ─────────────────────────────────────────────────────
+    // -- S? c? g?n d�y -----------------------------------------------------
     const baoCaoHtml = baoCaoList.length
         ? baoCaoList.map(b => {
-            const statusMap = { Moi: ['badge-warning','Mới gửi'], DangXuLy: ['badge-info','Đang xử lý'], DaXuLy: ['badge-success','Đã xử lý'] };
+            const statusMap = { Moi: ['badge-warning','M?i g?i'], DangXuLy: ['badge-info','�ang x? l�'], DaXuLy: ['badge-success','�� x? l�'] };
             const [cls, label] = statusMap[b.trangThai] || ['badge-secondary', b.trangThai || '---'];
             const mucDoCls = b.mucDo === 'Khẩn cấp' ? 'badge-danger' : b.mucDo === 'Cao' ? 'badge-warning' : 'badge-secondary';
             return `<div class="mini-list-item">
@@ -783,7 +804,7 @@ function renderNguoiDungOverview(data) {
 
             <div class="data-card">
                 <div class="dash-card-header">
-                    <span><i class="fas fa-tools" style="color:#f59e0b;"></i> Sự cố gần đây</span>
+                    <span><i class="fas fa-tools" style="color:#f59e0b;"></i> S? c? g?n d�y</span>
                     <button class="btn-link-sm" onclick="showSection('baocaosuco')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
                 </div>
                 <div class="mini-list">${baoCaoHtml}</div>
@@ -815,7 +836,7 @@ async function renderRoomGrid() {
             container.innerHTML = `<div class="data-card" style="padding:2rem;text-align:center;color:var(--error);">
                 <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:.5rem;display:block;"></i>
                 <strong>Lỗi: Module PhongTable chưa được tải.</strong><br>
-                <span style="color:var(--text-light);font-size:.9rem;">Vui lòng đảm bảo đã thay file <code>wwwroot/js/modules/phong.js</code> bằng phiên bản mới nhất rồi tải lại trang.</span>
+                <span style="color:var(--text-light);font-size:.9rem;">Vui l�ng d?m b?o d� thay file <code>wwwroot/js/modules/phong.js</code> b?ng phi�n b?n m?i nh?t r?i t?i l?i trang.</span>
             </div>`;
             return;
         }
@@ -885,7 +906,7 @@ async function renderRoomGrid() {
         <!-- Grid phòng -->
         <div id="roomGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;"></div>
 
-        <!-- Phân trang -->
+        <!-- Ph�n trang -->
         <div id="roomPager" style="display:flex;justify-content:center;gap:.3rem;flex-wrap:wrap;margin-top:1.25rem;"></div>`;
 
     try {
@@ -898,7 +919,7 @@ async function renderRoomGrid() {
     }
 }
 
-// ── Trạng thái phân trang cho card view (NguoiDung) ─────────────────
+// -- Tr?ng th�i ph�n trang cho card view (NguoiDung) -----------------
 let _roomCurrentPage = 1;
 
 function clearRoomFilters() {
@@ -920,7 +941,7 @@ function filterRooms() {
     // Lọc nhà trọ (NguoiDung chọn nhà)
     if (selectedRoomHouseId) data = data.filter(r => Number(r.maNhaTro) === Number(selectedRoomHouseId));
 
-    // Tìm kiếm text (không phân biệt hoa thường)
+    // T�m ki?m text (kh�ng ph�n bi?t hoa thu?ng)
     if (q) data = data.filter(r => {
         const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(r.maNhaTro));
         return (r.tenPhong   || '').toLowerCase().includes(q)
@@ -1827,10 +1848,10 @@ function renderTable(cfg, data, section) {
             }
         } else if (section === 'hoadon') {
             // trangThai = 'Huy' khi hóa đơn bị hủy (field từ HoaDonDto).
-            // trangThaiThanhToan = 'Đã hủy' là fallback nếu server cũ chưa build lại.
-            const isHuy = item.trangThai === 'Huy' || item.trangThaiThanhToan === 'Đã hủy';
+            // trangThaiThanhToan = '�� h?y' l� fallback n?u server cu chua build l?i.
+            const isHuy = item.trangThai === 'Huy' || item.trangThaiThanhToan === '�� h?y';
             if (isHuy) {
-                actionHtml = `<span class="badge badge-red">Đã hủy</span>`;
+                actionHtml = `<span class="badge badge-red">�� h?y</span>`;
             } else {
                 actionHtml = `<button class="btn-action btn-edit" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In</button>
                     <button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>`;
@@ -1895,7 +1916,7 @@ function renderTable(cfg, data, section) {
 }
 
 async function searchNguoiThue(q) {
-    // Legacy wrapper – logic đã chuyển sang window._NguoiThueSearch
+    // Legacy wrapper � logic d� chuy?n sang window._NguoiThueSearch
     if (window._NguoiThueSearch) {
         window._NguoiThueSearch.onKeyword(q || '');
     }
@@ -2319,11 +2340,11 @@ function openDienNuocModal(id = null) {
 function editDienNuoc(tab, id) { currentSubSection = tab; openDienNuocModal(id); }
 
 async function deleteDienNuoc(tab, id) {
-    if (!confirm('Bạn có chắc chắn muốn xóa? Dữ liệu có thể được xóa mềm nếu đã phát sinh lịch sử.')) return;
+    if (!confirm('B?n c� ch?c ch?n mu?n x�a? D? li?u c� th? du?c x�a m?m n?u d� ph�t sinh l?ch s?.')) return;
     const cfg = tab === 'dien' ? dienModule : nuocModule;
     try {
         const result = await apiFetch(`${cfg.endpoint}/${id}`, 'DELETE');
-        showToast(result?.thongBao || 'Đã xử lý yêu cầu xóa!');
+        showToast(result?.thongBao || '�� x? l� y�u c?u x�a!');
         refreshData();
         loadLookups();
         return;
@@ -2405,7 +2426,7 @@ function buildModal(title, fields, item, onSubmit) {
                             <input type="checkbox" name="f_${f.id}" value="${dv.maDichVu}" ${selectedIds.has(Number(dv.maDichVu)) ? 'checked' : ''} style="margin-top:.2rem;">
                             <span><strong>${escapeHtmlDashboard(dv.tenDichVu)}</strong><br><small style="color:var(--text-light);">${typeLabel}${house ? ' - ' + escapeHtmlDashboard(house.tenNhaTro) : ''}</small></span>
                         </label>`;
-                    }).join('') : '<span style="color:var(--text-light);">Chưa có tiện ích/tiện nghi. Hãy thêm trong mục Dịch vụ.</span>'}
+                    }).join('') : '<span style="color:var(--text-light);">Chua c� ti?n �ch/ti?n nghi. H�y th�m trong m?c D?ch v?.</span>'}
                 </div>
             </div>`;
         }
@@ -2647,7 +2668,7 @@ async function openYeuCauThueModal(id = null, maPhongChon = null) {
         <div class="form-group">
             <label>Số tháng muốn thuê <span style="color:var(--error)">*</span></label>
             <input type="number" id="f_soThangMuonThue" class="form-control" value="1" min="1" max="60" required>
-            <small style="color:var(--text-light);">Hợp đồng sẽ tính theo kỳ từng tháng; hết mỗi kỳ, dịch vụ đã đăng ký trong kỳ cũ sẽ tự hết hạn.</small>
+            <small style="color:var(--text-light);">H?p d?ng s? t�nh theo k? t?ng th�ng; h?t m?i k?, d?ch v? d� dang k� trong k? cu s? t? h?t h?n.</small>
         </div>
         <div class="form-group">
             <label>Ngày bắt đầu mong muốn</label>
@@ -2756,7 +2777,7 @@ async function openYeuCauThueDuyetModal(maYeuCau) {
 
         try {
             const result = await apiFetch(`/api/YeuCauThue/${maYeuCau}/chap-nhan`, 'POST', payload);
-            showToast('Đã duyệt yêu cầu và lập hợp đồng!');
+            showToast('�� duy?t y�u c?u v� l?p h?p d?ng!');
             closeModal();
             await loadLookups();
             refreshData();
@@ -2765,7 +2786,7 @@ async function openYeuCauThueDuyetModal(maYeuCau) {
             const maHopDong = result?.data?.maHopDong || result?.maHopDong;
             if (maHopDong && typeof HopDongPrint !== 'undefined') {
                 setTimeout(() => {
-                    if (confirm('Hợp đồng đã được tạo thành công!\nBạn có muốn xem trước và xuất PDF hợp đồng ngay không?')) {
+                    if (confirm('H?p d?ng d� du?c t?o th�nh c�ng!\nB?n c� mu?n xem tru?c v� xu?t PDF h?p d?ng ngay kh�ng?')) {
                         HopDongPrint.openModal(maHopDong);
                     }
                 }, 300);
@@ -2782,7 +2803,7 @@ async function rejectYeuCauThue(maYeuCau) {
     const ghiChu = prompt('Lý do từ chối yêu cầu thuê:') || '';
     try {
         await apiFetch(`/api/YeuCauThue/${maYeuCau}/tu-choi`, 'POST', { ghiChuChuTro: ghiChu });
-        showToast('Đã từ chối yêu cầu thuê');
+        showToast('�� t? ch?i y�u c?u thu�');
         refreshData();
     } catch (e) {
         showToast(e.message || 'Lỗi từ chối yêu cầu thuê', 'error');
@@ -2901,7 +2922,7 @@ async function openBaoCaoSuCoXuLyModal(maBaoCao) {
             <select id="f_trangThaiSuCo" class="form-control" required>
                 <option value="Moi" ${baoCao?.trangThai === 'Moi' ? 'selected' : ''}>Mới gửi</option>
                 <option value="DangXuLy" ${baoCao?.trangThai === 'DangXuLy' ? 'selected' : ''}>Đang xử lý</option>
-                <option value="DaXuLy" ${baoCao?.trangThai === 'DaXuLy' ? 'selected' : ''}>Đã xử lý</option>
+                <option value="DaXuLy" ${baoCao?.trangThai === 'DaXuLy' ? 'selected' : ''}>�� x? l�</option>
             </select>
         </div>
         <div class="form-group" style="grid-column:1/-1;">
@@ -3049,7 +3070,7 @@ async function openHoaDonModal(id = null) {
                 <option value="ThuePhong" ${loaiDefault === 'ThuePhong' ? 'selected' : ''}>Hóa đơn thuê phòng</option>
             </select>
             <small style="color:var(--text-light);display:block;margin-top:.35rem;">
-                Hằng tháng tự tính điện, nước, dịch vụ người thuê đã đăng ký và phát sinh khác. Thuê phòng chỉ tính tiền phòng và phát sinh khác.
+                H?ng th�ng t? t�nh di?n, nu?c, d?ch v? ngu?i thu� d� dang k� v� ph�t sinh kh�c. Thu� ph�ng ch? t�nh ti?n ph�ng v� ph�t sinh kh�c.
             </small>
         </div>
         <div class="form-group">
@@ -3069,13 +3090,13 @@ async function openHoaDonModal(id = null) {
                 <div class="info-item thue-phong-only"><label>Tiền phòng</label><span id="infoTienPhong">---</span></div>
                 <div class="info-item hang-thang-only"><label>Tiền điện</label><span id="infoTienDien">---</span></div>
                 <div class="info-item hang-thang-only"><label>Tiền nước</label><span id="infoTienNuoc">---</span></div>
-                <div class="info-item hang-thang-only"><label>Tiền dịch vụ đã đăng ký</label><span id="infoTienDichVu">---</span></div>
+                <div class="info-item hang-thang-only"><label>Ti?n d?ch v? d� dang k�</label><span id="infoTienDichVu">---</span></div>
                 <div class="info-item info-total"><label>Dự tính tổng tiền</label><span id="infoTongTien">---</span></div>
             </div>
             <div id="dichVuHoaDonBox" class="hang-thang-only" style="margin-top:1rem;display:none;">
-                <label style="font-weight:700;margin-bottom:.5rem;display:block;">Dịch vụ người thuê đã đăng ký</label>
+                <label style="font-weight:700;margin-bottom:.5rem;display:block;">D?ch v? ngu?i thu� d� dang k�</label>
                 <div id="dichVuHoaDonList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.65rem;"></div>
-                <small style="color:var(--text-light);display:block;margin-top:.5rem;">Chỉ hiển thị các dịch vụ mà người thuê đã đăng ký. Các dịch vụ này sẽ tự động cộng vào hóa đơn hằng tháng.</small>
+                <small style="color:var(--text-light);display:block;margin-top:.5rem;">Ch? hi?n th? c�c d?ch v? m� ngu?i thu� d� dang k�. C�c d?ch v? n�y s? t? d?ng c?ng v�o h�a don h?ng th�ng.</small>
             </div>
         </div>
         <div class="form-group">
@@ -3338,7 +3359,7 @@ async function loadDichVuDangKyTheoPhong(maPhong) {
                     <span style="flex:1;">
                         <strong>${escapeHtmlDashboard(name)}</strong><br>
                         <small style="color:var(--text-light);">${fmtCurrency(price)} / tháng</small><br>
-                        <small style="color:${registered ? 'var(--success)' : 'var(--primary)'};font-weight:700;">${registered ? 'Đã đăng ký' : 'Có thể đăng ký'}</small>
+                        <small style="color:${registered ? 'var(--success)' : 'var(--primary)'};font-weight:700;">${registered ? '�� dang k�' : 'C� th? dang k�'}</small>
                     </span>
                 </label>`;
         }).join('');
@@ -3348,10 +3369,10 @@ async function loadDichVuDangKyTheoPhong(maPhong) {
 }
 
 async function huyDangKyDichVu(id) {
-    if (!confirm('Bạn có chắc muốn hủy đăng ký dịch vụ này? Dịch vụ đã hủy sẽ không tự động cộng vào các hóa đơn hằng tháng lập sau đó.')) return;
+    if (!confirm('B?n c� ch?c mu?n h?y dang k� d?ch v? n�y? D?ch v? d� h?y s? kh�ng t? d?ng c?ng v�o c�c h�a don h?ng th�ng l?p sau d�.')) return;
     try {
         const result = await apiFetch(`/api/DangKyDichVu/${id}`, 'DELETE');
-        showToast(result?.thongBao || 'Đã hủy đăng ký dịch vụ');
+        showToast(result?.thongBao || '�� h?y dang k� d?ch v?');
         refreshData();
     } catch (e) {
         showToast(e.message || 'Lỗi hủy đăng ký dịch vụ', 'error');
@@ -3406,7 +3427,7 @@ async function openHoaDonThanhToanModal(maHoaDon) {
                 <div style="font-size:.8rem;color:var(--text-light);margin-top:.5rem;">QR VietQR theo số tiền còn lại</div>
             </div>
             <div class="info-grid" style="grid-template-columns:1fr;">
-                <div class="info-item"><label>Ngân hàng</label><span>${escapeHtmlDashboard(hoaDon.tenNganHang || hoaDon.maNganHang || '---')}</span></div>
+                <div class="info-item"><label>Ng�n h�ng</label><span>${escapeHtmlDashboard(hoaDon.tenNganHang || hoaDon.maNganHang || '---')}</span></div>
                 <div class="info-item"><label>Số tài khoản</label><span>${escapeHtmlDashboard(hoaDon.soTaiKhoan || '---')}</span></div>
                 <div class="info-item"><label>Tên chủ tài khoản</label><span>${escapeHtmlDashboard(hoaDon.tenChuTaiKhoan || hoaDon.tenChuTro || '---')}</span></div>
                 <div class="info-item"><label>Nội dung chuyển khoản</label><span>${escapeHtmlDashboard(hoaDon.noiDungChuyenKhoan || `Thanh toan hoa don ${hoaDon.maHoaDon}`)}</span></div>
@@ -3424,7 +3445,7 @@ async function openHoaDonThanhToanModal(maHoaDon) {
                 <div class="info-item"><label>Khách thuê</label><span>${escapeHtmlDashboard(hoaDon.tenNguoiThue || '---')}</span></div>
                 <div class="info-item"><label>Kỳ hóa đơn</label><span>${escapeHtmlDashboard(hoaDon.kyHoaDon || '---')}</span></div>
                 <div class="info-item"><label>Tổng tiền</label><span>${fmtCurrency(hoaDon.tongTien)}</span></div>
-                <div class="info-item"><label>Đã thanh toán</label><span>${fmtCurrency(hoaDon.daThanhToan || 0)}</span></div>
+                <div class="info-item"><label>�� thanh to�n</label><span>${fmtCurrency(hoaDon.daThanhToan || 0)}</span></div>
                 <div class="info-item info-total"><label>Còn lại</label><span>${fmtCurrency(conLai)}</span></div>
             </div>
             ${qrHtml}
@@ -3602,7 +3623,7 @@ async function viewNguoiThueDetail(id) {
         document.getElementById('modalFields').innerHTML = `
             <div style="grid-column:1/-1;display:grid;gap:1.25rem;">
                 <div>
-                    <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-user"></i> Thông tin cá nhân</h3>
+                    <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-user"></i> Th�ng tin c� nh�n</h3>
                     <div class="info-grid">
                         <div class="info-item"><label>Họ tên</label><span>${safeText(nt.hoTen)}</span></div>
                         <div class="info-item"><label>CCCD/CMND</label><span>${safeText(nt.cccd)}</span></div>
@@ -3620,7 +3641,7 @@ async function viewNguoiThueDetail(id) {
                     <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-home"></i> Thông tin thuê phòng</h3>
                     <div class="info-grid">
                         <div class="info-item"><label>Số phòng thuê</label><span>${rooms.length}</span></div>
-                        <div class="info-item"><label>Mã tài khoản liên kết</label><span>${safeText(nt.maNguoiDung)}</span></div>
+                        <div class="info-item"><label>M� t�i kho?n li�n k?t</label><span>${safeText(nt.maNguoiDung)}</span></div>
                         <div class="info-item" style="grid-column:1/-1;">
                             <label>Danh sách phòng</label>
                             <span>${rooms.map(r => `• ${safeText(r.label)} <small style="color:var(--text-light);">(Hồ sơ #${safeText(r.maNguoiThue)})</small>`).join('<br>')}</span>
@@ -3678,7 +3699,7 @@ async function deleteNguoiThueDisplayGroup(id) {
         }
     }
 
-    if (success > 0) showToast(messages[0] || `Đã xử lý ${success} hồ sơ khách thuê`, 'success');
+    if (success > 0) showToast(messages[0] || `�� x? l� ${success} h? so kh�ch thu�`, 'success');
     if (errors.length > 0) showToast(errors[0], 'error');
 
     await loadLookups();
@@ -3694,7 +3715,7 @@ function editItem(section, id) {
 }
 
 async function deleteItem(section, id) {
-    if (!confirm('Bạn có chắc chắn muốn xóa mục này? Dữ liệu có thể được xóa mềm nếu đã phát sinh lịch sử.')) return;
+    if (!confirm('B?n c� ch?c ch?n mu?n x�a m?c n�y? D? li?u c� th? du?c x�a m?m n?u d� ph�t sinh l?ch s?.')) return;
     const cfg = modules[section];
     if (!cfg) return;
     try {
@@ -3712,7 +3733,7 @@ async function deleteItem(section, id) {
         }
 
         // Lấy thông báo trực tiếp từ ApiResponse (không qua apiFetch vì apiFetch trả về duLieu)
-        const msg = json.thongBao || 'Đã xử lý yêu cầu xóa!';
+        const msg = json.thongBao || '�� x? l� y�u c?u x�a!';
         showToast(msg);
         refreshData();
         loadLookups();
@@ -3725,7 +3746,7 @@ async function ketThucHopDong(id) {
     if (!confirm('Kết thúc hợp đồng này? Hệ thống sẽ chặn nếu còn hóa đơn chưa thanh toán hoặc thanh toán chưa đủ.')) return;
     try {
         const result = await postHopDongAction(`/api/HopDong/${id}/ket-thuc`);
-        showToast(result?.thongBao || result?.message || 'Đã kết thúc hợp đồng');
+        showToast(result?.thongBao || result?.message || '�� k?t th�c h?p d?ng');
         refreshData();
         loadLookups();
     } catch (e) {
@@ -3734,10 +3755,10 @@ async function ketThucHopDong(id) {
 }
 
 async function huyHopDong(id) {
-    if (!confirm('Hủy hợp đồng này? Nếu hợp đồng đã phát sinh dữ liệu, hệ thống chỉ chuyển sang trạng thái đã hủy.')) return;
+    if (!confirm('H?y h?p d?ng n�y? N?u h?p d?ng d� ph�t sinh d? li?u, h? th?ng ch? chuy?n sang tr?ng th�i d� h?y.')) return;
     try {
         const result = await postHopDongAction(`/api/HopDong/${id}/huy`);
-        showToast(result?.thongBao || result?.message || 'Đã hủy hợp đồng');
+        showToast(result?.thongBao || result?.message || '�� h?y h?p d?ng');
         refreshData();
         loadLookups();
     } catch (e) {
@@ -3794,9 +3815,8 @@ async function startDashboard() {
         }
     });
 
-    if (typeof window.capNhatBadgeBienLai === 'function') {
-        window.capNhatBadgeBienLai();
-        setInterval(window.capNhatBadgeBienLai, 60000);
+    if (typeof window.refreshSidebarBadges === 'function') {
+        window.refreshSidebarBadges();
     }
 }
 window.startDashboard = startDashboard;

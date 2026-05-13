@@ -1,4 +1,4 @@
-// Module cấu hình: đăng ký dịch vụ
+﻿// Module cấu hình: đăng ký dịch vụ
 window.AppModules = window.AppModules || {};
 window.AppModules.dangkydichvu = {
     title: 'Đăng Ký Dịch Vụ',

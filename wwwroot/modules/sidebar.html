@@ -1,7 +1,10 @@
-<aside class="sidebar">
+﻿<aside class="sidebar">
         <div class="sidebar-logo">
             <div class="logo-icon"><i class="fas fa-home"></i></div>
-            <span class="logo-text">TRỌ QUẢ LỌ</span>
+            <span class="logo-text">TRỌ QUẢN LÝ</span>
+            <button type="button" class="sidebar-toggle" onclick="toggleSidebarCollapse()" title="Thu gọn/mở rộng menu">
+                <i class="fas fa-bars"></i>
+            </button>
         </div>
 
         <nav class="sidebar-nav">
@@ -32,12 +35,8 @@
             <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
                onclick="showSection('yeucauthue', this); return false;"
                style="position:relative;">
-                <i class="fas fa-paper-plane"></i> Yêu cầu thuê
-                <span id="yeuCauThueBadge"
-                      style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
-                             background:#ef4444;color:#fff;border-radius:999px;font-size:.65rem;font-weight:700;
-                             min-width:1.2rem;height:1.2rem;padding:0 .3rem;
-                             align-items:center;justify-content:center;line-height:1;"></span>
+                <i class="fas fa-paper-plane"></i> <span class="nav-text">Yêu cầu thuê</span>
+                <span id="yeuCauThueBadge" class="sidebar-badge"></span>
             </a>
             <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
                onclick="showSection('hopdong', this); return false;">
@@ -52,23 +51,15 @@
             <a href="#" class="nav-link" data-role="Admin,ChuTro"
                onclick="showSection('bienlai', this); return false;"
                style="position:relative;">
-                <i class="fas fa-receipt"></i> Biên lai chờ duyệt
-                <span id="bienLaiBadge"
-                      style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
-                             background:#ef4444;color:#fff;border-radius:999px;font-size:.65rem;font-weight:700;
-                             min-width:1.2rem;height:1.2rem;padding:0 .3rem;
-                             align-items:center;justify-content:center;line-height:1;"></span>
+                <i class="fas fa-receipt"></i> <span class="nav-text">Biên lai chờ duyệt</span>
+                <span id="bienLaiBadge" class="sidebar-badge"></span>
             </a>
 
             <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
                onclick="showSection('baocaosuco', this); return false;"
                style="position:relative;">
-                <i class="fas fa-tools"></i> Báo cáo sự cố
-                <span id="baoCaoSuCoBadge"
-                      style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
-                             background:#ef4444;color:#fff;border-radius:999px;font-size:.65rem;font-weight:700;
-                             min-width:1.2rem;height:1.2rem;padding:0 .3rem;
-                             align-items:center;justify-content:center;line-height:1;"></span>
+                <i class="fas fa-tools"></i> <span class="nav-text">Báo cáo sự cố</span>
+                <span id="baoCaoSuCoBadge" class="sidebar-badge"></span>
             </a>
             <a href="#" class="nav-link" data-role="NguoiDung"
                onclick="showSection('dangkydichvu', this); return false;">
@@ -95,12 +86,8 @@
             <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
                onclick="showSection('thongbao', this); return false;"
                style="position:relative;">
-                <i class="fas fa-bell"></i> Thông báo
-                <span id="thongBaoBadge"
-                      style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
-                             background:#ef4444;color:#fff;border-radius:999px;font-size:.65rem;font-weight:700;
-                             min-width:1.2rem;height:1.2rem;padding:0 .3rem;
-                             align-items:center;justify-content:center;line-height:1;"></span>
+                <i class="fas fa-bell"></i> <span class="nav-text">Thông báo</span>
+                <span id="thongBaoBadge" class="sidebar-badge"></span>
             </a>
 
             <!-- divider -->

@@ -1,4 +1,4 @@
-// Bổ sung luồng yêu cầu gia hạn hợp đồng mà không phải sửa trực tiếp dashboard.js dài.
+﻿// Bổ sung luồng yêu cầu gia hạn hợp đồng mà không phải sửa trực tiếp dashboard.js dài.
 // File này được load sau dashboard.js để vá các hành động của bảng Yêu cầu thuê/gia hạn.
 (function () {
     function getRowByRequestId(id) {
@@ -102,7 +102,7 @@
                 showToast('Gửi yêu cầu gia hạn thành công!');
                 closeModal();
                 if (currentSection === 'yeucauthue' || currentSection === 'phongdangthue') refreshData();
-                if (typeof window.capNhatSidebarBadges === 'function') window.capNhatSidebarBadges();
+                if (typeof window.refreshSidebarBadges === 'function') window.refreshSidebarBadges();
             } catch (err) {
                 showToast(err.message || 'Lỗi gửi yêu cầu gia hạn', 'error');
             }
@@ -177,7 +177,7 @@
                 closeModal();
                 await loadLookups();
                 refreshData();
-                if (typeof window.capNhatSidebarBadges === 'function') window.capNhatSidebarBadges();
+                if (typeof window.refreshSidebarBadges === 'function') window.refreshSidebarBadges();
 
                 // Mở modal xuất PDF hợp đồng vừa gia hạn
                 const maHopDong = result?.data?.maHopDong || result?.maHopDong || yc?.maHopDong || yc?.hopDong?.maHopDong;
@@ -202,7 +202,7 @@
             await apiFetch(`/api/YeuCauGiaHan/${maYeuCauGiaHan}/tu-choi`, 'POST', { ghiChuChuTro: ghiChu });
             showToast('Đã từ chối yêu cầu gia hạn');
             refreshData();
-            if (typeof window.capNhatSidebarBadges === 'function') window.capNhatSidebarBadges();
+            if (typeof window.refreshSidebarBadges === 'function') window.refreshSidebarBadges();
         } catch (err) {
             showToast(err.message || 'Lỗi từ chối yêu cầu gia hạn', 'error');
         }
@@ -238,7 +238,7 @@
                     await apiFetch(`/api/YeuCauGiaHan/${row.maYeuCauGiaHan || row.maYeuCau}`, 'DELETE');
                     showToast('Đã hủy yêu cầu gia hạn');
                     refreshData();
-                    if (typeof window.capNhatSidebarBadges === 'function') window.capNhatSidebarBadges();
+                    if (typeof window.refreshSidebarBadges === 'function') window.refreshSidebarBadges();
                 } catch (err) {
                     showToast(err.message || 'Lỗi hủy yêu cầu gia hạn', 'error');
                 }
@@ -250,7 +250,7 @@
                     await apiFetch(`/api/YeuCauThue/${row.maYeuCau}`, 'DELETE');
                     showToast('Đã hủy yêu cầu thuê');
                     refreshData();
-                    if (typeof window.capNhatSidebarBadges === 'function') window.capNhatSidebarBadges();
+                    if (typeof window.refreshSidebarBadges === 'function') window.refreshSidebarBadges();
                 } catch (err) {
                     showToast(err.message || 'Lỗi hủy yêu cầu thuê', 'error');
                 }
@@ -261,3 +261,4 @@
     };
     try { deleteItem = window.deleteItem; } catch { }
 })();
+

@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // SIDEBAR BADGES - chấm đỏ/số lượng cảnh báo nhanh
 // - Yêu cầu thuê chờ duyệt
 // - Báo cáo sự cố chưa xử lý
@@ -7,6 +7,14 @@
 // ==========================================
 (function () {
     const POLL_MS = 60000;
+    const DISMISS_KEY = 'sidebarBadgeDismissedCounts';
+    const SECTION_TO_BADGE = {
+        yeucauthue: 'yeuCauThueBadge',
+        baocaosuco: 'baoCaoSuCoBadge',
+        thongbao: 'thongBaoBadge',
+        bienlai: 'bienLaiBadge'
+    };
+    const latestCounts = {};
     let poller = null;
 
     function getCurrentRole() {
@@ -67,12 +75,32 @@
         return 0;
     }
 
+    function getDismissedCounts() {
+        try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '{}') || {}; }
+        catch { return {}; }
+    }
+
+    function setDismissedCount(id, count) {
+        const dismissed = getDismissedCounts();
+        dismissed[id] = Math.max(0, Number(count || 0));
+        localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed));
+    }
+
     function setBadge(id, count) {
         const badge = document.getElementById(id);
         if (!badge) return;
 
         const n = Number(count || 0);
-        if (n > 0) {
+        latestCounts[id] = n;
+
+        const dismissed = getDismissedCounts();
+        let dismissedCount = Number(dismissed[id] || 0);
+        if (n < dismissedCount) {
+            dismissedCount = n;
+            setDismissedCount(id, n);
+        }
+
+        if (n > 0 && n > dismissedCount) {
             badge.textContent = n > 99 ? '99+' : String(n);
             badge.style.display = 'inline-flex';
             badge.title = `${n} mục cần xử lý`;
@@ -81,6 +109,13 @@
             badge.style.display = 'none';
             badge.removeAttribute('title');
         }
+    }
+
+    function dismissSidebarBadgeForSection(section) {
+        const id = SECTION_TO_BADGE[section];
+        if (!id) return;
+        setDismissedCount(id, latestCounts[id] || 0);
+        setBadge(id, latestCounts[id] || 0);
     }
 
     function statusOf(item) {
@@ -98,7 +133,7 @@
         return !(
             st === 'daxuly' || st === 'dahoanthanh' || st === 'hoanthanh' ||
             st === 'huy' || st === 'tuchoi' ||
-            st.includes('đã xử lý') || st.includes('da xu ly') ||
+            st.includes('d� x? l�') || st.includes('da xu ly') ||
             st.includes('hoàn thành') || st.includes('hoan thanh') ||
             st.includes('hủy') || st.includes('huy') ||
             st.includes('từ chối') || st.includes('tu choi')
@@ -148,6 +183,7 @@
 
     window.refreshSidebarBadges = refreshSidebarBadges;
     window.startSidebarBadges = startSidebarBadges;
+    window.dismissSidebarBadgeForSection = dismissSidebarBadgeForSection;
 
     window.addEventListener('app:ready', startSidebarBadges);
     window.addEventListener('focus', refreshSidebarBadges);

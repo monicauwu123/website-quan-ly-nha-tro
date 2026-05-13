@@ -1,10 +1,10 @@
-// ==========================================
+﻿// ==========================================
 // MODULES LOADER - bản tối ưu
 // Chỉ load HTML cần gắn lên trang + load JS module song song.
 // ==========================================
 
 (function () {
-    const VERSION = '6.5';
+    const VERSION = '6.7';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
@@ -100,7 +100,7 @@
             // 3) Load tuần tự để tránh lỗi phụ thuộc ngầm giữa các module.
             await loadScriptsSequential(businessScripts);
 
-            // 4) dashboard.js và account.js cần chạy sau khi module cấu hình đã có.
+            // 4) dashboard.js v� account.js c?n ch?y sau khi module c?u h�nh d� c�.
             await loadScriptsSequential(appScripts);
 
             if (typeof window.startDashboard === 'function') {

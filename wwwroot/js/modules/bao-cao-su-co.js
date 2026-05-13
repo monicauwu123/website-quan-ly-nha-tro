@@ -1,4 +1,4 @@
-// Module cấu hình: baocaosuco
+﻿// Module cấu hình: baocaosuco
 window.AppModules = window.AppModules || {};
 window.AppModules.baocaosuco = {
     title: 'Báo Cáo Sự Cố',

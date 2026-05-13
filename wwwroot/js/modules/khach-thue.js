@@ -1,4 +1,4 @@
-// Module cấu hình: nguoithue
+﻿// Module cấu hình: nguoithue
 window.AppModules = window.AppModules || {};
 const _ktLookups = () => window.lookups || { phong: [] };
 window.AppModules.nguoithue = {
