@@ -17,7 +17,7 @@ if (user.hoTen) {
 // ROLE-BASED UI  – ẩn/hiện menu theo role
 // ==========================================
 const CURRENT_ROLE = (user.vaiTro || '').trim(); // 'Admin' | 'ChuTro' | 'NguoiDung'
-
+window.CURRENT_ROLE = CURRENT_ROLE;
 function applyRoleUI() {
     // Ẩn mọi nav-link không thuộc role hiện tại
     document.querySelectorAll('.sidebar-nav .nav-link[data-role]').forEach(link => {

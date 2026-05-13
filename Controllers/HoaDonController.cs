@@ -304,11 +304,19 @@ namespace DoAnSE104.Controllers
                 .ToListAsync();
 
             var maHoaDons = danhSachHoaDon.Select(h => h.MaHoaDon).ToList();
+            // Chỉ tính tiền đã được duyệt (DaXacNhan), không tính ChoXacNhan
             var thanhToanTheoHoaDon = await _context.ThanhToan
-                .Where(t => maHoaDons.Contains(t.MaHoaDon))
+                .Where(t => maHoaDons.Contains(t.MaHoaDon) && t.TrangThaiXacNhan == "DaXacNhan")
                 .GroupBy(t => t.MaHoaDon)
                 .Select(g => new { MaHoaDon = g.Key, DaThanhToan = g.Sum(x => x.TongTien) })
                 .ToDictionaryAsync(x => x.MaHoaDon, x => x.DaThanhToan);
+
+            // Tập hóa đơn đang có biên lai chờ xác nhận → dùng để ẩn nút Gửi biên lai
+            var hoaDonCoChoXacNhan = await _context.ThanhToan
+                .Where(t => maHoaDons.Contains(t.MaHoaDon) && t.TrangThaiXacNhan == "ChoXacNhan")
+                .Select(t => t.MaHoaDon)
+                .Distinct()
+                .ToListAsync();
 
             var hoaDons = danhSachHoaDon.Select(h =>
             {
@@ -358,7 +366,8 @@ namespace DoAnSE104.Controllers
                     TenChuTaiKhoan = chuTro?.TenChuTaiKhoan,
                     NoiDungChuyenKhoan = noiDungChuyenKhoan,
                     QrThanhToanUrl = TaoVietQrUrl(chuTro, conLai, noiDungChuyenKhoan),
-                    DichVuSuDung = chiTietDichVu.Select(ct => LayTenDichVuTuLoaiKhoan(ct.LoaiKhoan)).ToList()
+                    DichVuSuDung = chiTietDichVu.Select(ct => LayTenDichVuTuLoaiKhoan(ct.LoaiKhoan)).ToList(),
+                    DaCoBienLaiChoXacNhan = hoaDonCoChoXacNhan.Contains(h.MaHoaDon)
                 };
             }).ToList();
 
@@ -787,7 +796,7 @@ namespace DoAnSE104.Controllers
                 if (role == VaiTroConst.ChuTro && !await ChuTroCoQuyenHoaDon(id))
                     return Forbid();
 
-                if (role == VaiTroConst.NguoiDung && hoaDon.MaNguoiThue != userId)
+                if (role == VaiTroConst.NguoiDung && hoaDon.NguoiThue?.MaNguoiDung != userId)
                     return Forbid();
 
                 var chiTietDichVu = hoaDon.ChiTietHoaDon?

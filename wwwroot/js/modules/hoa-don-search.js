@@ -41,19 +41,12 @@
     // Chỉ gọi khi role = NguoiDung; các role khác bỏ qua
     async function _mergeBienLaiChoXacNhan() {
         if (window.CURRENT_ROLE !== 'NguoiDung') return;
-        try {
-            // API trả về danh sách ThanhToan của NguoiDung đang ChoXacNhan
-            const res = await window.apiFetch('/api/ThanhToan?trangThaiXacNhan=ChoXacNhan');
-            const list = window.normalizeArrayResponse(res);
-            // Tập hợp maHoaDon đang có biên lai chờ
-            const dangChoSet = new Set(list.map(t => Number(t.maHoaDon)));
-            HDN.rawData = HDN.rawData.map(r => ({
-                ...r,
-                _daCoBienLaiChoXacNhan: dangChoSet.has(Number(r.maHoaDon))
-            }));
-        } catch (_) {
-            // Nếu lỗi (ví dụ API không hỗ trợ filter), giữ nguyên — nút vẫn hiện bình thường
-        }
+        // Backend đã trả DaCoBienLaiChoXacNhan trong HoaDonDto — dùng trực tiếp,
+        // không cần gọi thêm /api/ThanhToan (tránh race condition & sai conLai)
+        HDN.rawData = HDN.rawData.map(r => ({
+            ...r,
+            _daCoBienLaiChoXacNhan: r.daCoBienLaiChoXacNhan === true
+        }));
     }
 
 

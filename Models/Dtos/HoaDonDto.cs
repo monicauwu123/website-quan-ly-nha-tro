@@ -38,5 +38,10 @@ namespace DoAnSE104.Models.Dtos
         public string? TenChuTaiKhoan { get; set; }
         public string? NoiDungChuyenKhoan { get; set; }
         public string? QrThanhToanUrl { get; set; }
+
+        /// <summary>
+        /// True nếu đang có biên lai ChoXacNhan — dùng để ẩn nút "Gửi biên lai" trên FE.
+        /// </summary>
+        public bool DaCoBienLaiChoXacNhan { get; set; } = false;
     }
 }
