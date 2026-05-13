@@ -867,27 +867,47 @@ async function renderRoomGrid() {
             <div id="roomHouseSelector" class="room-house-selector"></div>
         </div>
 
-        <!-- Thanh tìm kiếm / lọc -->
-        <div style="display:flex;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap;align-items:center;">
-            <div style="flex:1;min-width:200px;position:relative;">
-                <i class="fas fa-search" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
-                <input type="text" id="roomSearch" class="form-control" style="padding-left:2.5rem;"
-                    placeholder="Tìm tên phòng, nhà trọ..." oninput="filterRooms()">
+<!-- Thanh tìm kiếm / lọc -->
+        <div class="data-card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+            <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem;">
+                <div style="flex:1;min-width:200px;position:relative;">
+                    <i class="fas fa-search" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
+                    <input type="text" id="roomSearch" class="form-control" style="padding-left:2.5rem;"
+                        placeholder="Tìm tên phòng, nhà trọ, địa chỉ..." oninput="filterRooms()">
+                </div>
+                <button class="btn btn-secondary" onclick="filterRooms()">
+                    <i class="fas fa-sync-alt"></i> Làm mới
+                </button>
+                <button class="btn btn-secondary" onclick="clearRoomFilters()">
+                    <i class="fas fa-times-circle"></i> Xóa bộ lọc
+                </button>
             </div>
-            <select id="roomStatusFilter" class="form-control" style="width:auto;min-width:160px;" onchange="filterRooms()">
-                <option value="">Tất cả trạng thái</option>
-                ${lookups.trangthai.map(t => `<option value="${t.maTrangThai}">${t.tenTrangThai}</option>`).join('')}
-            </select>
-            <select id="roomLoaiFilter" class="form-control" style="width:auto;min-width:140px;" onchange="filterRooms()">
-                <option value="">Tất cả loại phòng</option>
-                ${lookups.loaiphong.map(l => `<option value="${l.maLoaiPhong}">${escapeHtmlDashboard(l.tenLoaiPhong)}</option>`).join('')}
-            </select>
-            <button class="btn btn-secondary" onclick="filterRooms()">
-                <i class="fas fa-sync-alt"></i> Làm mới
-            </button>
-            <button class="btn btn-secondary" onclick="clearRoomFilters()">
-                <i class="fas fa-times-circle"></i> Xóa bộ lọc
-            </button>
+            <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;">
+                <div>
+                    <label style="font-size:.8rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:.2rem;">Loại phòng</label>
+                    <select id="roomLoaiFilter" class="form-control" style="min-width:150px;" onchange="filterRooms()">
+                        <option value="">Tất cả loại phòng</option>
+${[...new Map(lookups.loaiphong.map(l => [l.tenLoaiPhong.trim().toLowerCase(), l])).values()]
+                            .map(l => `<option value="${l.tenLoaiPhong.trim().toLowerCase()}">${escapeHtmlDashboard(l.tenLoaiPhong)}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:.8rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:.2rem;">Giá từ (đ)</label>
+                    <input type="number" id="roomGiaMin" class="form-control" style="width:130px;" placeholder="VD: 1000000" min="0" oninput="filterRooms()">
+                </div>
+                <div>
+                    <label style="font-size:.8rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:.2rem;">Giá đến (đ)</label>
+                    <input type="number" id="roomGiaMax" class="form-control" style="width:130px;" placeholder="VD: 5000000" min="0" oninput="filterRooms()">
+                </div>
+                <div>
+                    <label style="font-size:.8rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:.2rem;">Sức chứa ≥</label>
+                    <input type="number" id="roomSucChua" class="form-control" style="width:100px;" placeholder="VD: 2" min="0" oninput="filterRooms()">
+                </div>
+                <div>
+                    <label style="font-size:.8rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:.2rem;">Diện tích ≥ (m²)</label>
+                    <input type="number" id="roomDienTich" class="form-control" style="width:120px;" placeholder="VD: 20" min="0" oninput="filterRooms()">
+                </div>
+            </div>
         </div>
 
         <!-- Thông tin tổng kết + chọn số dòng -->
@@ -904,8 +924,7 @@ async function renderRoomGrid() {
         </div>
 
         <!-- Grid phòng -->
-        <div id="roomGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;"></div>
-
+        <div id="roomGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;align-items:start;justify-content:start;"></div>
         <!-- Ph�n trang -->
         <div id="roomPager" style="display:flex;justify-content:center;gap:.3rem;flex-wrap:wrap;margin-top:1.25rem;"></div>`;
 
@@ -923,40 +942,52 @@ async function renderRoomGrid() {
 let _roomCurrentPage = 1;
 
 function clearRoomFilters() {
-    const ids = ['roomSearch', 'roomStatusFilter', 'roomLoaiFilter'];
-    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['roomSearch', 'roomLoaiFilter', 'roomGiaMin', 'roomGiaMax', 'roomSucChua', 'roomDienTich']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     _roomCurrentPage = 1;
     filterRooms();
 }
 window.clearRoomFilters = clearRoomFilters;
 
 function filterRooms() {
-    const q  = (document.getElementById('roomSearch')?.value   || '').toLowerCase();
-    const sf = document.getElementById('roomStatusFilter')?.value || '';
-    const lf = document.getElementById('roomLoaiFilter')?.value   || '';
-    const ps = parseInt(document.getElementById('roomPageSize')?.value) || 10;
+    const q        = (document.getElementById('roomSearch')?.value    || '').toLowerCase();
+    const lf       = document.getElementById('roomLoaiFilter')?.value  || '';
+    const giaMin   = parseFloat(document.getElementById('roomGiaMin')?.value)   || 0;
+    const giaMax   = parseFloat(document.getElementById('roomGiaMax')?.value)   || 0;
+    const sucChua  = parseInt(document.getElementById('roomSucChua')?.value)    || 0;
+    const dienTich = parseFloat(document.getElementById('roomDienTich')?.value) || 0;
+    const ps       = parseInt(document.getElementById('roomPageSize')?.value)   || 10;
 
     let data = normalizeArrayResponse(currentData);
 
     // Lọc nhà trọ (NguoiDung chọn nhà)
     if (selectedRoomHouseId) data = data.filter(r => Number(r.maNhaTro) === Number(selectedRoomHouseId));
 
-    // T�m ki?m text (kh�ng ph�n bi?t hoa thu?ng)
+    // Tìm kiếm text
     if (q) data = data.filter(r => {
         const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(r.maNhaTro));
-        return (r.tenPhong   || '').toLowerCase().includes(q)
+        return (r.tenPhong    || '').toLowerCase().includes(q)
             || (r.diaChiPhong || '').toLowerCase().includes(q)
             || (house?.tenNhaTro || '').toLowerCase().includes(q)
             || (house?.diaChi    || '').toLowerCase().includes(q)
             || (r.moTa          || '').toLowerCase().includes(q);
     });
 
-    // Filter trạng thái
-    if (sf) data = data.filter(r => String(r.maTrangThai) === sf);
+    // Filter loại phòng (so sánh theo tên vì mỗi nhà trọ có maLoaiPhong riêng)
+    if (lf) data = data.filter(r => {
+        const loai = lookups.loaiphong.find(l => l.maLoaiPhong === r.maLoaiPhong);
+        return loai && loai.tenLoaiPhong.trim().toLowerCase() === lf;
+    });
 
-    // Filter loại phòng
-    if (lf) data = data.filter(r => String(r.maLoaiPhong) === lf);
+    // Khoảng giá
+    if (giaMin > 0) data = data.filter(r => (r.giaPhong || 0) >= giaMin);
+    if (giaMax > 0) data = data.filter(r => (r.giaPhong || 0) <= giaMax);
 
+    // Sức chứa tối thiểu
+    if (sucChua > 0) data = data.filter(r => (r.sucChua || 0) >= sucChua);
+
+    // Diện tích tối thiểu
+    if (dienTich > 0) data = data.filter(r => (r.dienTich || 0) >= dienTich);
     const total = data.length;
     const totalPg = Math.max(1, Math.ceil(total / ps));
     if (_roomCurrentPage > totalPg) _roomCurrentPage = 1;
