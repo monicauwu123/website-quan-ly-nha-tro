@@ -9,7 +9,7 @@ window.AppDienNuocModules.dien = {
         { label: 'Phòng', key: 'maPhong', render: v => _dnLookups().phong?.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
         { label: 'Chỉ số cũ', key: 'soDienCu', render: v => `${v} kWh` },
         { label: 'Chỉ số mới', key: 'soDienMoi', render: v => `${v} kWh` },
-        { label: 'Tiêu thụ', key: null, render: (_, row) => `${(row.soDienMoi || 0) - (row.soDienCu || 0)} kWh` },
+        { label: 'Tiêu thụ', key: '_tieuThu', render: (_, row) => `${(row.soDienMoi || 0) - (row.soDienCu || 0)} kWh` },
         { label: 'Giá điện/kWh', key: 'giaDien', render: v => window.AppFormat.currency(v) },
         { label: 'Tiền điện', key: 'tienDien', render: v => `<strong>${window.AppFormat.currency(v)}</strong>` },
         { label: 'Ngày ghi', key: 'ngayThangDien', render: v => window.AppFormat.date(v) }
@@ -30,7 +30,7 @@ window.AppDienNuocModules.nuoc = {
         { label: 'Phòng', key: 'maPhong', render: v => _dnLookups().phong?.find(p => p.maPhong === v)?.tenPhong || `#${v}` },
         { label: 'Chỉ số cũ', key: 'soNuocCu', render: v => `${v} m³` },
         { label: 'Chỉ số mới', key: 'soNuocMoi', render: v => `${v} m³` },
-        { label: 'Tiêu thụ', key: null, render: (_, row) => `${(row.soNuocMoi || 0) - (row.soNuocCu || 0)} m³` },
+        { label: 'Tiêu thụ', key: '_tieuThu', render: (_, row) => `${(row.soNuocMoi || 0) - (row.soNuocCu || 0)} m³` },
         { label: 'Giá nước/m³', key: 'giaNuoc', render: v => window.AppFormat.currency(v) },
         { label: 'Tiền nước', key: 'tienNuoc', render: v => `<strong>${window.AppFormat.currency(v)}</strong>` },
         { label: 'Ngày ghi', key: 'ngayThangNuoc', render: v => window.AppFormat.date(v) }

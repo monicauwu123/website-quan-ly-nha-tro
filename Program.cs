@@ -67,6 +67,7 @@ builder.Services.AddScoped<IThongBaoService, ThongBaoService>();
 builder.Services.AddScoped<INotificationEmailService, NotificationEmailService>();
 builder.Services.AddScoped<IDeleteValidationService, DeleteValidationService>();
 builder.Services.AddHostedService<EmailReminderBackgroundService>();
+builder.Services.AddHostedService<MonthlyInvoiceBackgroundService>();
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
 builder.Services.AddControllers(options =>

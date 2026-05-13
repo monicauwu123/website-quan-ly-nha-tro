@@ -66,7 +66,6 @@ const API = {
     hoadon: {
         getAll: () => apiFetch('/api/HoaDon'),
         getInfoByPhong: (phongId) => apiFetch(`/api/HoaDon/GetThongTinPhong/${phongId}`),
-        taoHoaDonThang: (kyHoaDon) => apiFetch(`/api/HoaDon/TaoHoaDonThang${kyHoaDon ? `?kyHoaDon=${encodeURIComponent(kyHoaDon)}` : ''}`, 'POST'),
         // Lấy JSON data hóa đơn để in (dùng với HoaDonPrint.openModal)
         exportPdf: (id) => {
             return apiFetch(`/api/HoaDon/ExportPdf/${id}`);

@@ -1136,6 +1136,476 @@ window.setGalleryImage = setGalleryImage;
 // ==========================================
 // GENERIC TABLE
 // ==========================================
+const genericTableState = {};
+
+function getGenericState(section) {
+    genericTableState[section] ||= {
+        keyword: '',
+        filterStatus: '',
+        filterNhaTro: '',
+        filterPhong: '',
+        filterDateFrom: '',
+        filterDateTo: '',
+        filterMoneyFrom: '',
+        filterMoneyTo: '',
+        filters: {},
+        sortKey: '',
+        sortDir: 'asc',
+        page: 1,
+        pageSize: 10
+    };
+    return genericTableState[section];
+}
+
+function stripHtmlDashboard(value) {
+    const div = document.createElement('div');
+    div.innerHTML = value == null ? '' : String(value);
+    return div.textContent || div.innerText || '';
+}
+
+function escapeJsStringDashboard(value) {
+    return value === null || value === undefined ? '' : String(value)
+        .replaceAll('\\', '\\\\')
+        .replaceAll("'", "\\'")
+        .replaceAll('\n', '\\n')
+        .replaceAll('\r', '\\r');
+}
+
+function getGenericCellText(header, item) {
+    const raw = header.key ? item[header.key] : null;
+    if (!header.render) return raw == null ? '' : String(raw);
+    try {
+        return stripHtmlDashboard(header.render(raw, item));
+    } catch {
+        return raw == null ? '' : String(raw);
+    }
+}
+
+function getGenericSortValue(header, item) {
+    if (!header) return '';
+    const raw = header.key ? item[header.key] : getGenericCellText(header, item);
+    if (raw == null) return '';
+    if (raw instanceof Date) return raw.getTime();
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'boolean') return raw ? 1 : 0;
+
+    const text = String(raw).trim();
+    const dateMs = Date.parse(text);
+    if (/^\d{4}-\d{2}-\d{2}/.test(text) && !Number.isNaN(dateMs)) return dateMs;
+    const normalizedNumber = Number(text.replace(/[^\d.-]/g, ''));
+    if (text && !Number.isNaN(normalizedNumber) && /[\d]/.test(text) && !/[a-zA-ZÀ-ỹ]/.test(text)) {
+        return normalizedNumber;
+    }
+    return text.toLowerCase();
+}
+
+function getGenericCapabilities(cfg, data, section) {
+    const rows = normalizeArrayResponse(data);
+    const headers = cfg.headers || [];
+    const keys = headers.map(h => h.key).filter(Boolean);
+
+    const statusKey = keys.find(k => /^(trangThai|loaiDichVu|vaiTro|hinhThucThanhToan|trangThaiXacNhan)$/i.test(k))
+        || keys.find(k => /trangThai|loai|vaiTro|hinhThuc/i.test(k));
+    const dateKey = keys.find(k => /ngay|date|created|updated|thoiDiem/i.test(k));
+    const moneyKey = keys.find(k => /tongTien|soTien|tien|gia|donGia/i.test(k));
+    const hasNhaTro = section !== 'nhatro' && (
+        rows.some(r => r && Object.prototype.hasOwnProperty.call(r, 'maNhaTro')) ||
+        rows.some(r => r && Object.prototype.hasOwnProperty.call(r, 'maPhong'))
+    );
+    const hasPhong = section !== 'phong' && rows.some(r => r && Object.prototype.hasOwnProperty.call(r, 'maPhong'));
+
+    const statusOptions = statusKey
+        ? [...new Map(rows
+            .map(item => {
+                const header = headers.find(h => h.key === statusKey);
+                const raw = item?.[statusKey];
+                if (raw === null || raw === undefined || raw === '') return null;
+                return [String(raw), getGenericCellText(header, item) || String(raw)];
+            })
+            .filter(Boolean)
+        ).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi'))
+        : [];
+
+    return { statusKey, dateKey, moneyKey, hasNhaTro, hasPhong, statusOptions };
+}
+
+function getGenericFilterDefs(cfg, data) {
+    return normalizeArrayResponse(cfg.filters || []).map(filter => {
+        const options = [...new Map(normalizeArrayResponse(data)
+            .map(row => {
+                const raw = filter.getValue ? filter.getValue(row) : row?.[filter.key || filter.id];
+                if (raw === null || raw === undefined || raw === '') return null;
+                const value = String(raw);
+                const label = filter.getLabel ? filter.getLabel(raw, row) : value;
+                return [value, label || value];
+            })
+            .filter(Boolean)
+        ).entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'vi'));
+
+        return { ...filter, options };
+    }).filter(filter => filter.options.length > 0);
+}
+
+function getGenericItemNhaTroId(item) {
+    if (item?.maNhaTro != null) return item.maNhaTro;
+    if (item?.maPhong != null) {
+        const phong = normalizeArrayResponse(window.lookups?.phong || []).find(p => Number(p.maPhong) === Number(item.maPhong));
+        return phong?.maNhaTro;
+    }
+    return null;
+}
+
+function getGenericNumberValue(value) {
+    if (value === null || value === undefined || value === '') return null;
+    if (typeof value === 'number') return value;
+    const n = Number(String(value).replace(/[^\d.-]/g, ''));
+    return Number.isNaN(n) ? null : n;
+}
+
+function filterSortGenericData(cfg, data, section) {
+    const state = getGenericState(section);
+    let rows = normalizeArrayResponse(data);
+    const caps = getGenericCapabilities(cfg, rows, section);
+    const keyword = state.keyword.trim().toLowerCase();
+
+    if (keyword) {
+        rows = rows.filter(item =>
+            cfg.headers.some(h => getGenericCellText(h, item).toLowerCase().includes(keyword))
+        );
+    }
+
+    for (const filter of getGenericFilterDefs(cfg, rows)) {
+        const selected = state.filters?.[filter.id];
+        if (!selected) continue;
+        rows = rows.filter(item => {
+            const raw = filter.getValue ? filter.getValue(item) : item?.[filter.key || filter.id];
+            return String(raw ?? '') === String(selected);
+        });
+    }
+
+    if (!cfg.filters?.length && caps.statusKey && state.filterStatus) {
+        rows = rows.filter(item => String(item?.[caps.statusKey] ?? '') === String(state.filterStatus));
+    }
+
+    if (caps.hasNhaTro && state.filterNhaTro) {
+        rows = rows.filter(item => String(getGenericItemNhaTroId(item) ?? '') === String(state.filterNhaTro));
+    }
+
+    if (caps.hasPhong && state.filterPhong) {
+        rows = rows.filter(item => String(item?.maPhong ?? '') === String(state.filterPhong));
+    }
+
+    if (caps.dateKey && state.filterDateFrom) {
+        const from = new Date(state.filterDateFrom + 'T00:00:00').getTime();
+        rows = rows.filter(item => {
+            const ms = Date.parse(item?.[caps.dateKey]);
+            return !Number.isNaN(ms) && ms >= from;
+        });
+    }
+
+    if (caps.dateKey && state.filterDateTo) {
+        const to = new Date(state.filterDateTo + 'T23:59:59').getTime();
+        rows = rows.filter(item => {
+            const ms = Date.parse(item?.[caps.dateKey]);
+            return !Number.isNaN(ms) && ms <= to;
+        });
+    }
+
+    if (caps.moneyKey && state.filterMoneyFrom) {
+        rows = rows.filter(item => (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0) >= Number(state.filterMoneyFrom));
+    }
+
+    if (caps.moneyKey && state.filterMoneyTo) {
+        rows = rows.filter(item => (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0) <= Number(state.filterMoneyTo));
+    }
+
+    if (state.sortKey) {
+        const header = cfg.headers.find(h => (h.key || h.label) === state.sortKey);
+        if (header) {
+            const dir = state.sortDir === 'desc' ? -1 : 1;
+            rows = rows.slice().sort((a, b) => {
+                const va = getGenericSortValue(header, a);
+                const vb = getGenericSortValue(header, b);
+                if (va < vb) return -1 * dir;
+                if (va > vb) return 1 * dir;
+                return 0;
+            });
+        }
+    }
+
+    return rows;
+}
+
+function renderGenericToolbar(cfg, data, section, filteredCount) {
+    const slot = document.getElementById('genericToolbarSlot');
+    if (!slot) return;
+    const state = getGenericState(section);
+    const rows = normalizeArrayResponse(data);
+    const total = rows.length;
+    const caps = getGenericCapabilities(cfg, rows, section);
+    const customFilters = getGenericFilterDefs(cfg, rows);
+    const nhaTroList = normalizeArrayResponse(window.lookups?.nhatro || []);
+    const phongList = normalizeArrayResponse(window.lookups?.phong || []);
+    const visiblePhong = state.filterNhaTro
+        ? phongList.filter(p => String(p.maNhaTro) === String(state.filterNhaTro))
+        : phongList;
+    const moneyTotal = caps.moneyKey
+        ? filterSortGenericData(cfg, rows, section).reduce((sum, item) => sum + (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0), 0)
+        : null;
+
+    const customFilterHtml = customFilters.map(filter => `
+            <div style="min-width:180px;">
+                <select class="form-control" onchange="window.GenericTable.onCustomFilter('${section}', '${escapeJsStringDashboard(filter.id)}', this.value)">
+                    <option value="">Tất cả ${escapeHtmlDashboard(filter.label || filter.id).toLowerCase()}</option>
+                    ${filter.options.map(([value, label]) =>
+                        `<option value="${escapeHtmlDashboard(value)}" ${String(state.filters?.[filter.id] || '') === String(value) ? 'selected' : ''}>${escapeHtmlDashboard(label)}</option>`
+                    ).join('')}
+                </select>
+            </div>`).join('');
+
+    const statusFilter = !customFilters.length && caps.statusOptions.length ? `
+            <div style="min-width:180px;">
+                <select class="form-control" onchange="window.GenericTable.onStatus('${section}', this.value)">
+                    <option value="">Tất cả trạng thái/loại</option>
+                    ${caps.statusOptions.map(([value, label]) =>
+                        `<option value="${escapeHtmlDashboard(value)}" ${String(state.filterStatus) === String(value) ? 'selected' : ''}>${escapeHtmlDashboard(label)}</option>`
+                    ).join('')}
+                </select>
+            </div>` : '';
+
+    const nhaTroFilter = caps.hasNhaTro && nhaTroList.length > 1 ? `
+            <div style="min-width:170px;">
+                <select class="form-control" onchange="window.GenericTable.onNhaTro('${section}', this.value)">
+                    <option value="">Tất cả nhà trọ</option>
+                    ${nhaTroList.map(n =>
+                        `<option value="${n.maNhaTro}" ${String(state.filterNhaTro) === String(n.maNhaTro) ? 'selected' : ''}>${escapeHtmlDashboard(n.tenNhaTro || 'Nhà trọ #' + n.maNhaTro)}</option>`
+                    ).join('')}
+                </select>
+            </div>` : '';
+
+    const phongFilter = caps.hasPhong ? `
+            <div style="min-width:160px;">
+                <select class="form-control" onchange="window.GenericTable.onPhong('${section}', this.value)">
+                    <option value="">Tất cả phòng</option>
+                    ${visiblePhong.map(p =>
+                        `<option value="${p.maPhong}" ${String(state.filterPhong) === String(p.maPhong) ? 'selected' : ''}>${escapeHtmlDashboard(p.tenPhong || 'Phòng #' + p.maPhong)}</option>`
+                    ).join('')}
+                </select>
+            </div>` : '';
+
+    const dateFilter = caps.dateKey ? `
+            <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:.85rem;color:var(--text-light);white-space:nowrap;">Ngày:</span>
+                <input type="date" class="form-control" style="width:150px;" value="${escapeHtmlDashboard(state.filterDateFrom)}"
+                    onchange="window.GenericTable.onDateFrom('${section}', this.value)">
+                <span style="color:var(--text-light);">-</span>
+                <input type="date" class="form-control" style="width:150px;" value="${escapeHtmlDashboard(state.filterDateTo)}"
+                    onchange="window.GenericTable.onDateTo('${section}', this.value)">
+            </div>` : '';
+
+    const moneyFilter = caps.moneyKey ? `
+            <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:.85rem;color:var(--text-light);white-space:nowrap;">Tiền:</span>
+                <input type="number" class="form-control" style="width:120px;" min="0" placeholder="Từ"
+                    value="${escapeHtmlDashboard(state.filterMoneyFrom)}"
+                    onchange="window.GenericTable.onMoneyFrom('${section}', this.value)">
+                <span style="color:var(--text-light);">-</span>
+                <input type="number" class="form-control" style="width:120px;" min="0" placeholder="Đến"
+                    value="${escapeHtmlDashboard(state.filterMoneyTo)}"
+                    onchange="window.GenericTable.onMoneyTo('${section}', this.value)">
+            </div>` : '';
+
+    slot.innerHTML = `
+        <div class="generic-table-toolbar" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:.75rem;">
+            <div style="position:relative;flex:1;min-width:220px;max-width:420px;">
+                <i class="fas fa-search" style="position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
+                <input type="text" class="form-control" style="padding-left:2.5rem;"
+                    placeholder="Tìm kiếm trong ${escapeHtmlDashboard(cfg.title || 'danh sách')}..."
+                    value="${escapeHtmlDashboard(state.keyword)}"
+                    oninput="window.GenericTable.onKeyword('${section}', this.value)">
+            </div>
+            ${customFilterHtml}
+            ${statusFilter}
+            ${nhaTroFilter}
+            ${phongFilter}
+        </div>
+        <div class="generic-table-toolbar" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:.75rem;">
+            ${dateFilter}
+            ${moneyFilter}
+            <div style="font-size:.875rem;color:var(--text-light);">
+                Tìm thấy <strong>${filteredCount}</strong> / ${total}
+                ${moneyTotal !== null ? ` | Tổng: <strong>${fmtCurrency(moneyTotal)}</strong>` : ''}
+            </div>
+            <div style="display:flex;gap:.4rem;margin-left:auto;">
+                <button class="btn btn-secondary" style="white-space:nowrap;" onclick="window.GenericTable.reset('${section}')">
+                    <i class="fas fa-filter-circle-xmark"></i> Xóa lọc
+                </button>
+                <button class="btn btn-secondary" style="white-space:nowrap;" onclick="window.GenericTable.refresh('${section}')">
+                    <i class="fas fa-rotate-right"></i> Làm mới
+                </button>
+            </div>
+        </div>`;
+}
+
+function renderGenericPaging(total, section) {
+    const slot = document.getElementById('genericPagingSlot');
+    if (!slot) return;
+    const state = getGenericState(section);
+    const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+    if (state.page > totalPages) state.page = totalPages;
+
+    const sizeOpts = [10, 20, 50].map(size =>
+        `<option value="${size}" ${state.pageSize === size ? 'selected' : ''}>${size}</option>`
+    ).join('');
+
+    const current = state.page;
+    const lo = Math.max(1, current - 2);
+    const hi = Math.min(totalPages, lo + 4);
+    let buttons = '';
+    if (totalPages > 1) {
+        if (current > 1) buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${current - 1})"><i class="fas fa-chevron-left"></i></button>`;
+        if (lo > 1) buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', 1)">1</button><span class="generic-pg-ell">...</span>`;
+        for (let i = lo; i <= hi; i++) {
+            buttons += `<button class="generic-pg-btn${i === current ? ' generic-pg-active' : ''}" onclick="window.GenericTable.onPage('${section}', ${i})">${i}</button>`;
+        }
+        if (hi < totalPages) buttons += `<span class="generic-pg-ell">...</span><button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${totalPages})">${totalPages}</button>`;
+        if (current < totalPages) buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${current + 1})"><i class="fas fa-chevron-right"></i></button>`;
+    }
+
+    const start = total === 0 ? 0 : ((current - 1) * state.pageSize) + 1;
+    const end = Math.min(current * state.pageSize, total);
+    slot.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-top:.75rem;">
+            <div style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;color:var(--text-light);">
+                Hiển thị ${start}-${end} / ${total}
+                <select class="form-control" style="width:auto;padding:.25rem .5rem;font-size:.875rem;"
+                    onchange="window.GenericTable.onPageSize('${section}', this.value)">${sizeOpts}</select>
+                dòng / trang
+            </div>
+            <div style="display:flex;gap:.25rem;align-items:center;">${buttons}</div>
+        </div>
+        <style>
+            .generic-pg-btn{padding:.3rem .65rem;border:1px solid var(--border-color,#e2e8f0);border-radius:6px;background:#fff;cursor:pointer;font-size:.85rem;color:var(--text-primary,#1e293b);transition:all .15s;}
+            .generic-pg-btn:hover{background:var(--primary-light,#eff6ff);border-color:var(--primary,#3b82f6);}
+            .generic-pg-active{background:var(--primary,#3b82f6)!important;color:#fff!important;border-color:var(--primary,#3b82f6)!important;}
+            .generic-pg-ell{padding:0 .25rem;color:var(--text-light);}
+        </style>`;
+}
+
+function renderGenericHeader(cfg, section) {
+    const state = getGenericState(section);
+    return cfg.headers.map(h => {
+        const key = h.key || h.label;
+        const active = state.sortKey === key;
+        const icon = active ? (state.sortDir === 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort';
+        const color = active ? 'var(--primary)' : 'var(--text-light)';
+        return `<th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="window.GenericTable.onSort('${section}', '${escapeJsStringDashboard(key)}')">
+            ${h.label} <i class="fas ${icon}" style="color:${color};font-size:.75rem;"></i>
+        </th>`;
+    }).join('') + '<th>Thao tác</th>';
+}
+
+window.GenericTable = {
+    onKeyword(section, value) {
+        const state = getGenericState(section);
+        state.keyword = value || '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onStatus(section, value) {
+        const state = getGenericState(section);
+        state.filterStatus = value || '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onCustomFilter(section, id, value) {
+        const state = getGenericState(section);
+        state.filters ||= {};
+        state.filters[id] = value || '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onNhaTro(section, value) {
+        const state = getGenericState(section);
+        state.filterNhaTro = value || '';
+        state.filterPhong = '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onPhong(section, value) {
+        const state = getGenericState(section);
+        state.filterPhong = value || '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onDateFrom(section, value) {
+        const state = getGenericState(section);
+        state.filterDateFrom = value || '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onDateTo(section, value) {
+        const state = getGenericState(section);
+        state.filterDateTo = value || '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onMoneyFrom(section, value) {
+        const state = getGenericState(section);
+        state.filterMoneyFrom = value || '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onMoneyTo(section, value) {
+        const state = getGenericState(section);
+        state.filterMoneyTo = value || '';
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onSort(section, key) {
+        const state = getGenericState(section);
+        if (state.sortKey === key) {
+            state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            state.sortKey = key;
+            state.sortDir = 'asc';
+        }
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    onPage(section, page) {
+        getGenericState(section).page = page;
+        renderTable(modules[section], currentData, section);
+    },
+    onPageSize(section, value) {
+        const state = getGenericState(section);
+        state.pageSize = parseInt(value) || 10;
+        state.page = 1;
+        renderTable(modules[section], currentData, section);
+    },
+    reset(section) {
+        Object.assign(getGenericState(section), {
+            keyword: '',
+            filterStatus: '',
+            filterNhaTro: '',
+            filterPhong: '',
+            filterDateFrom: '',
+            filterDateTo: '',
+            filterMoneyFrom: '',
+            filterMoneyTo: '',
+            filters: {},
+            sortKey: '',
+            sortDir: 'asc',
+            page: 1,
+            pageSize: 10
+        });
+        renderTable(modules[section], currentData, section);
+    },
+    refresh(section) {
+        loadGenericSection(section);
+    }
+};
+
 async function loadGenericSection(section) {
     const cfg = modules[section];
     if (!cfg) {
@@ -1177,28 +1647,6 @@ async function loadGenericSection(section) {
 
     if (section === 'hoadon') {
         extraToolbarHtml = `<div id="hoaDonFilterBarWrapper"></div>`;
-    }
-
-    if (section === 'hoadon' && (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
-
-        const now = new Date();
-        const kyDefault = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        extraToolbarHtml += `
-            <div class="data-card" style="margin-bottom:1rem;">
-                <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
-                    <div class="form-group" style="margin-bottom:0;min-width:220px;">
-                        <label><i class="fas fa-calendar-alt"></i> Kỳ hóa đơn tự tạo</label>
-                        <input type="month" id="autoInvoiceKy" class="form-control" value="${kyDefault}">
-                    </div>
-                    <button class="btn btn-success" onclick="taoHoaDonHangThangTuDong()">
-                        <i class="fas fa-magic"></i> Tạo hóa đơn tháng này
-                    </button>
-                    <div style="color:var(--text-light);font-size:.9rem;padding-bottom:.55rem;">
-                        Tự lấy phòng có hợp đồng hiệu lực, cộng tiền phòng, điện, nước và dịch vụ đang dùng. Phòng đã có hóa đơn cùng kỳ sẽ được bỏ qua.
-                    </div>
-                </div>
-                <div id="autoInvoiceResult" style="display:none;margin-top:1rem;"></div>
-            </div>`;
     }
 
     if (section === 'nguoithue') {
@@ -1254,6 +1702,7 @@ async function loadGenericSection(section) {
     // ── Hóa đơn dùng module Search riêng ─────────────────────────────
     if (section === 'hoadon') {
         document.getElementById('genericSection').innerHTML = `
+            ${extraToolbarHtml}
             <div id="hdnToolbarSlot"></div>
             <div class="data-card">
                 <div id="hdnTableSlot">
@@ -1284,15 +1733,17 @@ async function loadGenericSection(section) {
     document.getElementById('genericSection').innerHTML = `
         ${searchHtml}
         ${extraToolbarHtml}
+        <div id="genericToolbarSlot"></div>
         <div class="data-card">
             <div class="table-container">
                 <table>
-                    <thead><tr>${cfg.headers.map(h => `<th>${h.label}</th>`).join('')}<th>Thao tác</th></tr></thead>
+                    <thead><tr id="genericTableHead">${renderGenericHeader(cfg, section)}</tr></thead>
                     <tbody id="genericTableBody">
                         <tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>
                     </tbody>
                 </table>
             </div>
+            <div id="genericPagingSlot"></div>
         </div>`;
 
     try {
@@ -1334,14 +1785,25 @@ function renderTable(cfg, data, section) {
 
     const safeData = normalizeArrayResponse(data);
     const displayData = section === 'nguoithue' ? mergeNguoiThueDisplayRows(safeData) : safeData;
+    const filteredData = filterSortGenericData(cfg, displayData, section);
+    const state = getGenericState(section);
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / state.pageSize));
+    if (state.page > totalPages) state.page = totalPages;
+    const start = (state.page - 1) * state.pageSize;
+    const pageData = filteredData.slice(start, start + state.pageSize);
 
-    if (!displayData?.length) {
+    const head = document.getElementById('genericTableHead');
+    if (head) head.innerHTML = renderGenericHeader(cfg, section);
+    renderGenericToolbar(cfg, displayData, section, filteredData.length);
+    renderGenericPaging(filteredData.length, section);
+
+    if (!pageData?.length) {
         tbody.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;color:var(--text-light);">Không có dữ liệu</td></tr>`;
         return;
     }
     const canWrite = (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro');
 
-    tbody.innerHTML = displayData.map(item => {
+    tbody.innerHTML = pageData.map(item => {
         let actionHtml = '';
 
         if (section === 'yeucauthue') {
@@ -1523,6 +1985,208 @@ function mergeNguoiThueDisplayRows(data) {
 // ==========================================
 // ĐIỆN & NƯỚC SECTION
 // ==========================================
+const dienNuocTableState = {
+    dien: { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: 'ngayThangDien', sortDir: 'desc', page: 1, pageSize: 10 },
+    nuoc: { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: 'ngayThangNuoc', sortDir: 'desc', page: 1, pageSize: 10 }
+};
+
+function getDienNuocState(tab) {
+    return dienNuocTableState[tab] || dienNuocTableState.dien;
+}
+
+function getDienNuocMetricKeys(tab) {
+    return tab === 'dien'
+        ? { oldKey: 'soDienCu', newKey: 'soDienMoi', priceKey: 'giaDien', totalKey: 'tienDien', dateKey: 'ngayThangDien', unit: 'kWh' }
+        : { oldKey: 'soNuocCu', newKey: 'soNuocMoi', priceKey: 'giaNuoc', totalKey: 'tienNuoc', dateKey: 'ngayThangNuoc', unit: 'm³' };
+}
+
+function getDienNuocCellText(header, item) {
+    const raw = header.key ? item[header.key] : null;
+    if (!header.render) return raw == null ? '' : String(raw);
+    try { return stripHtmlDashboard(header.render(raw, item)); }
+    catch { return raw == null ? '' : String(raw); }
+}
+
+function getDienNuocSortValue(header, item, tab) {
+    const metric = getDienNuocMetricKeys(tab);
+    const key = header.key || header.label;
+    if (key === '_tieuThu') return (Number(item[metric.newKey]) || 0) - (Number(item[metric.oldKey]) || 0);
+    return getGenericSortValue(header, item);
+}
+
+function filterSortDienNuocData(tab, cfg, data) {
+    const state = getDienNuocState(tab);
+    const metric = getDienNuocMetricKeys(tab);
+    let rows = normalizeArrayResponse(data);
+    const keyword = state.keyword.trim().toLowerCase();
+
+    if (keyword) {
+        rows = rows.filter(item => cfg.headers.some(h => getDienNuocCellText(h, item).toLowerCase().includes(keyword)));
+    }
+    if (state.filterPhong) rows = rows.filter(item => String(item.maPhong) === String(state.filterPhong));
+    if (state.dateFrom) {
+        const from = new Date(state.dateFrom + 'T00:00:00').getTime();
+        rows = rows.filter(item => {
+            const ms = Date.parse(item[metric.dateKey]);
+            return !Number.isNaN(ms) && ms >= from;
+        });
+    }
+    if (state.dateTo) {
+        const to = new Date(state.dateTo + 'T23:59:59').getTime();
+        rows = rows.filter(item => {
+            const ms = Date.parse(item[metric.dateKey]);
+            return !Number.isNaN(ms) && ms <= to;
+        });
+    }
+    if (state.sortKey) {
+        const header = cfg.headers.find(h => (h.key || h.label) === state.sortKey);
+        if (header) {
+            const dir = state.sortDir === 'desc' ? -1 : 1;
+            rows = rows.slice().sort((a, b) => {
+                const va = getDienNuocSortValue(header, a, tab);
+                const vb = getDienNuocSortValue(header, b, tab);
+                if (va < vb) return -1 * dir;
+                if (va > vb) return 1 * dir;
+                return 0;
+            });
+        }
+    }
+    return rows;
+}
+
+function renderDienNuocToolbar(tab, cfg, data, filtered) {
+    const slot = document.getElementById('dienNuocToolbar');
+    if (!slot) return;
+    const state = getDienNuocState(tab);
+    const metric = getDienNuocMetricKeys(tab);
+    const phongOptions = normalizeArrayResponse(lookups.phongDienNuoc || []);
+    const totalTien = filtered.reduce((sum, item) => sum + (Number(item[metric.totalKey]) || 0), 0);
+    const totalTieuThu = filtered.reduce((sum, item) => sum + Math.max((Number(item[metric.newKey]) || 0) - (Number(item[metric.oldKey]) || 0), 0), 0);
+
+    slot.innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:.75rem;">
+            <div style="position:relative;flex:1;min-width:220px;max-width:420px;">
+                <i class="fas fa-search" style="position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
+                <input type="text" class="form-control" style="padding-left:2.5rem;"
+                    placeholder="Tìm phòng, chỉ số, ngày ghi..."
+                    value="${escapeHtmlDashboard(state.keyword)}"
+                    oninput="window.DienNuocTable.onKeyword('${tab}', this.value)">
+            </div>
+            <div style="min-width:160px;">
+                <select class="form-control" onchange="window.DienNuocTable.onPhong('${tab}', this.value)">
+                    <option value="">Tất cả phòng</option>
+                    ${phongOptions.map(p => `<option value="${p.maPhong}" ${String(state.filterPhong) === String(p.maPhong) ? 'selected' : ''}>${escapeHtmlDashboard(p.tenPhong || 'Phòng #' + p.maPhong)}</option>`).join('')}
+                </select>
+            </div>
+            <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:.85rem;color:var(--text-light);white-space:nowrap;">Ngày ghi:</span>
+                <input type="date" class="form-control" style="width:150px;" value="${escapeHtmlDashboard(state.dateFrom)}" onchange="window.DienNuocTable.onDateFrom('${tab}', this.value)">
+                <span style="color:var(--text-light);">-</span>
+                <input type="date" class="form-control" style="width:150px;" value="${escapeHtmlDashboard(state.dateTo)}" onchange="window.DienNuocTable.onDateTo('${tab}', this.value)">
+            </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-bottom:.75rem;font-size:.875rem;">
+            <span>Tìm thấy <strong>${filtered.length}</strong> / ${normalizeArrayResponse(data).length}</span>
+            <span style="color:var(--text-light);">|</span>
+            <span>Tiêu thụ: <strong>${new Intl.NumberFormat('vi-VN').format(totalTieuThu)} ${metric.unit}</strong></span>
+            <span style="color:var(--text-light);">|</span>
+            <span>Tổng tiền: <strong>${fmtCurrency(totalTien)}</strong></span>
+            <div style="display:flex;gap:.4rem;margin-left:auto;">
+                <button class="btn btn-secondary" style="white-space:nowrap;" onclick="window.DienNuocTable.reset('${tab}')"><i class="fas fa-filter-circle-xmark"></i> Xóa lọc</button>
+                <button class="btn btn-secondary" style="white-space:nowrap;" onclick="loadDienNuocData('${tab}')"><i class="fas fa-rotate-right"></i> Làm mới</button>
+            </div>
+        </div>`;
+}
+
+function renderDienNuocHead(tab, cfg) {
+    const state = getDienNuocState(tab);
+    return `<tr>${cfg.headers.map(h => {
+        const key = h.key || h.label;
+        const active = state.sortKey === key;
+        const icon = active ? (state.sortDir === 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort';
+        const color = active ? 'var(--primary)' : 'var(--text-light)';
+        return `<th style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="window.DienNuocTable.onSort('${tab}', '${escapeJsStringDashboard(key)}')">${h.label} <i class="fas ${icon}" style="color:${color};font-size:.75rem;"></i></th>`;
+    }).join('')}<th>Thao tác</th></tr>`;
+}
+
+function renderDienNuocPaging(tab, total) {
+    const slot = document.getElementById('dienNuocPaging');
+    if (!slot) return;
+    const state = getDienNuocState(tab);
+    const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+    if (state.page > totalPages) state.page = totalPages;
+    const current = state.page;
+    const start = total === 0 ? 0 : ((current - 1) * state.pageSize) + 1;
+    const end = Math.min(current * state.pageSize, total);
+    const sizeOpts = [10, 20, 50].map(s => `<option value="${s}" ${state.pageSize === s ? 'selected' : ''}>${s}</option>`).join('');
+    let buttons = '';
+    if (totalPages > 1) {
+        const lo = Math.max(1, current - 2);
+        const hi = Math.min(totalPages, lo + 4);
+        if (current > 1) buttons += `<button class="generic-pg-btn" onclick="window.DienNuocTable.onPage('${tab}', ${current - 1})"><i class="fas fa-chevron-left"></i></button>`;
+        if (lo > 1) buttons += `<button class="generic-pg-btn" onclick="window.DienNuocTable.onPage('${tab}', 1)">1</button><span class="generic-pg-ell">...</span>`;
+        for (let i = lo; i <= hi; i++) buttons += `<button class="generic-pg-btn${i === current ? ' generic-pg-active' : ''}" onclick="window.DienNuocTable.onPage('${tab}', ${i})">${i}</button>`;
+        if (hi < totalPages) buttons += `<span class="generic-pg-ell">...</span><button class="generic-pg-btn" onclick="window.DienNuocTable.onPage('${tab}', ${totalPages})">${totalPages}</button>`;
+        if (current < totalPages) buttons += `<button class="generic-pg-btn" onclick="window.DienNuocTable.onPage('${tab}', ${current + 1})"><i class="fas fa-chevron-right"></i></button>`;
+    }
+    slot.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-top:.75rem;">
+            <div style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;color:var(--text-light);">
+                Hiển thị ${start}-${end} / ${total}
+                <select class="form-control" style="width:auto;padding:.25rem .5rem;font-size:.875rem;" onchange="window.DienNuocTable.onPageSize('${tab}', this.value)">${sizeOpts}</select>
+                dòng / trang
+            </div>
+            <div style="display:flex;gap:.25rem;align-items:center;">${buttons}</div>
+        </div>`;
+}
+
+function renderDienNuocTable(tab, cfg, data) {
+    const head = document.getElementById('dienNuocHead');
+    const body = document.getElementById('dienNuocBody');
+    if (!head || !body) return;
+
+    const filtered = filterSortDienNuocData(tab, cfg, data);
+    const state = getDienNuocState(tab);
+    const totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+    if (state.page > totalPages) state.page = totalPages;
+    const start = (state.page - 1) * state.pageSize;
+    const pageRows = filtered.slice(start, start + state.pageSize);
+
+    head.innerHTML = renderDienNuocHead(tab, cfg);
+    renderDienNuocToolbar(tab, cfg, data, filtered);
+    renderDienNuocPaging(tab, filtered.length);
+
+    if (!pageRows.length) {
+        body.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;color:var(--text-light);">Không có dữ liệu phù hợp.</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = pageRows.map(item => `<tr>
+        ${cfg.headers.map(h => {
+            const val = h.key ? item[h.key] : null;
+            const rendered = h.render ? h.render(val, item) : (val != null ? val : '---');
+            return `<td>${rendered}</td>`;
+        }).join('')}
+        <td style="white-space:nowrap;">
+            ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
+            <button class="btn-action btn-edit" onclick="editDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
+            <button class="btn-action btn-delete" onclick="deleteDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>
+            ` : ''}
+        </td>
+    </tr>`).join('');
+}
+
+window.DienNuocTable = {
+    onKeyword(tab, value) { const s = getDienNuocState(tab); s.keyword = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    onPhong(tab, value) { const s = getDienNuocState(tab); s.filterPhong = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    onDateFrom(tab, value) { const s = getDienNuocState(tab); s.dateFrom = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    onDateTo(tab, value) { const s = getDienNuocState(tab); s.dateTo = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    onSort(tab, key) { const s = getDienNuocState(tab); if (s.sortKey === key) s.sortDir = s.sortDir === 'asc' ? 'desc' : 'asc'; else { s.sortKey = key; s.sortDir = 'asc'; } s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    onPage(tab, page) { getDienNuocState(tab).page = page; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    onPageSize(tab, value) { const s = getDienNuocState(tab); s.pageSize = parseInt(value) || 10; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    reset(tab) { const metric = getDienNuocMetricKeys(tab); Object.assign(getDienNuocState(tab), { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: metric.dateKey, sortDir: 'desc', page: 1, pageSize: 10 }); renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); }
+};
+
 function renderDienNuocSection() {
     const container = document.getElementById('genericSection');
     const nhaTroOptions = normalizeArrayResponse(lookups.nhatro)
@@ -1550,6 +2214,7 @@ function renderDienNuocSection() {
                 <button id="tabNuoc" class="tab-btn${currentSubSection === 'nuoc' ? ' tab-active' : ''}" onclick="switchDienNuocTab('nuoc')"><i class="fas fa-tint"></i> Chỉ số Nước</button>
             </div>
             <div class="data-card">
+                <div id="dienNuocToolbar"></div>
                 <div class="table-container">
                     <table>
                         <thead id="dienNuocHead"></thead>
@@ -1558,6 +2223,7 @@ function renderDienNuocSection() {
                         </tbody>
                     </table>
                 </div>
+                <div id="dienNuocPaging"></div>
             </div>
         </div>
         <div id="dienNuocEmptyGuide" class="data-card" style="display:${selectedDienNuocNhaTroId ? 'none' : 'block'};text-align:center;padding:2rem;color:var(--text-light);">
@@ -1610,28 +2276,12 @@ async function loadDienNuocData(tab) {
 
     lookups.phongDienNuoc = normalizeArrayResponse(lookups.phong).filter(p => Number(p.maNhaTro) === Number(selectedDienNuocNhaTroId));
 
-    head.innerHTML = `<tr>${cfg.headers.map(h => `<th>${h.label}</th>`).join('')}<th>Thao tác</th></tr>`;
+    head.innerHTML = renderDienNuocHead(tab, cfg);
     body.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</td></tr>`;
 
     try {
         currentData = normalizeArrayResponse(await apiFetch(`${cfg.endpoint}/nha-tro/${selectedDienNuocNhaTroId}`));
-        if (!currentData?.length) {
-            body.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;padding:2rem;color:var(--text-light);">Không có dữ liệu</td></tr>`;
-            return;
-        }
-        body.innerHTML = currentData.map(item => `<tr>
-            ${cfg.headers.map(h => {
-            const val = h.key ? item[h.key] : null;
-            const rendered = h.render ? h.render(val, item) : (val != null ? val : '---');
-            return `<td>${rendered}</td>`;
-        }).join('')}
-            <td style="white-space:nowrap;">
-                ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
-                <button class="btn-action btn-edit" onclick="editDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
-                <button class="btn-action btn-delete" onclick="deleteDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>
-                ` : ''}
-            </td>
-        </tr>`).join('');
+        renderDienNuocTable(tab, cfg, currentData);
     } catch (e) {
         body.innerHTML = `<tr><td colspan="${cfg.headers.length + 1}" style="text-align:center;color:var(--error);">Lỗi: ${e.message}</td></tr>`;
         showToast('Lỗi tải dữ liệu', 'error');
@@ -3108,42 +3758,6 @@ async function postHopDongAction(endpoint) {
         throw new Error(extractApiErrorMessage(json) || `Lỗi HTTP ${res.status}`);
     }
     return json;
-}
-
-async function taoHoaDonHangThangTuDong() {
-    const kyInput = document.getElementById('autoInvoiceKy');
-    const ky = kyInput?.value || '';
-    const resultBox = document.getElementById('autoInvoiceResult');
-
-    if (!ky) { showToast('Vui lòng chọn kỳ hóa đơn', 'error'); return; }
-
-    if (resultBox) {
-        resultBox.style.display = 'block';
-        resultBox.innerHTML = `<div style="color:var(--text-light);"><i class="fas fa-spinner fa-spin"></i> Đang tạo hóa đơn...</div>`;
-    }
-
-    try {
-        const res = await apiFetch(`/api/HoaDon/TaoHoaDonThang?kyHoaDon=${encodeURIComponent(ky)}`, 'POST');
-        const data = res?.chiTiet ? res : (res?.duLieu || res);
-        const soTao = data?.soHoaDonDaTao ?? 0;
-        const boQua = data?.soHoaDonBoQua ?? 0;
-        const canhBao = data?.canhBao || [];
-
-        let html = `<div style="padding:.75rem 1rem;border-radius:.75rem;background:#f0fdf4;border:1px solid #bbf7d0;">
-            <strong style="color:var(--success)"><i class="fas fa-check-circle"></i> Hoàn tất kỳ ${ky}</strong><br>
-            <span>Đã tạo: <strong>${soTao}</strong> hóa đơn &nbsp;|&nbsp; Bỏ qua: <strong>${boQua}</strong> phòng đã có</span>`;
-        if (canhBao.length) {
-            html += `<br><span style="color:#d97706;font-size:.85rem;"><i class="fas fa-exclamation-triangle"></i> ${canhBao.length} cảnh báo: ${canhBao.slice(0, 3).join('; ')}${canhBao.length > 3 ? '...' : ''}</span>`;
-        }
-        html += `</div>`;
-        if (resultBox) resultBox.innerHTML = html;
-
-        showToast(`Đã tạo ${soTao} hóa đơn kỳ ${ky}`);
-        refreshData();
-    } catch (e) {
-        if (resultBox) resultBox.innerHTML = `<div style="padding:.75rem 1rem;border-radius:.75rem;background:#fef2f2;border:1px solid #fecaca;color:var(--error);"><i class="fas fa-times-circle"></i> ${e.message || 'Lỗi tạo hóa đơn'}</div>`;
-        showToast(e.message || 'Lỗi tạo hóa đơn tháng', 'error');
-    }
 }
 
 function refreshData() {

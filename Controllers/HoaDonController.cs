@@ -478,9 +478,8 @@ namespace DoAnSE104.Controllers
             return Ok(phongChuaCoHoaDon);
         }
 
-        // POST: api/HoaDon/TaoHoaDonThang
-        [HttpPost("TaoHoaDonThang")]
-        [Authorize(Roles = "Admin,ChuTro")]
+        // Hóa đơn hằng tháng hiện được tạo tự động bởi MonthlyInvoiceBackgroundService.
+        [NonAction]
         public async Task<IActionResult> TaoHoaDonThang([FromQuery] string? kyHoaDon = null)
         {
             try
