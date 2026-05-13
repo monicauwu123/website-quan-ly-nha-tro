@@ -982,8 +982,9 @@ function renderRoomPager(totalPg, ps, filteredData) {
     if (totalPg <= 1) { pager.innerHTML = ''; return; }
 
     const cp = _roomCurrentPage;
-    const btn = (label, page, disabled) =>
-        `<button class="pt-page-btn ${disabled ? 'disabled' : ''} ${page === cp && typeof label === 'number' ? 'active' : ''}"
+    const btn = (label, page, disabled, extraClass = '') =>
+        `<button type="button"
+            class="pt-page-btn ${extraClass} ${disabled ? 'disabled' : ''} ${page === cp && typeof label === 'number' ? 'active' : ''}"
             ${disabled ? 'disabled' : ''} onclick="_roomGoPage(${page})">${label}</button>`;
 
     const range = 2;
@@ -991,11 +992,14 @@ function renderRoomPager(totalPg, ps, filteredData) {
     for (let i = Math.max(1, cp - range); i <= Math.min(totalPg, cp + range); i++) pages.push(i);
 
     pager.innerHTML = `
-        ${btn('<i class="fas fa-angle-double-left"></i>', 1,         cp === 1)}
-        ${btn('<i class="fas fa-angle-left"></i>',        cp - 1,    cp === 1)}
+        <div class="room-pager-inner">
+        ${btn('<i class="fas fa-angles-left"></i><span>Đầu</span>', 1, cp === 1, 'pt-page-wide')}
+        ${btn('<i class="fas fa-angle-left"></i><span>Trước</span>', cp - 1, cp === 1, 'pt-page-wide')}
         ${pages.map(p => btn(p, p, false)).join('')}
-        ${btn('<i class="fas fa-angle-right"></i>',       cp + 1,    cp >= totalPg)}
-        ${btn('<i class="fas fa-angle-double-right"></i>',totalPg,   cp >= totalPg)}`;
+        ${btn('<span>Sau</span><i class="fas fa-angle-right"></i>', cp + 1, cp >= totalPg, 'pt-page-wide')}
+        ${btn('<span>Cuối</span><i class="fas fa-angles-right"></i>', totalPg, cp >= totalPg, 'pt-page-wide')}
+        </div>
+        <div class="room-pager-meta">Trang ${cp} / ${totalPg}</div>`;
 }
 
 function _roomGoPage(p) {

@@ -4,7 +4,7 @@
 // ==========================================
 
 (function () {
-    const VERSION = '6.7';
+    const VERSION = '6.8';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
