@@ -427,7 +427,7 @@ function renderChuTroAdminOverview(data) {
     const now = new Date();
     const thangNam = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
 
-    // â”€â”€ KPI Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── KPI Cards ──────────────────────────────────────────────────────────
     const tyLePhong = data.tongPhong ? Math.round((data.phongDangThue / data.tongPhong) * 100) : 0;
 
     document.getElementById('dashStatsGrid').innerHTML = `
@@ -466,7 +466,7 @@ function renderChuTroAdminOverview(data) {
         </div>
     `;
 
-    // â”€â”€ Alert Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Alert Cards ────────────────────────────────────────────────────────
     const alerts = [
         {
             count: data.hoaDonChuaThanhToan ?? 0,
@@ -519,7 +519,7 @@ function renderChuTroAdminOverview(data) {
         </div>
     `;
 
-    // â”€â”€ Main Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Main Grid ──────────────────────────────────────────────────────────
     const sapHet = data.danhSachHopDongSapHet || [];
     const rooms  = data.danhSachPhongGanDay || [];
 
@@ -622,7 +622,7 @@ function renderNguoiDungOverview(data) {
     const soHoaDonChuaTT = data?.soHoaDonChuaTT ?? hoaDonChuaTT.length;
     const soThongBaoChuaDoc = data?.soThongBaoChuaDoc ?? thongBaoList.length;
 
-    // â”€â”€ KPI Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── KPI Cards ──────────────────────────────────────────────────────────
     document.getElementById('dashStatsGrid').innerHTML = `
         <div class="stat-card stat-card-indigo kpi-card">
             <div class="stat-icon"><i class="fas fa-user-circle"></i></div>
@@ -658,7 +658,7 @@ function renderNguoiDungOverview(data) {
         </div>
     `;
 
-    // â”€â”€ Alert Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Alert Row ──────────────────────────────────────────────────────────
     document.getElementById('dashAlertRow').innerHTML = soHoaDonChuaTT > 0 ? `
         <div class="user-alert-banner" onclick="showSection('hoadon')">
             <i class="fas fa-exclamation-circle"></i>
@@ -666,7 +666,7 @@ function renderNguoiDungOverview(data) {
             <i class="fas fa-arrow-right" style="margin-left:auto;"></i>
         </div>` : '';
 
-    // â”€â”€ Rooms & contracts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Rooms & contracts ──────────────────────────────────────────────────
     const phongHtml = phongList.length
         ? phongList.map(p => `
             <div class="room-info-card">
