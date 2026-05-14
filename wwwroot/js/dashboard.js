@@ -403,7 +403,7 @@ function showSection(section, el, skipHashUpdate = false) {
                 <div class="section-header" style="margin-bottom:1rem;">
                     <div>
                         <h2 class="section-title"><i class="fas fa-receipt"></i> Biên lai chờ xác nhận</h2>
-                        <p class="section-subtitle">Danh s�ch bi�n lai ngu?i thu� d� g?i, c?n xem x�t v� x�c nh?n</p>
+                        <p class="section-subtitle">Danh sách biên lai người thuê đã gửi, cần xem xét và xác nhận</p>
                     </div>
                     <button class="btn btn-secondary" onclick="renderBienLaiChoXacNhan()">
                         <i class="fas fa-sync-alt"></i> Làm mới
@@ -482,7 +482,7 @@ function renderChuTroAdminOverview(data) {
             <div class="stat-info">
                 <h3>Doanh thu ${thangNam}</h3>
                 <div class="value" style="font-size:1.25rem;">${fmtCurrency(data.doanhThuThang ?? 0)}</div>
-                <div class="kpi-sub">�� thu th?c t?</div>
+                <div class="kpi-sub">Đã thu thực tế</div>
             </div>
         </div>
     `;
@@ -666,7 +666,7 @@ function renderNguoiDungOverview(data) {
             <div class="stat-info">
                 <h3>Hóa đơn chưa trả</h3>
                 <div class="value">${soHoaDonChuaTT}</div>
-                <div class="kpi-sub">${soHoaDonChuaTT > 0 ? 'C?n thanh to�n' : '�� thanh to�n h?t'}</div>
+                <div class="kpi-sub">${soHoaDonChuaTT > 0 ? 'Cần thanh toán' : 'Đã thanh toán hết'}</div>
             </div>
         </div>
         <div class="stat-card ${soThongBaoChuaDoc > 0 ? 'stat-card-purple' : 'stat-card-green'} kpi-card" onclick="showSection('thongbao')">
@@ -674,7 +674,7 @@ function renderNguoiDungOverview(data) {
             <div class="stat-info">
                 <h3>Thông báo mới</h3>
                 <div class="value">${soThongBaoChuaDoc}</div>
-                <div class="kpi-sub">${soThongBaoChuaDoc > 0 ? 'Chua d?c' : '�� d?c h?t'}</div>
+                <div class="kpi-sub">${soThongBaoChuaDoc > 0 ? 'Chưa đọc' : 'Đã đọc hết'}</div>
             </div>
         </div>
     `;
@@ -745,10 +745,10 @@ function renderNguoiDungOverview(data) {
             </div>`).join('')
         : '<div class="empty-state-sm"><i class="fas fa-check-circle" style="color:var(--success);"></i> Không có thông báo mới</div>';
 
-    // -- S? c? g?n d�y -----------------------------------------------------
+    // -- Báo cáo sự cố -----------------------------------------------------
     const baoCaoHtml = baoCaoList.length
         ? baoCaoList.map(b => {
-            const statusMap = { Moi: ['badge-warning','M?i g?i'], DangXuLy: ['badge-info','�ang x? l�'], DaXuLy: ['badge-success','�� x? l�'] };
+            const statusMap = { Moi: ['badge-warning','Mới gửi'], DangXuLy: ['badge-info','Đang xử lý'], DaXuLy: ['badge-success','Đã xử lý'] };
             const [cls, label] = statusMap[b.trangThai] || ['badge-secondary', b.trangThai || '---'];
             const mucDoCls = b.mucDo === 'Khẩn cấp' ? 'badge-danger' : b.mucDo === 'Cao' ? 'badge-warning' : 'badge-secondary';
             return `<div class="mini-list-item">
@@ -804,7 +804,7 @@ function renderNguoiDungOverview(data) {
 
             <div class="data-card">
                 <div class="dash-card-header">
-                    <span><i class="fas fa-tools" style="color:#f59e0b;"></i> S? c? g?n d�y</span>
+                    <span><i class="fas fa-tools" style="color:#f59e0b;"></i> Sự cố gần đây</span>
                     <button class="btn-link-sm" onclick="showSection('baocaosuco')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
                 </div>
                 <div class="mini-list">${baoCaoHtml}</div>
@@ -836,7 +836,7 @@ async function renderRoomGrid() {
             container.innerHTML = `<div class="data-card" style="padding:2rem;text-align:center;color:var(--error);">
                 <i class="fas fa-exclamation-triangle" style="font-size:2rem;margin-bottom:.5rem;display:block;"></i>
                 <strong>Lỗi: Module PhongTable chưa được tải.</strong><br>
-                <span style="color:var(--text-light);font-size:.9rem;">Vui l�ng d?m b?o d� thay file <code>wwwroot/js/modules/phong.js</code> b?ng phi�n b?n m?i nh?t r?i t?i l?i trang.</span>
+                <span style="color:var(--text-light);font-size:.9rem;">Vui lòng đảm bảo đã thay file <code>wwwroot/js/modules/phong.js</code> bằng phiên bản mới nhất rồi tải lại trang.</span>
             </div>`;
             return;
         }
@@ -925,7 +925,7 @@ ${[...new Map(lookups.loaiphong.map(l => [l.tenLoaiPhong.trim().toLowerCase(), l
 
         <!-- Grid phòng -->
         <div id="roomGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;align-items:start;justify-content:start;"></div>
-        <!-- Ph�n trang -->
+        <!-- Phân trang -->
         <div id="roomPager" style="display:flex;justify-content:center;gap:.3rem;flex-wrap:wrap;margin-top:1.25rem;"></div>`;
 
     try {
@@ -938,7 +938,7 @@ ${[...new Map(lookups.loaiphong.map(l => [l.tenLoaiPhong.trim().toLowerCase(), l
     }
 }
 
-// -- Tr?ng th�i ph�n trang cho card view (NguoiDung) -----------------
+// -- Trạng thái phân trang cho card view (NguoiDung) -----------------
 let _roomCurrentPage = 1;
 
 function clearRoomFilters() {
@@ -1883,10 +1883,10 @@ function renderTable(cfg, data, section) {
             }
         } else if (section === 'hoadon') {
             // trangThai = 'Huy' khi hóa đơn bị hủy (field từ HoaDonDto).
-            // trangThaiThanhToan = '�� h?y' l� fallback n?u server cu chua build l?i.
-            const isHuy = item.trangThai === 'Huy' || item.trangThaiThanhToan === '�� h?y';
+            // trangThaiThanhToan = 'Đã hủy' là fallback nếu server chưa build lại.
+            const isHuy = item.trangThai === 'Huy' || item.trangThaiThanhToan === 'Đã hủy';
             if (isHuy) {
-                actionHtml = `<span class="badge badge-red">�� h?y</span>`;
+                actionHtml = `<span class="badge badge-red">Đã hủy</span>`;
             } else {
                 actionHtml = `<button class="btn-action btn-edit" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In</button>
                     <button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>`;
@@ -1951,7 +1951,6 @@ function renderTable(cfg, data, section) {
 }
 
 async function searchNguoiThue(q) {
-    // Legacy wrapper � logic d� chuy?n sang window._NguoiThueSearch
     if (window._NguoiThueSearch) {
         window._NguoiThueSearch.onKeyword(q || '');
     }
@@ -2375,11 +2374,11 @@ function openDienNuocModal(id = null) {
 function editDienNuoc(tab, id) { currentSubSection = tab; openDienNuocModal(id); }
 
 async function deleteDienNuoc(tab, id) {
-    if (!confirm('B?n c� ch?c ch?n mu?n x�a? D? li?u c� th? du?c x�a m?m n?u d� ph�t sinh l?ch s?.')) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa? Dữ liệu có thể được xóa mềm nếu đã phát sinh lịch sử.')) return;
     const cfg = tab === 'dien' ? dienModule : nuocModule;
     try {
         const result = await apiFetch(`${cfg.endpoint}/${id}`, 'DELETE');
-        showToast(result?.thongBao || '�� x? l� y�u c?u x�a!');
+        showToast(result?.thongBao || 'Đã xử lý yêu cầu xóa!');
         refreshData();
         loadLookups();
         return;
@@ -2461,7 +2460,7 @@ function buildModal(title, fields, item, onSubmit) {
                             <input type="checkbox" name="f_${f.id}" value="${dv.maDichVu}" ${selectedIds.has(Number(dv.maDichVu)) ? 'checked' : ''} style="margin-top:.2rem;">
                             <span><strong>${escapeHtmlDashboard(dv.tenDichVu)}</strong><br><small style="color:var(--text-light);">${typeLabel}${house ? ' - ' + escapeHtmlDashboard(house.tenNhaTro) : ''}</small></span>
                         </label>`;
-                    }).join('') : '<span style="color:var(--text-light);">Chua c� ti?n �ch/ti?n nghi. H�y th�m trong m?c D?ch v?.</span>'}
+                    }).join('') : '<span style="color:var(--text-light);">Chưa có tiện ích/tiện nghi. Hãy thêm trong mục Dịch vụ.</span>'}
                 </div>
             </div>`;
         }
@@ -2703,7 +2702,7 @@ async function openYeuCauThueModal(id = null, maPhongChon = null) {
         <div class="form-group">
             <label>Số tháng muốn thuê <span style="color:var(--error)">*</span></label>
             <input type="number" id="f_soThangMuonThue" class="form-control" value="1" min="1" max="60" required>
-            <small style="color:var(--text-light);">H?p d?ng s? t�nh theo k? t?ng th�ng; h?t m?i k?, d?ch v? d� dang k� trong k? cu s? t? h?t h?n.</small>
+            <small style="color:var(--text-light);">Hợp đồng sẽ tính theo kỳ từng tháng; hết mỗi kỳ, dịch vụ đã đăng ký trong kỳ cũ sẽ hết hạn.</small>
         </div>
         <div class="form-group">
             <label>Ngày bắt đầu mong muốn</label>
@@ -2812,7 +2811,7 @@ async function openYeuCauThueDuyetModal(maYeuCau) {
 
         try {
             const result = await apiFetch(`/api/YeuCauThue/${maYeuCau}/chap-nhan`, 'POST', payload);
-            showToast('�� duy?t y�u c?u v� l?p h?p d?ng!');
+            showToast('Đã duyệt yêu cầu và lập hợp đồng!');
             closeModal();
             await loadLookups();
             refreshData();
