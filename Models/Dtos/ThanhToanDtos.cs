@@ -12,6 +12,8 @@ namespace DoAnSE104.Models.Dtos
         /// <summary>Số tiền đã chuyển</summary>
         public decimal TongTien { get; set; }
 
+        public string KieuThanhToan { get; set; } = "ThanhToanHet";
+
         /// <summary>Hình thức: ChuyenKhoan | TienMat | Vi điện tử...</summary>
         public string HinhThucThanhToan { get; set; } = "ChuyenKhoan";
 

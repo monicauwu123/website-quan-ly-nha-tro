@@ -18,6 +18,7 @@
         pageSize: 10,
         rawData: [],   // merged display rows từ mergeNguoiThueDisplayRows()
         filtered: [],  // sau khi search/filter/sort
+        advancedOpen: false,
     };
 
     window._NguoiThueSearch = NT;
@@ -50,6 +51,11 @@
         const phongOptions = visiblePhong.map(p =>
             `<option value="${p.maPhong}" ${String(p.maPhong) === String(NT.filterPhong) ? 'selected' : ''}>${p.tenPhong || 'Phòng #' + p.maPhong}</option>`
         ).join('');
+        const canWrite = window.CURRENT_ROLE === 'Admin' || window.CURRENT_ROLE === 'ChuTro';
+        const addBtn = canWrite ? `
+            <button class="module-btn module-btn-primary" onclick="openModal()">
+                <i class="fas fa-plus"></i> Thêm mới
+            </button>` : '';
 
         slot.innerHTML = `
         <div class="nt-toolbar" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:1rem;">
@@ -73,7 +79,21 @@
                 </select>
             </div>
 
-            <!-- Filter Nhà trọ -->
+            <div style="display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;">
+                ${addBtn}
+                <button class="module-btn module-btn-muted ${NT.advancedOpen ? 'active' : ''}" onclick="window._NguoiThueSearch.toggleAdvanced()">
+                    <i class="fas fa-sliders-h"></i> Nâng cao
+                    <i class="fas fa-chevron-${NT.advancedOpen ? 'up' : 'down'}" style="font-size:.7rem;"></i>
+                </button>
+                <button class="module-btn module-btn-muted" onclick="window._NguoiThueSearch.reset()">
+                    <i class="fas fa-filter-circle-xmark"></i> Xóa lọc
+                </button>
+            </div>
+
+        </div>`;
+
+        slot.innerHTML += `
+        <div class="generic-advanced-panel ${NT.advancedOpen ? 'open' : ''}">
             ${nhaTroList.length > 1 ? `
             <div style="min-width:170px;">
                 <select id="ntFilterNhaTro" class="form-control" onchange="window._NguoiThueSearch.onNhaTro(this.value)">
@@ -81,8 +101,6 @@
                     ${nhaTroOptions}
                 </select>
             </div>` : ''}
-
-            <!-- Filter Phòng -->
             ${phongList.length > 0 ? `
             <div style="min-width:150px;">
                 <select id="ntFilterPhong" class="form-control" onchange="window._NguoiThueSearch.onPhong(this.value)">
@@ -90,8 +108,6 @@
                     ${phongOptions}
                 </select>
             </div>` : ''}
-
-            <!-- Filter Giới tính -->
             <div style="min-width:130px;">
                 <select id="ntFilterGioiTinh" class="form-control" onchange="window._NguoiThueSearch.onGioiTinh(this.value)">
                     <option value="">Tất cả giới tính</option>
@@ -100,12 +116,6 @@
                     <option value="Khác" ${NT.filterGioiTinh==='Khác' ?'selected':''}>Khác</option>
                 </select>
             </div>
-
-            <!-- Nút reset -->
-            <button class="btn btn-secondary" style="white-space:nowrap;" onclick="window._NguoiThueSearch.reset()">
-                <i class="fas fa-undo"></i> Đặt lại
-            </button>
-
         </div>`;
 
         // Sync nhà trọ selected after render
@@ -137,10 +147,11 @@
     }
     function onPageSize(v) { NT.pageSize = parseInt(v) || 10; NT.page = 1; _applyAndRender(); }
     function onPage(p) { NT.page = p; _applyAndRender(); }
+    function toggleAdvanced() { NT.advancedOpen = !NT.advancedOpen; _buildToolbar(); }
     function reset() {
         NT.keyword = ''; NT.filterTrangThai = ''; NT.filterNhaTro = '';
         NT.filterPhong = ''; NT.filterGioiTinh = '';
-        NT.sortKey = ''; NT.sortDir = 'asc'; NT.page = 1; NT.pageSize = 10;
+        NT.sortKey = ''; NT.sortDir = 'asc'; NT.page = 1; NT.pageSize = 10; NT.advancedOpen = false;
         _buildToolbar();
         _applyAndRender();
     }
@@ -260,6 +271,12 @@
         'DaXoa':          { cls: 'badge-red',      label: 'Đã xóa' },
     };
 
+    const ROW_CLASS_MAP = {
+        'DangThue': 'module-row-ok',
+        'KhongHoatDong': 'module-row-warn',
+        'DaXoa': 'module-row-cancel',
+    };
+
     function _thHtml(key, label) {
         const active = NT.sortKey === key;
         const icon = active ? (NT.sortDir === 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort';
@@ -303,6 +320,7 @@
                 // Trạng thái
                 const st = item.trangThai || item._nguoiThueItems?.[0]?.trangThai || 'DangThue';
                 const { cls: stCls, label: stLabel } = TRANG_THAI_MAP[st] || { cls: 'badge-secondary', label: st };
+                const rowCls = ROW_CLASS_MAP[st] || '';
 
                 // Ảnh CCCD
                 const hasFront = !!item.anhCccdMatTruoc;
@@ -325,7 +343,7 @@
                         <button class="btn-action btn-delete" onclick="deleteNguoiThueDisplayGroup(${item.maNguoiThue})"><i class="fas fa-trash"></i> Xóa</button>`;
                 }
 
-                return `<tr>
+                return `<tr class="${rowCls}">
                     <td>${_esc(item.hoTen)}</td>
                     <td>${_esc(item.cccd) || '---'}</td>
                     <td>${_esc(item.sdt) || '---'}</td>
@@ -334,15 +352,21 @@
                     <td><span class="badge ${stCls}">${stLabel}</span></td>
                     <td>${_esc(item.gioiTinh) || '---'}</td>
                     <td>${anhHtml}</td>
-                    <td style="white-space:nowrap;">${actionHtml}</td>
+                    <td style="white-space:nowrap;">${_actionMenu(actionHtml)}</td>
                 </tr>`;
             }).join('') + '</tbody>';
         }
 
         container.innerHTML = `
-            <div class="nt-result-meta" style="font-size:.85rem;color:var(--text-light);margin-bottom:.5rem;">
-                Tìm thấy <strong>${total}</strong> người thuê
-                ${total > 0 && pageData.length < total ? `(hiển thị ${start + 1}–${Math.min(start + NT.pageSize, total)})` : ''}
+            <div class="module-summary-grid">
+                <div class="module-summary-card">
+                    <div class="module-summary-icon"><i class="fas fa-users"></i></div>
+                    <div><div class="module-summary-label">Tổng người thuê</div><div class="module-summary-value">${total}</div></div>
+                </div>
+                <div class="module-summary-card">
+                    <div class="module-summary-icon dark"><i class="fas fa-id-card"></i></div>
+                    <div><div class="module-summary-label">Đang hiển thị</div><div class="module-summary-value dark">${pageData.length}</div></div>
+                </div>
             </div>
             <div class="table-container">
                 <table>${thead}${tbody}</table>
@@ -369,7 +393,8 @@
             const lo = Math.max(1, cur - 2);
             const hi = Math.min(totalPg, lo + 4);
 
-            if (cur > 1)      pageButtons += `<button class="nt-pg-btn" onclick="window._NguoiThueSearch.onPage(${cur - 1})"><i class="fas fa-chevron-left"></i></button>`;
+            pageButtons += `<button class="nt-pg-btn" onclick="window._NguoiThueSearch.onPage(1)" title="Trang đầu" ${cur===1?'disabled':''}><i class="fas fa-angle-double-left"></i></button>`;
+            pageButtons += `<button class="nt-pg-btn" onclick="window._NguoiThueSearch.onPage(${cur - 1})" title="Trang trước" ${cur===1?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
             if (lo > 1)       pageButtons += `<button class="nt-pg-btn" onclick="window._NguoiThueSearch.onPage(1)">1</button><span class="nt-pg-ellipsis">…</span>`;
 
             for (let i = lo; i <= hi; i++) {
@@ -377,7 +402,8 @@
             }
 
             if (hi < totalPg) pageButtons += `<span class="nt-pg-ellipsis">…</span><button class="nt-pg-btn" onclick="window._NguoiThueSearch.onPage(${totalPg})">${totalPg}</button>`;
-            if (cur < totalPg) pageButtons += `<button class="nt-pg-btn" onclick="window._NguoiThueSearch.onPage(${cur + 1})"><i class="fas fa-chevron-right"></i></button>`;
+            pageButtons += `<button class="nt-pg-btn" onclick="window._NguoiThueSearch.onPage(${cur + 1})" title="Trang sau" ${cur===totalPg?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
+            pageButtons += `<button class="nt-pg-btn" onclick="window._NguoiThueSearch.onPage(${totalPg})" title="Trang cuối" ${cur===totalPg?'disabled':''}><i class="fas fa-angle-double-right"></i></button>`;
         }
 
         slot.innerHTML = `
@@ -395,6 +421,7 @@
         <style>
             .nt-pg-btn{padding:.3rem .65rem;border:1px solid var(--border-color,#e2e8f0);border-radius:6px;background:#fff;cursor:pointer;font-size:.85rem;line-height:1.4;color:var(--text-primary,#1e293b);transition:all .15s;}
             .nt-pg-btn:hover{background:var(--primary-light,#eff6ff);border-color:var(--primary,#3b82f6);}
+            .nt-pg-btn:disabled{opacity:.45;cursor:not-allowed;background:#f8fafc;}
             .nt-pg-active{background:var(--primary,#3b82f6)!important;color:#fff!important;border-color:var(--primary,#3b82f6)!important;}
             .nt-pg-ellipsis{padding:0 .25rem;color:var(--text-light);}
         </style>`;
@@ -408,6 +435,11 @@
             .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    function _actionMenu(actionHtml) {
+        if (!actionHtml || !String(actionHtml).trim()) return '---';
+        return `<details class="module-action-menu"><summary title="Thao tác"><i class="fas fa-ellipsis-vertical"></i></summary><div class="module-action-list">${actionHtml}</div></details>`;
+    }
+
     // ── Public API ────────────────────────────────────────────────────────────
     NT.init       = init;
     NT.onKeyword  = onKeyword;
@@ -418,6 +450,7 @@
     NT.onSort     = onSort;
     NT.onPageSize = onPageSize;
     NT.onPage     = onPage;
+    NT.toggleAdvanced = toggleAdvanced;
     NT.reset      = reset;
     NT.refresh    = function (newMergedRows) { NT.rawData = newMergedRows || []; NT.page = 1; _applyAndRender(); };
 

@@ -105,6 +105,7 @@ const API = {
             const formData = new FormData();
             formData.append('maHoaDon', dto.maHoaDon);
             formData.append('tongTien', dto.tongTien);
+            formData.append('kieuThanhToan', dto.kieuThanhToan || 'ThanhToanHet');
             formData.append('hinhThucThanhToan', dto.hinhThucThanhToan || 'ChuyenKhoan');
             if (dto.maGiaoDich) formData.append('maGiaoDich', dto.maGiaoDich);
             if (dto.ghiChu) formData.append('ghiChu', dto.ghiChu);

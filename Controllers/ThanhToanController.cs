@@ -394,6 +394,33 @@ namespace DoAnSE104.Controllers
                 return BadRequest(ApiResponse<object>.Loi("Số tiền phải lớn hơn 0"));
 
             // 6. Upload ảnh biên lai (nếu có)
+            var tongDaXacNhan = await _context.ThanhToan
+                .Where(t => t.MaHoaDon == dto.MaHoaDon && t.TrangThaiXacNhan == "DaXacNhan")
+                .SumAsync(t => t.TongTien);
+            var conLai = Math.Max(hoaDon.TongTien - tongDaXacNhan, 0m);
+            if (conLai <= 0)
+                return BadRequest(ApiResponse<object>.Loi("HÃ³a Ä‘Æ¡n nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘á»§"));
+
+            var kieuThanhToan = string.IsNullOrWhiteSpace(dto.KieuThanhToan)
+                ? "ThanhToanHet"
+                : dto.KieuThanhToan.Trim();
+            if (kieuThanhToan == "ThanhToanHet")
+            {
+                dto.TongTien = conLai;
+            }
+            else if (kieuThanhToan == "MotPhan")
+            {
+                if (dto.TongTien >= conLai)
+                    return BadRequest(ApiResponse<object>.Loi("Thanh toÃ¡n má»™t pháº§n pháº£i nhá» hÆ¡n sá»‘ tiá»n cÃ²n láº¡i. Náº¿u tráº£ Ä‘á»§, vui lÃ²ng chá»n Thanh toÃ¡n háº¿t."));
+            }
+            else
+            {
+                return BadRequest(ApiResponse<object>.Loi("Kiá»ƒu thanh toÃ¡n khÃ´ng há»£p lá»‡"));
+            }
+
+            if (dto.TongTien > conLai)
+                return BadRequest(ApiResponse<object>.Loi("Sá»‘ tiá»n gá»­i biÃªn lai vÆ°á»£t quÃ¡ sá»‘ tiá»n cÃ²n láº¡i cá»§a hÃ³a Ä‘Æ¡n"));
+
             string? urlBienLai = null;
             if (anhBienLai != null && anhBienLai.Length > 0)
             {

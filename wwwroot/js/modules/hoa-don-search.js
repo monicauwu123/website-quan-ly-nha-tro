@@ -98,7 +98,7 @@
 
         const canWrite = window.CURRENT_ROLE === 'Admin' || window.CURRENT_ROLE === 'ChuTro';
         const addBtn = canWrite ? `
-            <button class="btn btn-primary hdn-btn-add" onclick="addItem('hoadon')" style="white-space:nowrap;font-weight:700;gap:.4rem;display:flex;align-items:center;padding:.5rem 1rem;">
+            <button class="btn btn-primary hdn-btn-add" onclick="openModal()" style="white-space:nowrap;font-weight:700;gap:.4rem;display:flex;align-items:center;padding:.5rem 1rem;">
                 <i class="fas fa-plus"></i> Thêm mới
             </button>` : '';
 
@@ -140,6 +140,7 @@
                     </button>
                     <button class="hdn-btn-icon hdn-btn-excel" onclick="HoaDonExcel.exportExcel()" title="Xuất Excel">
                         <i class="fas fa-file-excel"></i>
+                        <span>Xuất Excel</span>
                     </button>
                     ${addBtn}
                 </div>
@@ -219,7 +220,8 @@
         .hdn-btn-icon{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .75rem;border:1.5px solid var(--border-color,#e2e8f0);border-radius:8px;background:#fff;color:var(--text-primary,#1e293b);font-size:.85rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;}
         .hdn-btn-icon:hover{border-color:var(--primary,#3b82f6);color:var(--primary,#3b82f6);background:#f0f7ff;}
         .hdn-btn-icon.active{border-color:var(--primary,#3b82f6);color:var(--primary,#3b82f6);background:#eff6ff;}
-        .hdn-btn-excel:hover{border-color:#16a34a;color:#16a34a;background:#f0fdf4;}
+        .hdn-btn-excel{border-color:#16a34a;background:#16a34a;color:#fff;font-weight:700;}
+        .hdn-btn-excel:hover{border-color:#15803d;color:#fff;background:#15803d;}
         .hdn-btn-add{background:var(--primary,#3b82f6);color:#fff;border-color:var(--primary,#3b82f6);font-weight:700;}
         .hdn-btn-add:hover{background:#2563eb;border-color:#2563eb;color:#fff;}
 
@@ -508,37 +510,34 @@
 
                 // Nút thao tác dạng dropdown ⋮
                 const menuItems = [];
-                menuItems.push(`<button class="hdn-menu-item" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In hóa đơn</button>`);
+                menuItems.push(`<button class="btn-action" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In hóa đơn</button>`);
 
                 if (canSend && conLai > 0 && tt !== 'Huy' && tt !== 'DaThanhToan') {
                     const daCoBienLai = item._daCoBienLaiChoXacNhan === true;
                     if (daCoBienLai) {
-                        menuItems.push(`<span class="hdn-menu-item hdn-menu-disabled"><i class="fas fa-clock"></i> Chờ duyệt biên lai</span>`);
+                        menuItems.push(`<span class="btn-action" style="cursor:default;opacity:.65;"><i class="fas fa-clock"></i> Chờ duyệt biên lai</span>`);
                     } else {
                         const itemJson = JSON.stringify({
                             maHoaDon: item.maHoaDon, kyHoaDon: item.kyHoaDon,
                             tongTien: item.tongTien, conLai: item.conLai, tenPhong: item.tenPhong,
                         }).replace(/"/g, '&quot;');
-                        menuItems.push(`<button class="hdn-menu-item hdn-menu-send" onclick="moModalGuiBienLai(JSON.parse(this.dataset.item))" data-item="${itemJson}"><i class="fas fa-paper-plane"></i> Gửi biên lai</button>`);
+                        menuItems.push(`<button class="btn-action btn-edit" style="background:#10b981;" onclick="moModalGuiBienLai(JSON.parse(this.dataset.item))" data-item="${itemJson}"><i class="fas fa-paper-plane"></i> Gửi biên lai</button>`);
                     }
                 }
                 if (canWrite) {
-                    menuItems.push(`<div class="hdn-menu-divider"></div>`);
-                    menuItems.push(`<button class="hdn-menu-item" onclick="editItem('hoadon',${item.maHoaDon})"><i class="fas fa-edit"></i> Sửa</button>`);
+                    menuItems.push(`<button class="btn-action btn-edit" onclick="editItem('hoadon',${item.maHoaDon})"><i class="fas fa-edit"></i> Sửa</button>`);
                     if (tt !== 'Huy') {
-                        menuItems.push(`<button class="hdn-menu-item hdn-menu-danger" onclick="deleteItem('hoadon',${item.maHoaDon})"><i class="fas fa-trash"></i> Xóa</button>`);
+                        menuItems.push(`<button class="btn-action btn-delete" onclick="deleteItem('hoadon',${item.maHoaDon})"><i class="fas fa-trash"></i> Xóa</button>`);
                     }
                 }
 
                 const actionHtml = `
-                    <div class="hdn-action-wrap">
-                        <button class="hdn-action-btn" onclick="hdnToggleMenu(event,${item.maHoaDon})" title="Thao tác">
-                            <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        <div class="hdn-menu" id="hdnMenu_${item.maHoaDon}">
+                    <details class="module-action-menu">
+                        <summary title="Thao tác"><i class="fas fa-ellipsis-vertical"></i></summary>
+                        <div class="module-action-list">
                             ${menuItems.join('')}
                         </div>
-                    </div>`;
+                    </details>`;
 
                 return `<tr class="hdn-tr ${rowCls}">
                     <td style="font-weight:700;color:var(--primary);">#${item.maHoaDon}</td>
@@ -683,6 +682,12 @@
             .hdn-menu-danger{color:#dc2626 !important;}
             .hdn-menu-danger i{color:#dc2626 !important;}
             .hdn-menu-danger:hover{background:#fef2f2 !important;}
+            .hdn-menu-print{color:#3730a3 !important;}
+            .hdn-menu-print i{color:#4f46e5 !important;}
+            .hdn-menu-print:hover{background:#eef2ff !important;}
+            .hdn-menu-edit{color:#075985 !important;}
+            .hdn-menu-edit i{color:#0284c7 !important;}
+            .hdn-menu-edit:hover{background:#e0f2fe !important;}
             .hdn-menu-send{color:#0ea5e9 !important;}
             .hdn-menu-send i{color:#0ea5e9 !important;}
             .hdn-menu-disabled{color:var(--text-light);cursor:default;pointer-events:none;}

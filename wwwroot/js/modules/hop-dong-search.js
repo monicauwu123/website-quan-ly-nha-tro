@@ -22,6 +22,7 @@
         pageSize: 10,
         rawData: [],
         filtered: [],
+        advancedOpen: false,
     };
 
     window._HopDongSearch = HD;
@@ -52,6 +53,11 @@
         const phongOpts = visiblePhong.map(p =>
             `<option value="${p.maPhong}" ${String(p.maPhong)===HD.filterPhong?'selected':''}>${_esc(p.tenPhong||'Phòng #'+p.maPhong)}</option>`
         ).join('');
+        const canWrite = window.CURRENT_ROLE === 'Admin' || window.CURRENT_ROLE === 'ChuTro';
+        const addBtn = canWrite ? `
+            <button class="module-btn module-btn-primary" onclick="openModal()">
+                <i class="fas fa-plus"></i> Thêm mới
+            </button>` : '';
 
         slot.innerHTML = `
         <div class="hd-toolbar" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:1rem;">
@@ -76,7 +82,20 @@
                 </select>
             </div>
 
-            <!-- Sắp hết hạn trong -->
+            <div style="display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;">
+                ${addBtn}
+                <button class="module-btn module-btn-muted ${HD.advancedOpen ? 'active' : ''}" onclick="window._HopDongSearch.toggleAdvanced()">
+                    <i class="fas fa-sliders-h"></i> Nâng cao
+                    <i class="fas fa-chevron-${HD.advancedOpen ? 'up' : 'down'}" style="font-size:.7rem;"></i>
+                </button>
+                <button class="module-btn module-btn-muted" onclick="window._HopDongSearch.reset()">
+                    <i class="fas fa-filter-circle-xmark"></i> Xóa lọc
+                </button>
+            </div>
+
+        </div>
+
+        <div class="generic-advanced-panel ${HD.advancedOpen ? 'open' : ''}">
             <div style="min-width:160px;">
                 <select class="form-control" onchange="window._HopDongSearch.onSapHetHan(this.value)">
                     <option value="">Sắp hết hạn trong...</option>
@@ -85,28 +104,19 @@
                     <option value="30" ${HD.filterSapHetHan==='30' ?'selected':''}>30 ngày tới</option>
                 </select>
             </div>
-
             ${nhaTroList.length > 1 ? `
-            <!-- Filter Nhà trọ -->
             <div style="min-width:160px;">
                 <select id="hdFilterNhaTro" class="form-control" onchange="window._HopDongSearch.onNhaTro(this.value)">
                     <option value="">Tất cả nhà trọ</option>
                     ${nhaTroOpts}
                 </select>
             </div>` : ''}
-
-            <!-- Filter Phòng -->
             <div style="min-width:150px;">
                 <select id="hdFilterPhong" class="form-control" onchange="window._HopDongSearch.onPhong(this.value)">
                     <option value="">Tất cả phòng</option>
                     ${phongOpts}
                 </select>
             </div>
-
-        </div>
-
-        <!-- Hàng 2: khoảng ngày -->
-        <div style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:1rem;">
             <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
                 <span style="font-size:.85rem;color:var(--text-light);white-space:nowrap;">Ngày bắt đầu:</span>
                 <input type="date" class="form-control" style="width:155px;" value="${HD.filterNgayBatDauTu}"
@@ -123,9 +133,6 @@
                 <input type="date" class="form-control" style="width:155px;" value="${HD.filterNgayKetThucDen}"
                     onchange="window._HopDongSearch.onNgayKetThucDen(this.value)">
             </div>
-            <button class="btn btn-secondary" style="white-space:nowrap;" onclick="window._HopDongSearch.reset()">
-                <i class="fas fa-undo"></i> Đặt lại
-            </button>
         </div>`;
     }
 
@@ -147,12 +154,13 @@
     }
     function onPageSize(v) { HD.pageSize = parseInt(v) || 10; HD.page = 1; _applyAndRender(); }
     function onPage(p)     { HD.page = p; _applyAndRender(); }
+    function toggleAdvanced() { HD.advancedOpen = !HD.advancedOpen; _buildToolbar(); }
     function reset() {
         Object.assign(HD, {
             keyword:'', filterTrangThai:'', filterNhaTro:'', filterPhong:'',
             filterNgayBatDauTu:'', filterNgayBatDauDen:'',
             filterNgayKetThucTu:'', filterNgayKetThucDen:'',
-            filterSapHetHan:'', sortKey:'', sortDir:'asc', page:1, pageSize:10
+            filterSapHetHan:'', sortKey:'', sortDir:'asc', page:1, pageSize:10, advancedOpen:false
         });
         _buildToolbar();
         _applyAndRender();
@@ -293,6 +301,14 @@
         return badge;
     }
 
+    function _rowClass(row) {
+        const days = daysUntil(row.ngayKetThuc);
+        if (row.trangThai === 'Huy' || row.trangThai === 'KetThuc') return 'module-row-cancel';
+        if (row.trangThai === 'DangHieuLuc' && days !== null && days >= 0 && days <= 30) return 'module-row-warn';
+        if (row.trangThai === 'DangHieuLuc') return 'module-row-ok';
+        return '';
+    }
+
     // ── Render bảng ───────────────────────────────────────────────────────────
     function _th(key, label) {
         const active = HD.sortKey === key;
@@ -337,9 +353,7 @@
             const nhaTroCol = window.normalizeArrayResponse(window.lookups?.nhatro || []).length > 1;
 
             tbody = '<tbody>' + pageData.map(item => {
-                const days = daysUntil(item.ngayKetThuc);
-                const isSapHet = item.trangThai === 'DangHieuLuc' && days !== null && days >= 0 && days <= 30;
-                const rowStyle = isSapHet && days <= 7 ? 'background:rgba(239,68,68,.04);' : '';
+                const rowCls = _rowClass(item);
 
                 const tenPhong = item.phong?.tenPhong || `Phòng #${item.maPhong}`;
                 const nhaTroName = _getNhaTroName(item.maPhong);
@@ -359,7 +373,7 @@
                     }
                 }
 
-                return `<tr style="${rowStyle}">
+                return `<tr class="${rowCls}">
                     <td style="font-weight:600;color:var(--primary);">#${item.maHopDong}</td>
                     <td>${phongCell}</td>
                     <td>${_esc(item.nguoiThue?.hoTen) || '---'}</td>
@@ -367,7 +381,7 @@
                     <td style="white-space:nowrap;">${fmtDate(item.ngayKetThuc)}</td>
                     <td style="white-space:nowrap;">${fmtCur(item.tienCoc)}</td>
                     <td>${_statusBadge(item)}</td>
-                    <td style="white-space:nowrap;">${actionHtml}</td>
+                    <td style="white-space:nowrap;">${_actionMenu(actionHtml)}</td>
                 </tr>`;
             }).join('') + '</tbody>';
         }
@@ -378,19 +392,16 @@
             return r.trangThai === 'DangHieuLuc' && d !== null && d >= 0 && d <= 30;
         }).length;
 
-        const warningBanner = sapHet30 > 0 ? `
-            <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:.6rem 1rem;margin-bottom:.75rem;font-size:.875rem;display:flex;gap:.5rem;align-items:center;">
-                <i class="fas fa-exclamation-triangle" style="color:#d97706;"></i>
-                <span>Có <strong>${sapHet30}</strong> hợp đồng sắp hết hạn trong 30 ngày tới.</span>
-                <button class="btn btn-secondary" style="padding:.2rem .65rem;font-size:.8rem;margin-left:auto;"
-                    onclick="window._HopDongSearch.onSapHetHan('30')">Xem</button>
-            </div>` : '';
-
         slot.innerHTML = `
-            ${warningBanner}
-            <div class="hd-result-meta" style="font-size:.85rem;color:var(--text-light);margin-bottom:.5rem;">
-                Tìm thấy <strong>${total}</strong> hợp đồng
-                ${total > 0 && pageData.length < total ? `(hiển thị ${start+1}–${Math.min(start+HD.pageSize, total)})` : ''}
+            <div class="module-summary-grid">
+                <div class="module-summary-card">
+                    <div class="module-summary-icon"><i class="fas fa-file-contract"></i></div>
+                    <div><div class="module-summary-label">Tổng hợp đồng</div><div class="module-summary-value">${total}</div></div>
+                </div>
+                <div class="module-summary-card">
+                    <div class="module-summary-icon dark"><i class="fas fa-clock"></i></div>
+                    <div><div class="module-summary-label">Sắp hết hạn</div><div class="module-summary-value dark">${sapHet30}</div></div>
+                </div>
             </div>
             <div class="table-container">
                 <table>${thead}${tbody}</table>
@@ -421,11 +432,13 @@
         if (totalPg > 1) {
             const lo = Math.max(1, cur - 2);
             const hi = Math.min(totalPg, lo + 4);
-            if (cur > 1)      btns += `<button class="hd-pg-btn" onclick="window._HopDongSearch.onPage(${cur-1})"><i class="fas fa-chevron-left"></i></button>`;
+            btns += `<button class="hd-pg-btn" onclick="window._HopDongSearch.onPage(1)" title="Trang đầu" ${cur===1?'disabled':''}><i class="fas fa-angle-double-left"></i></button>`;
+            btns += `<button class="hd-pg-btn" onclick="window._HopDongSearch.onPage(${cur-1})" title="Trang trước" ${cur===1?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
             if (lo > 1)       btns += `<button class="hd-pg-btn" onclick="window._HopDongSearch.onPage(1)">1</button><span class="hd-pg-ell">…</span>`;
             for (let i=lo;i<=hi;i++) btns += `<button class="hd-pg-btn${i===cur?' hd-pg-active':''}" onclick="window._HopDongSearch.onPage(${i})">${i}</button>`;
             if (hi < totalPg) btns += `<span class="hd-pg-ell">…</span><button class="hd-pg-btn" onclick="window._HopDongSearch.onPage(${totalPg})">${totalPg}</button>`;
-            if (cur < totalPg) btns += `<button class="hd-pg-btn" onclick="window._HopDongSearch.onPage(${cur+1})"><i class="fas fa-chevron-right"></i></button>`;
+            btns += `<button class="hd-pg-btn" onclick="window._HopDongSearch.onPage(${cur+1})" title="Trang sau" ${cur===totalPg?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
+            btns += `<button class="hd-pg-btn" onclick="window._HopDongSearch.onPage(${totalPg})" title="Trang cuối" ${cur===totalPg?'disabled':''}><i class="fas fa-angle-double-right"></i></button>`;
         }
 
         slot.innerHTML = `
@@ -441,6 +454,7 @@
         <style>
             .hd-pg-btn{padding:.3rem .65rem;border:1px solid var(--border-color,#e2e8f0);border-radius:6px;background:#fff;cursor:pointer;font-size:.85rem;color:var(--text-primary,#1e293b);transition:all .15s;}
             .hd-pg-btn:hover{background:var(--primary-light,#eff6ff);border-color:var(--primary,#3b82f6);}
+            .hd-pg-btn:disabled{opacity:.45;cursor:not-allowed;background:#f8fafc;}
             .hd-pg-active{background:var(--primary,#3b82f6)!important;color:#fff!important;border-color:var(--primary,#3b82f6)!important;}
             .hd-pg-ell{padding:0 .25rem;color:var(--text-light);}
         </style>`;
@@ -452,11 +466,16 @@
         return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    function _actionMenu(actionHtml) {
+        if (!actionHtml || !String(actionHtml).trim()) return '---';
+        return `<details class="module-action-menu"><summary title="Thao tác"><i class="fas fa-ellipsis-vertical"></i></summary><div class="module-action-list">${actionHtml}</div></details>`;
+    }
+
     // ── Public API ────────────────────────────────────────────────────────────
     Object.assign(HD, {
         init, onKeyword, onTrangThai, onSapHetHan, onNhaTro, onPhong,
         onNgayBatDauTu, onNgayBatDauDen, onNgayKetThucTu, onNgayKetThucDen,
-        onSort, onPageSize, onPage, reset,
+        onSort, onPageSize, onPage, reset, toggleAdvanced,
         refresh: (data) => { HD.rawData = data || []; HD.page = 1; _applyAndRender(); }
     });
 

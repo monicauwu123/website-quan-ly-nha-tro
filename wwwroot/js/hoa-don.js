@@ -396,6 +396,10 @@ window.HoaDonExcel = (function () {
     }
 
     function getFiltered(data) {
+        if (Array.isArray(window._HoaDonSearch?.filtered)) {
+            return window._HoaDonSearch.filtered;
+        }
+
         const ky = document.getElementById('filterKyHoaDon')?.value || '';
         const tt = document.getElementById('filterTrangThai')?.value || '';
         const ph = document.getElementById('filterPhong')?.value || '';
@@ -449,7 +453,9 @@ window.HoaDonExcel = (function () {
     }
 
     async function exportExcel() {
-        const data = await getAllData();
+        const data = Array.isArray(window._HoaDonSearch?.rawData) && window._HoaDonSearch.rawData.length
+            ? window._HoaDonSearch.rawData
+            : await getAllData();
         const filtered = getFiltered(data);
 
         if (filtered.length === 0) {
@@ -486,11 +492,11 @@ window.HoaDonExcel = (function () {
             ];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Hóa đơn');
-            const ky = document.getElementById('filterKyHoaDon')?.value || 'tat-ca';
+            const ky = window._HoaDonSearch?.filterKyHoaDon || document.getElementById('filterKyHoaDon')?.value || 'tat-ca';
             XLSX.writeFile(wb, `hoa-don-${ky}.xlsx`);
         } else {
             // Fallback: CSV
-            const ky = document.getElementById('filterKyHoaDon')?.value || 'tat-ca';
+            const ky = window._HoaDonSearch?.filterKyHoaDon || document.getElementById('filterKyHoaDon')?.value || 'tat-ca';
             downloadCsv(toCsv(filtered), `hoa-don-${ky}.csv`);
         }
 

@@ -101,6 +101,17 @@ window.PhongTable = (function () {
         if (name.includes('sửa') || name.includes('sua'))     return 'badge-warning';
         return 'badge-secondary';
     }
+    function trangThaiRowClass(v) {
+        const name = trangThaiName(v)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+        if (name.includes('trong')) return 'module-row-ok';
+        if (name.includes('thue')) return 'module-row-danger';
+        if (name.includes('sua') || name.includes('bao tri')) return 'module-row-warn';
+        if (name.includes('ngung') || name.includes('huy')) return 'module-row-cancel';
+        return '';
+    }
 
     // ── Lấy giá trị các control filter ───────────────────────────────
     function getFilters() {
@@ -205,13 +216,14 @@ window.PhongTable = (function () {
 
             const ttName = trangThaiName(r.maTrangThai);
             const ttCls  = trangThaiClass(r.maTrangThai);
+            const rowCls = trangThaiRowClass(r.maTrangThai);
 
             const actionHtml = canWrite
                 ? `<button class="btn-action btn-edit" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Sửa</button>
                    <button class="btn-action btn-delete" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i></button>`
                 : `<button class="btn-action btn-edit" onclick="openYeuCauThueModal(null,${r.maPhong})"><i class="fas fa-paper-plane"></i> Thuê</button>`;
 
-            return `<tr>
+            return `<tr class="${rowCls}">
                 <td style="text-align:center;">${imgHtml}</td>
                 <td><strong>${esc(r.tenPhong)}</strong>${r.diaChiPhong ? `<br><small style="color:var(--text-light);">${esc(r.diaChiPhong)}</small>` : ''}</td>
                 <td>${esc(nhaTroName(r.maNhaTro))}</td>
@@ -221,7 +233,7 @@ window.PhongTable = (function () {
                 <td style="text-align:center;">${r.sucChua ?? '---'}</td>
                 <td>${renderServiceBadges(r, 'TienNghi')}</td>
                 <td><span class="badge ${ttCls}">${esc(ttName)}</span></td>
-                <td style="white-space:nowrap;">${actionHtml}</td>
+                <td style="white-space:nowrap;">${actionMenu(actionHtml)}</td>
             </tr>`;
         }).join('');
     }
@@ -260,6 +272,11 @@ window.PhongTable = (function () {
             ${pageBtns}
             ${btn('<i class="fas fa-angle-right"></i>',       _page + 1,  _page >= tp,  'Trang sau')}
             ${btn('<i class="fas fa-angle-double-right"></i>',tp,          _page >= tp,  'Trang cuối')}`;
+    }
+
+    function actionMenu(actionHtml) {
+        if (!actionHtml || !String(actionHtml).trim()) return '---';
+        return `<details class="module-action-menu"><summary title="Thao tác"><i class="fas fa-ellipsis-vertical"></i></summary><div class="module-action-list">${actionHtml}</div></details>`;
     }
 
     // ── Cập nhật icon sort trên header ────────────────────────────────
@@ -314,6 +331,12 @@ window.PhongTable = (function () {
                 : `<th>${h.label}</th>`
         ).join('');
 
+        const canWrite = window.CURRENT_ROLE === 'Admin' || window.CURRENT_ROLE === 'ChuTro';
+        const addButton = canWrite ? `
+        <button class="module-btn module-btn-primary" onclick="openModal()" title="Thêm phòng">
+            <i class="fas fa-plus"></i> Thêm mới
+        </button>` : '';
+
         return `
 <!-- ── Bộ lọc ── -->
 <div class="data-card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
@@ -324,10 +347,11 @@ window.PhongTable = (function () {
             <input type="text" id="ptSearch" class="form-control" style="padding-left:2.4rem;" placeholder="Tìm tên phòng, nhà trọ, loại phòng, trạng thái, mô tả..."
                 oninput="PhongTable.onFilterChange()">
         </div>
-        <button class="btn btn-secondary" onclick="PhongTable.reload()" title="Làm mới dữ liệu từ server">
+        ${addButton}
+        <button class="module-btn module-btn-muted" onclick="PhongTable.reload()" title="Làm mới dữ liệu từ server">
             <i class="fas fa-sync-alt"></i> Làm mới
         </button>
-        <button class="btn btn-secondary" onclick="PhongTable.clearFilters()" title="Xóa tất cả bộ lọc">
+        <button class="module-btn module-btn-muted" onclick="PhongTable.clearFilters()" title="Xóa tất cả bộ lọc">
             <i class="fas fa-times-circle"></i> Xóa bộ lọc
         </button>
     </div>

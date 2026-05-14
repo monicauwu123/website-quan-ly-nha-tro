@@ -227,7 +227,8 @@ window.AppModules = window.AppModules || {};
         const adminView = isAdminOrChuTro();
 
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;padding:.5rem 0 1rem;';
+        wrapper.className = 'generic-table-toolbar';
+        wrapper.style.cssText = 'display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;';
 
         const info = document.createElement('span');
         info.style.cssText = 'color:#6b7280;font-size:.875rem;flex:1;';
@@ -236,10 +237,17 @@ window.AppModules = window.AppModules || {};
             : `<strong>${list.length}</strong> thông báo · <strong style="color:#3b82f6;">${chuaDocCount}</strong> chưa đọc`;
         wrapper.appendChild(info);
 
+        if (adminView) {
+            const btnTao = document.createElement('button');
+            btnTao.className = 'module-btn module-btn-primary';
+            btnTao.innerHTML = '<i class="fas fa-plus"></i> Thêm mới';
+            btnTao.onclick = () => window.AppThongBao.openCreateModal();
+            wrapper.appendChild(btnTao);
+        }
+
         if (!adminView && chuaDocCount > 0) {
             const btnDocTatCa = document.createElement('button');
-            btnDocTatCa.className = 'btn btn-secondary';
-            btnDocTatCa.style.cssText = 'width:auto;';
+            btnDocTatCa.className = 'module-btn module-btn-muted';
             btnDocTatCa.innerHTML = '<i class="fas fa-check-double"></i> Đánh dấu tất cả đã đọc';
             btnDocTatCa.onclick = () => window.AppThongBao.docTatCa();
             wrapper.appendChild(btnDocTatCa);

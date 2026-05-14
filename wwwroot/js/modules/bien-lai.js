@@ -15,7 +15,10 @@ function moModalGuiBienLai(hoaDon) {
     document.getElementById('modalGuiBienLai')?.remove();
 
     const formatMoney = window.AppFormat?.currency || ((v) => new Intl.NumberFormat('vi-VN').format(v || 0) + 'đ');
-    const soTienMacDinh = hoaDon.conLai || hoaDon.tongTien || 0;
+    const tongTien = Number(hoaDon.tongTien || 0);
+    const daThanhToan = Number(hoaDon.daThanhToan || 0);
+    const conLai = Number(hoaDon.conLai ?? Math.max(tongTien - daThanhToan, 0));
+    const soTienMacDinh = conLai || tongTien || 0;
 
     const modal = document.createElement('div');
     modal.id = 'modalGuiBienLai';
@@ -31,15 +34,30 @@ function moModalGuiBienLai(hoaDon) {
                     <div style="background:#f0fdf9;border:1px solid #d1fae5;border-radius:.9rem;padding:1rem;display:grid;gap:.35rem;">
                         <div style="font-size:.85rem;color:var(--text-light);">Hóa đơn cần thanh toán</div>
                         <strong style="color:var(--primary-dark);font-size:1rem;">
-                            HĐ#${hoaDon.maHoaDon} ${hoaDon.kyHoaDon ? '– ' + hoaDon.kyHoaDon : ''} – ${formatMoney(hoaDon.tongTien)}
+                            HĐ#${hoaDon.maHoaDon} ${hoaDon.kyHoaDon ? '– ' + hoaDon.kyHoaDon : ''} – còn lại ${formatMoney(soTienMacDinh)}
                         </strong>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Kiểu thanh toán <span style="color:#ef4444;">*</span></label>
+                        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;">
+                            <label class="bl-pay-option active" data-pay-option="ThanhToanHet">
+                                <input type="radio" name="blKieuThanhToan" value="ThanhToanHet" checked>
+                                <span><strong>Thanh toán hết</strong><small>Gửi đúng số tiền còn lại</small></span>
+                            </label>
+                            <label class="bl-pay-option" data-pay-option="MotPhan">
+                                <input type="radio" name="blKieuThanhToan" value="MotPhan">
+                                <span><strong>Thanh toán 1 phần</strong><small>Tự nhập số tiền đã chuyển</small></span>
+                            </label>
+                        </div>
                     </div>
 
                     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;">
                         <div class="form-group">
                             <label for="blTongTien">Số tiền đã chuyển <span style="color:#ef4444;">*</span></label>
                             <input id="blTongTien" type="number" class="form-control" placeholder="VD: 2500000"
-                                   min="1" value="${soTienMacDinh}" required />
+                                   min="1" max="${soTienMacDinh}" value="${soTienMacDinh}" readonly required />
+                            <small id="blAmountHint" style="color:var(--text-light);display:block;margin-top:.35rem;">Đang chọn thanh toán hết nên số tiền bằng phần còn lại.</small>
                         </div>
 
                         <div class="form-group">
@@ -95,6 +113,27 @@ function moModalGuiBienLai(hoaDon) {
     applyResponsive();
     window.addEventListener('resize', applyResponsive, { once: true });
 
+    modal.querySelectorAll('input[name="blKieuThanhToan"]').forEach(input => {
+        input.addEventListener('change', () => {
+            const selected = modal.querySelector('input[name="blKieuThanhToan"]:checked')?.value || 'ThanhToanHet';
+            const amountInput = document.getElementById('blTongTien');
+            const hint = document.getElementById('blAmountHint');
+            modal.querySelectorAll('.bl-pay-option').forEach(label => {
+                label.classList.toggle('active', label.dataset.payOption === selected);
+            });
+            if (selected === 'ThanhToanHet') {
+                amountInput.value = soTienMacDinh;
+                amountInput.readOnly = true;
+                if (hint) hint.textContent = 'Đang chọn thanh toán hết nên số tiền bằng phần còn lại.';
+            } else {
+                amountInput.readOnly = false;
+                amountInput.value = '';
+                amountInput.focus();
+                if (hint) hint.textContent = `Nhập số tiền nhỏ hơn ${formatMoney(soTienMacDinh)}.`;
+            }
+        });
+    });
+
     document.getElementById('formGuiBienLai').addEventListener('submit', function (e) {
         e.preventDefault();
         guiBienLai(hoaDon.maHoaDon);
@@ -123,6 +162,8 @@ function moModalGuiBienLai(hoaDon) {
 
 async function guiBienLai(maHoaDon) {
     const tongTien = parseFloat(document.getElementById('blTongTien').value);
+    const kieuThanhToan = document.querySelector('input[name="blKieuThanhToan"]:checked')?.value || 'ThanhToanHet';
+    const maxTien = parseFloat(document.getElementById('blTongTien').max || '0');
     const hinhThuc = document.getElementById('blHinhThuc').value;
     const maGiaoDich = document.getElementById('blMaGiaoDich').value.trim();
     const ghiChu = document.getElementById('blGhiChu').value.trim();
@@ -138,13 +179,23 @@ async function guiBienLai(maHoaDon) {
         errorEl.style.display = 'block';
         return;
     }
+    if (maxTien > 0 && tongTien > maxTien) {
+        errorEl.textContent = 'Số tiền gửi biên lai không được vượt quá số tiền còn lại';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (kieuThanhToan === 'MotPhan' && maxTien > 0 && tongTien >= maxTien) {
+        errorEl.textContent = 'Thanh toán 1 phần phải nhỏ hơn số tiền còn lại. Nếu đã chuyển đủ, hãy chọn Thanh toán hết.';
+        errorEl.style.display = 'block';
+        return;
+    }
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
 
     try {
         const res = await API.thanhtoan.guiBienLai(
-            { maHoaDon, tongTien, hinhThucThanhToan: hinhThuc, maGiaoDich, ghiChu },
+            { maHoaDon, tongTien, kieuThanhToan, hinhThucThanhToan: hinhThuc, maGiaoDich, ghiChu },
             anhBienLai
         );
         document.getElementById('modalGuiBienLai').remove();

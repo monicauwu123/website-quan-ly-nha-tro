@@ -329,6 +329,11 @@ function activateNav(section, el) {
     if (matched) matched.classList.add('active');
 }
 
+function userCanCreateSection(section) {
+    return ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu', 'phongdangthue', 'thongbao', 'bienlai'].includes(section))
+        || (CURRENT_ROLE === 'NguoiDung' && ['yeucauthue', 'dangkydichvu', 'baocaosuco'].includes(section));
+}
+
 function showSection(section, el, skipHashUpdate = false) {
     if (CURRENT_ROLE === 'NguoiDung' && section === 'nhatro') {
         section = 'phong';
@@ -349,6 +354,7 @@ function showSection(section, el, skipHashUpdate = false) {
     activateNav(section, el);
 
     const addBtn = document.getElementById('addBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
     const sectionTitle = document.getElementById('sectionTitle');
 
     if (section === 'account') section = 'taikhoan';
@@ -356,9 +362,7 @@ function showSection(section, el, skipHashUpdate = false) {
 
     // Quyền hiển thị nút "Thêm mới" theo từng nghiệp vụ.
     // Báo cáo sự cố: chỉ Người dùng/khách thuê được tạo; Chủ trọ/Admin chỉ xem và xử lý.
-    const canCreate =
-        ((CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') && !['yeucauthue', 'baocaosuco', 'dangkydichvu', 'phongdangthue', 'thongbao', 'bienlai'].includes(section))
-        || (CURRENT_ROLE === 'NguoiDung' && ['yeucauthue', 'dangkydichvu', 'baocaosuco'].includes(section));
+    const canCreate = userCanCreateSection(section);
     const canWrite = canCreate;
 
     const overviewEl = document.getElementById('overviewSection');
@@ -371,6 +375,7 @@ function showSection(section, el, skipHashUpdate = false) {
         if (overviewEl) overviewEl.style.display = 'none';
         if (genericEl) genericEl.style.display = 'none';
         if (addBtn) addBtn.style.display = 'none';
+        if (refreshBtn) refreshBtn.style.display = 'none';
         if (sectionTitle) sectionTitle.textContent = 'Tài khoản của tôi';
         if (typeof window.loadProfile === 'function') window.loadProfile();
         return;
@@ -378,12 +383,20 @@ function showSection(section, el, skipHashUpdate = false) {
 
     if (section === 'overview') {
         addBtn.style.display = 'none';
+        if (refreshBtn) refreshBtn.style.display = 'none';
         sectionTitle.textContent = 'Tổng quan hệ thống';
     } else if (section === 'diennuoc') {
+        if (addBtn) addBtn.style.display = 'none';
+        if (refreshBtn) refreshBtn.style.display = 'none';
         sectionTitle.textContent = 'Điện & Nước';
         updateDienNuocAddButton();
+    } else if (section === 'hoadon') {
+        if (addBtn) addBtn.style.display = 'none';
+        if (refreshBtn) refreshBtn.style.display = 'none';
+        sectionTitle.textContent = modules[section]?.title || section;
     } else {
-        addBtn.style.display = canWrite ? 'inline-flex' : 'none';
+        if (addBtn) addBtn.style.display = 'none';
+        if (refreshBtn) refreshBtn.style.display = 'none';
         sectionTitle.textContent = modules[section]?.title || section;
         addBtn.onclick = () => openModal();
     }
@@ -438,6 +451,38 @@ async function loadOverview() {
     }
 }
 
+function dashNumber(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function dashPercent(value, total) {
+    const t = dashNumber(total);
+    if (t <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round((dashNumber(value) / t) * 100)));
+}
+
+function renderDashSparkline(values, color = '#0d9488') {
+    const nums = normalizeArrayResponse(values).map(v => dashNumber(v)).slice(-6);
+    if (nums.length < 2) return '<div class="dash-sparkline dash-sparkline-empty"></div>';
+    const max = Math.max(...nums, 1);
+    const min = Math.min(...nums, 0);
+    const span = Math.max(max - min, 1);
+    const points = nums.map((v, i) => {
+        const x = nums.length === 1 ? 50 : (i / (nums.length - 1)) * 100;
+        const y = 34 - ((v - min) / span) * 26;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    return `<svg class="dash-sparkline" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+        <polyline points="${points}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    </svg>`;
+}
+
+function renderDashProgress(pct, tone = 'teal') {
+    const width = Math.max(0, Math.min(100, dashNumber(pct)));
+    return `<div class="dash-progress"><div class="dash-progress-fill dash-progress-${tone}" style="width:${width}%"></div></div>`;
+}
+
 // ==========================================
 // OVERVIEW  –  Chủ trọ / Admin
 // ==========================================
@@ -449,40 +494,59 @@ function renderChuTroAdminOverview(data) {
     const thangNam = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
 
     // ── KPI Cards ──────────────────────────────────────────────────────────
-    const tyLePhong = data.tongPhong ? Math.round((data.phongDangThue / data.tongPhong) * 100) : 0;
+    const tongPhong = dashNumber(data.tongPhong);
+    const phongDangThue = dashNumber(data.phongDangThue);
+    const phongTrong = dashNumber(data.phongTrong);
+    const tyLePhong = dashPercent(phongDangThue, tongPhong);
+    const tyLeTrong = dashPercent(phongTrong, tongPhong);
+    const dt6 = normalizeArrayResponse(data.doanhThu6Thang || []);
+    const revenueSeries = dt6.map(d => d.doanhThu);
 
     document.getElementById('dashStatsGrid').innerHTML = `
-        <div class="stat-card stat-card-indigo kpi-card" onclick="showSection('phong')">
-            <div class="stat-icon"><i class="fas fa-building"></i></div>
+        <div class="stat-card stat-card-indigo kpi-card dash-kpi-rich" onclick="showSection('phong')">
+            <div class="stat-card-top">
+                <div class="stat-icon"><i class="fas fa-building"></i></div>
+                <div class="dash-kpi-chip">Danh mục</div>
+            </div>
             <div class="stat-info">
                 <h3>Tổng số phòng</h3>
-                <div class="value">${data.tongPhong ?? 0}</div>
-                <div class="kpi-sub">${data.tongNhaTro ?? 0} nhà trọ</div>
+                <div class="value">${tongPhong}</div>
+                <div class="kpi-sub">${data.tongNhaTro ?? 0} nhà trọ · ${data.tongKhachThue ?? 0} khách thuê</div>
             </div>
         </div>
-        <div class="stat-card stat-card-blue kpi-card" onclick="showSection('phong')">
-            <div class="stat-icon"><i class="fas fa-door-closed"></i></div>
+        <div class="stat-card stat-card-blue kpi-card dash-kpi-rich" onclick="showSection('phong')">
+            <div class="stat-card-top">
+                <div class="stat-icon"><i class="fas fa-door-closed"></i></div>
+                <div class="dash-kpi-chip">${tyLePhong}%</div>
+            </div>
             <div class="stat-info">
                 <h3>Đang cho thuê</h3>
-                <div class="value">${data.phongDangThue ?? 0}</div>
-                <div class="kpi-bar-wrap"><div class="kpi-bar kpi-bar-blue" style="width:${tyLePhong}%"></div></div>
+                <div class="value">${phongDangThue}</div>
+                ${renderDashProgress(tyLePhong, 'blue')}
                 <div class="kpi-sub">${tyLePhong}% công suất</div>
             </div>
         </div>
-        <div class="stat-card stat-card-green kpi-card" onclick="showSection('phong')">
-            <div class="stat-icon"><i class="fas fa-door-open"></i></div>
+        <div class="stat-card stat-card-green kpi-card dash-kpi-rich" onclick="showSection('phong')">
+            <div class="stat-card-top">
+                <div class="stat-icon"><i class="fas fa-door-open"></i></div>
+                <div class="dash-kpi-chip">${tyLeTrong}%</div>
+            </div>
             <div class="stat-info">
                 <h3>Phòng trống</h3>
-                <div class="value">${data.phongTrong ?? 0}</div>
-                <div class="kpi-sub">${data.tongKhachThue ?? 0} khách thuê</div>
+                <div class="value">${phongTrong}</div>
+                ${renderDashProgress(tyLeTrong, 'green')}
+                <div class="kpi-sub">Có thể khai thác ngay</div>
             </div>
         </div>
-        <div class="stat-card stat-card-green kpi-card revenue-card" onclick="showSection('thanhtoan')">
-            <div class="stat-icon" style="background:#d1fae5;color:#065f46;"><i class="fas fa-coins"></i></div>
+        <div class="stat-card stat-card-green kpi-card revenue-card dash-kpi-rich" onclick="showSection('thanhtoan')">
+            <div class="stat-card-top">
+                <div class="stat-icon" style="background:#d1fae5;color:#065f46;"><i class="fas fa-coins"></i></div>
+                ${renderDashSparkline(revenueSeries, '#10b981')}
+            </div>
             <div class="stat-info">
                 <h3>Doanh thu ${thangNam}</h3>
                 <div class="value" style="font-size:1.25rem;">${fmtCurrency(data.doanhThuThang ?? 0)}</div>
-                <div class="kpi-sub">Đã thu thực tế</div>
+                <div class="kpi-sub">So sánh nhanh 6 tháng</div>
             </div>
         </div>
     `;
@@ -533,8 +597,9 @@ function renderChuTroAdminOverview(data) {
                     <div class="alert-body">
                         <div class="alert-count">${a.count}</div>
                         <div class="alert-label">${a.label}</div>
+                        <div class="alert-hint">${a.urgent ? 'Cần xử lý' : 'Ổn định'}</div>
                     </div>
-                    ${a.urgent ? '<div class="alert-dot"></div>' : ''}
+                    ${a.urgent ? '<div class="alert-dot"></div>' : '<i class="fas fa-check alert-ok-mark"></i>'}
                 </div>
             `).join('')}
         </div>
@@ -581,15 +646,16 @@ function renderChuTroAdminOverview(data) {
         : '<div class="empty-state-sm">Chưa có phòng nào</div>';
 
     // Biểu đồ doanh thu 6 tháng
-    const dt6 = data.doanhThu6Thang || [];
     const maxDt = Math.max(...dt6.map(d => d.doanhThu), 1);
     const chartHtml = dt6.length ? `
-        <div class="bar-chart-wrap">
+        <div class="bar-chart-wrap dash-revenue-chart">
             ${dt6.map(d => {
-                const pct = Math.round((d.doanhThu / maxDt) * 100);
+                const revenue = dashNumber(d.doanhThu);
+                const pct = Math.round((revenue / maxDt) * 100);
                 const isCurrentMonth = d.thang === `${(new Date().getMonth()+1).toString().padStart(2,'0')}/${new Date().getFullYear()}`;
-                return `<div class="bar-col">
-                    <div class="bar-val">${d.doanhThu > 0 ? fmtCurrency(d.doanhThu) : ''}</div>
+                return `<div class="bar-col" title="${d.thang}: ${fmtCurrency(revenue)}">
+                    <div class="bar-tooltip">${d.thang}<strong>${fmtCurrency(revenue)}</strong></div>
+                    <div class="bar-val">${revenue > 0 ? fmtCurrency(revenue) : ''}</div>
                     <div class="bar-outer">
                         <div class="bar-inner ${isCurrentMonth ? 'bar-current' : ''}" style="height:${Math.max(pct,2)}%"></div>
                     </div>
@@ -603,24 +669,32 @@ function renderChuTroAdminOverview(data) {
             <div class="data-card dash-card-lg">
                 <div class="dash-card-header">
                     <span><i class="fas fa-chart-bar" style="color:#6366f1;"></i> Doanh thu 6 tháng gần nhất</span>
+                    <span class="dash-card-meta">Hover để xem chi tiết</span>
                 </div>
                 ${chartHtml}
+                <div class="dash-inline-metrics">
+                    <span><i class="fas fa-circle" style="color:#10b981;"></i> Đã thu ${fmtCurrency(data.doanhThuThang ?? 0)}</span>
+                    <span><i class="fas fa-circle" style="color:#ef4444;"></i> HĐ chưa thu ${data.hoaDonChuaThanhToan ?? 0}</span>
+                    <span><i class="fas fa-circle" style="color:#8b5cf6;"></i> HĐ sắp hết hạn ${data.hopDongSapHetHan ?? 0}</span>
+                </div>
             </div>
 
-            <div class="data-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-calendar-times" style="color:#8b5cf6;"></i> Hợp đồng sắp hết hạn</span>
-                    <button class="btn-link-sm" onclick="showSection('hopdong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+            <div class="dash-side-column">
+                <div class="data-card dash-side-card dash-contract-card">
+                    <div class="dash-card-header">
+                        <span><i class="fas fa-calendar-times" style="color:#8b5cf6;"></i> Hợp đồng sắp hết hạn</span>
+                        <button class="btn-link-sm" onclick="showSection('hopdong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <div class="mini-list dash-compact-list">${sapHetHtml}</div>
                 </div>
-                <div class="mini-list">${sapHetHtml}</div>
-            </div>
 
-            <div class="data-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-door-open" style="color:var(--primary);"></i> Danh sách phòng</span>
-                    <button class="btn-link-sm" onclick="showSection('phong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                <div class="data-card dash-side-card dash-room-card">
+                    <div class="dash-card-header">
+                        <span><i class="fas fa-door-open" style="color:var(--primary);"></i> Danh sách phòng</span>
+                        <button class="btn-link-sm" onclick="showSection('phong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <div class="mini-list dash-scroll-list">${roomsHtml}</div>
                 </div>
-                <div class="mini-list">${roomsHtml}</div>
             </div>
         </div>
     `;
@@ -642,77 +716,113 @@ function renderNguoiDungOverview(data) {
     const baoCaoList = data?.baoCaoGanDay || [];
     const soHoaDonChuaTT = data?.soHoaDonChuaTT ?? hoaDonChuaTT.length;
     const soThongBaoChuaDoc = data?.soThongBaoChuaDoc ?? thongBaoList.length;
+    const hoaDonThangNay = normalizeArrayResponse(data?.danhSachHoaDonThangNay || []);
+    const tongTienThang = dashNumber(data?.tongTienThangNay ?? hoaDonThangNay.reduce((s, h) => s + dashNumber(h.tongTien ?? h.TongTien), 0));
+    const daTraThang = dashNumber(data?.daThanhToanThangNay ?? hoaDonThangNay.reduce((s, h) => s + dashNumber(h.daThanhToan ?? h.DaThanhToan), 0));
+    const conLaiThang = dashNumber(data?.conLaiThangNay ?? Math.max(tongTienThang - daTraThang, 0));
+    const tienNo = hoaDonChuaTT.reduce((s, h) => s + dashNumber(h.tongTien ?? h.TongTien), 0);
+    const pctThanhToan = tongTienThang > 0 ? Math.round((daTraThang / tongTienThang) * 100) : (soHoaDonChuaTT > 0 ? 0 : 100);
 
     // ── KPI Cards ──────────────────────────────────────────────────────────
     document.getElementById('dashStatsGrid').innerHTML = `
-        <div class="stat-card stat-card-indigo kpi-card">
-            <div class="stat-icon"><i class="fas fa-user-circle"></i></div>
+        <div class="stat-card stat-card-indigo kpi-card dash-kpi-rich">
+            <div class="stat-card-top">
+                <div class="stat-icon"><i class="fas fa-user-circle"></i></div>
+                <div class="dash-kpi-chip">Cá nhân</div>
+            </div>
             <div class="stat-info">
                 <h3>Tài khoản</h3>
                 <div class="value" style="font-size:1.1rem;line-height:1.3;">${tk.hoTen || '---'}</div>
                 <div class="kpi-sub">${tk.email || '---'}</div>
             </div>
         </div>
-        <div class="stat-card stat-card-blue kpi-card" onclick="showSection('phongdangthue')">
-            <div class="stat-icon"><i class="fas fa-home"></i></div>
+        <div class="stat-card stat-card-blue kpi-card dash-kpi-rich" onclick="showSection('phongdangthue')">
+            <div class="stat-card-top">
+                <div class="stat-icon"><i class="fas fa-home"></i></div>
+                <div class="dash-kpi-chip">${hopDongList.length} HĐ</div>
+            </div>
             <div class="stat-info">
                 <h3>Phòng đang thuê</h3>
                 <div class="value">${phongList.length}</div>
                 <div class="kpi-sub">${phongList.map(p => p.tenPhong).join(', ') || 'Chưa có phòng'}</div>
             </div>
         </div>
-        <div class="stat-card ${soHoaDonChuaTT > 0 ? 'stat-card-red' : 'stat-card-green'} kpi-card" onclick="showSection('hoadon')">
-            <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
+        <div class="stat-card ${soHoaDonChuaTT > 0 ? 'stat-card-red' : 'stat-card-green'} kpi-card dash-kpi-rich" onclick="showSection('hoadon')">
+            <div class="stat-card-top">
+                <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
+                <div class="dash-kpi-chip">${fmtCurrency(tienNo)}</div>
+            </div>
             <div class="stat-info">
                 <h3>Hóa đơn chưa trả</h3>
                 <div class="value">${soHoaDonChuaTT}</div>
                 <div class="kpi-sub">${soHoaDonChuaTT > 0 ? 'Cần thanh toán' : 'Đã thanh toán hết'}</div>
             </div>
         </div>
-        <div class="stat-card ${soThongBaoChuaDoc > 0 ? 'stat-card-purple' : 'stat-card-green'} kpi-card" onclick="showSection('thongbao')">
-            <div class="stat-icon"><i class="fas fa-bell"></i></div>
+        <div class="stat-card ${soThongBaoChuaDoc > 0 ? 'stat-card-purple' : 'stat-card-green'} kpi-card dash-kpi-rich" onclick="showSection('thongbao')">
+            <div class="stat-card-top">
+                <div class="stat-icon"><i class="fas fa-bell"></i></div>
+                <div class="dash-kpi-chip">${pctThanhToan}% TT</div>
+            </div>
             <div class="stat-info">
                 <h3>Thông báo mới</h3>
                 <div class="value">${soThongBaoChuaDoc}</div>
+                ${renderDashProgress(pctThanhToan, soHoaDonChuaTT > 0 ? 'orange' : 'green')}
                 <div class="kpi-sub">${soThongBaoChuaDoc > 0 ? 'Chưa đọc' : 'Đã đọc hết'}</div>
             </div>
         </div>
     `;
 
     // ── Alert Row ──────────────────────────────────────────────────────────
+    const firstUnpaidInvoice = hoaDonChuaTT[0];
     document.getElementById('dashAlertRow').innerHTML = soHoaDonChuaTT > 0 ? `
-        <div class="user-alert-banner" onclick="showSection('hoadon')">
+        <div class="user-alert-banner">
             <i class="fas fa-exclamation-circle"></i>
-            <span>Bạn có <strong>${soHoaDonChuaTT} hóa đơn</strong> chưa thanh toán — Nhấn để xem chi tiết</span>
-            <i class="fas fa-arrow-right" style="margin-left:auto;"></i>
+            <span>Bạn có <strong>${soHoaDonChuaTT} hóa đơn</strong> chưa thanh toán, tổng còn lại <strong>${fmtCurrency(tienNo)}</strong>.</span>
+            <div class="user-alert-actions">
+                ${firstUnpaidInvoice?.maHoaDon ? `<button class="module-btn module-btn-primary" onclick="openHoaDonThanhToanModal(${firstUnpaidInvoice.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán ngay</button>` : ''}
+                <button class="module-btn module-btn-muted" onclick="showSection('hoadon')">Xem hóa đơn</button>
+            </div>
         </div>` : '';
 
     // ── Rooms & contracts ──────────────────────────────────────────────────
     const phongHtml = phongList.length
-        ? phongList.map(p => `
+        ? phongList.map(p => {
+            const hd = hopDongList.find(h => Number(h.maPhong) === Number(p.maPhong)) || hopDongList[0] || {};
+            const daysLeft = hd.ngayKetThuc ? Math.ceil((new Date(hd.ngayKetThuc) - new Date()) / 86400000) : null;
+            const termText = hd.ngayKetThuc ? `Đến ${fmtDate(hd.ngayKetThuc)}${daysLeft !== null ? ` · còn ${Math.max(daysLeft, 0)} ngày` : ''}` : 'Chưa có kỳ hạn';
+            return `
             <div class="room-info-card">
                 <div class="room-info-icon"><i class="fas fa-door-open"></i></div>
-                <div>
+                <div class="room-info-body">
                     <div class="room-info-name">${p.tenPhong || '---'}</div>
                     <div class="room-info-sub">${p.tenNhaTro || ''}</div>
                     <div class="room-info-price">${fmtCurrency(p.giaPhong)}<span>/tháng</span></div>
+                    <div class="room-info-term"><i class="fas fa-calendar-day"></i> ${termText}</div>
                 </div>
-            </div>`).join('')
+            </div>`;
+          }).join('')
         : '<div class="empty-state-sm"><i class="fas fa-home"></i> Chưa có phòng đang thuê</div>';
 
     // ── Hóa đơn chưa TT ───────────────────────────────────────────────────
     const hoaDonHtml = hoaDonChuaTT.length
-        ? hoaDonChuaTT.map(h => `
-            <div class="mini-list-item">
+        ? hoaDonChuaTT.map(h => {
+            const total = dashNumber(h.tongTien ?? h.TongTien);
+            return `
+            <div class="mini-list-item invoice-mini-card">
                 <div class="mini-list-left">
                     <i class="fas fa-file-invoice-dollar" style="color:#f59e0b;"></i>
                     <div>
                         <div class="mini-list-title">${h.tenPhong || '---'} — ${h.kyHoaDon || ''}</div>
                         <div class="mini-list-sub">${fmtDate(h.ngayLap)}</div>
+                        ${renderDashProgress(0, 'orange')}
                     </div>
                 </div>
-                <span style="font-weight:700;color:#dc2626;">${fmtCurrency(h.tongTien)}</span>
-            </div>`).join('')
+                <div class="invoice-mini-actions">
+                    <span style="font-weight:700;color:#dc2626;">${fmtCurrency(total)}</span>
+                    ${h.maHoaDon ? `<button class="btn-link-sm pay-now-link" onclick="openHoaDonThanhToanModal(${h.maHoaDon})"><i class="fas fa-qrcode"></i> Thanh toán</button>` : ''}
+                </div>
+            </div>`;
+          }).join('')
         : '<div class="empty-state-sm"><i class="fas fa-check-circle" style="color:var(--success);"></i> Không có hóa đơn nợ</div>';
 
     // ── Dịch vụ đang dùng ─────────────────────────────────────────────────
@@ -770,6 +880,24 @@ function renderNguoiDungOverview(data) {
     document.getElementById('dashMainGrid').innerHTML = `
         <div class="dash-user-grid">
 
+            <div class="data-card dash-user-payment-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-wallet" style="color:#0d9488;"></i> Tiến độ thanh toán tháng này</span>
+                    <span class="dash-card-meta">${pctThanhToan}%</span>
+                </div>
+                <div class="user-payment-total">${fmtCurrency(tongTienThang)}</div>
+                ${renderDashProgress(pctThanhToan, soHoaDonChuaTT > 0 ? 'orange' : 'green')}
+                <div class="dash-inline-metrics">
+                    <span><i class="fas fa-circle" style="color:#10b981;"></i> Đã trả ${fmtCurrency(daTraThang)}</span>
+                    <span><i class="fas fa-circle" style="color:#ef4444;"></i> Còn lại ${fmtCurrency(conLaiThang)}</span>
+                </div>
+                <div class="user-quick-actions">
+                    <button class="module-btn module-btn-muted" onclick="showSection('phongdangthue')" title="Xem phòng và hợp đồng đang thuê"><i class="fas fa-home"></i> Phòng</button>
+                    <button class="module-btn module-btn-muted" onclick="showSection('hoadon')" title="Xem hóa đơn và lịch sử thanh toán"><i class="fas fa-file-invoice-dollar"></i> Hóa đơn</button>
+                    <button class="module-btn module-btn-muted" onclick="showSection('baocaosuco')" title="Gửi hoặc theo dõi sự cố"><i class="fas fa-tools"></i> Sự cố</button>
+                </div>
+            </div>
+
             <div class="data-card">
                 <div class="dash-card-header">
                     <span><i class="fas fa-home" style="color:var(--primary);"></i> Phòng đang thuê</span>
@@ -819,14 +947,8 @@ function renderNguoiDungOverview(data) {
 // ROOM GRID
 // ==========================================
 async function renderRoomGrid() {
-    // ── Nút thêm mới ─────────────────────────────────────────────────
     const _addBtn = document.getElementById('addBtn');
-    if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
-        _addBtn.style.display = 'inline-flex';
-        _addBtn.onclick = () => openModal();
-    } else {
-        _addBtn.style.display = 'none';
-    }
+    if (_addBtn) _addBtn.style.display = 'none';
 
     const container = document.getElementById('genericSection');
 
@@ -1208,7 +1330,8 @@ function getGenericState(section) {
         sortKey: '',
         sortDir: 'asc',
         page: 1,
-        pageSize: 10
+        pageSize: 10,
+        advancedOpen: false
     };
     return genericTableState[section];
 }
@@ -1318,6 +1441,99 @@ function getGenericNumberValue(value) {
     return Number.isNaN(n) ? null : n;
 }
 
+function getGenericFilterChips(cfg, data, section) {
+    const state = getGenericState(section);
+    const rows = normalizeArrayResponse(data);
+    const caps = getGenericCapabilities(cfg, rows, section);
+    const customFilters = getGenericFilterDefs(cfg, rows);
+    const chips = [];
+
+    if (state.keyword) {
+        chips.push({ label: `"${state.keyword}"`, clear: `window.GenericTable.onKeyword('${section}', '')` });
+    }
+
+    for (const filter of customFilters) {
+        const value = state.filters?.[filter.id];
+        if (!value) continue;
+        const opt = filter.options.find(([v]) => String(v) === String(value));
+        chips.push({
+            label: `${filter.label || filter.id}: ${opt?.[1] || value}`,
+            clear: `window.GenericTable.onCustomFilter('${section}', '${escapeJsStringDashboard(filter.id)}', '')`
+        });
+    }
+
+    if (!customFilters.length && caps.statusKey && state.filterStatus) {
+        const opt = caps.statusOptions.find(([v]) => String(v) === String(state.filterStatus));
+        chips.push({ label: opt?.[1] || state.filterStatus, clear: `window.GenericTable.onStatus('${section}', '')` });
+    }
+
+    if (caps.hasNhaTro && state.filterNhaTro) {
+        const n = normalizeArrayResponse(window.lookups?.nhatro || []).find(x => String(x.maNhaTro) === String(state.filterNhaTro));
+        chips.push({ label: n?.tenNhaTro || `Nhà trọ #${state.filterNhaTro}`, clear: `window.GenericTable.onNhaTro('${section}', '')` });
+    }
+
+    if (caps.hasPhong && state.filterPhong) {
+        const p = normalizeArrayResponse(window.lookups?.phong || []).find(x => String(x.maPhong) === String(state.filterPhong));
+        chips.push({ label: p?.tenPhong || `Phòng #${state.filterPhong}`, clear: `window.GenericTable.onPhong('${section}', '')` });
+    }
+
+    if (caps.dateKey && state.filterDateFrom) {
+        chips.push({ label: `Từ ngày: ${state.filterDateFrom}`, clear: `window.GenericTable.onDateFrom('${section}', '')` });
+    }
+    if (caps.dateKey && state.filterDateTo) {
+        chips.push({ label: `Đến ngày: ${state.filterDateTo}`, clear: `window.GenericTable.onDateTo('${section}', '')` });
+    }
+    if (caps.moneyKey && state.filterMoneyFrom) {
+        chips.push({ label: `Từ ${Number(state.filterMoneyFrom).toLocaleString('vi-VN')}đ`, clear: `window.GenericTable.onMoneyFrom('${section}', '')` });
+    }
+    if (caps.moneyKey && state.filterMoneyTo) {
+        chips.push({ label: `Đến ${Number(state.filterMoneyTo).toLocaleString('vi-VN')}đ`, clear: `window.GenericTable.onMoneyTo('${section}', '')` });
+    }
+
+    return chips;
+}
+
+function renderGenericActionMenu(actionHtml) {
+    if (!actionHtml || !String(actionHtml).trim() || String(actionHtml).includes('badge')) return actionHtml || '---';
+    return `
+        <details class="module-action-menu">
+            <summary title="Thao tác"><i class="fas fa-ellipsis-vertical"></i></summary>
+            <div class="module-action-list">${actionHtml}</div>
+        </details>`;
+}
+
+function normalizeStatusKey(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
+
+function getGenericRowClass(item) {
+    const serviceType = normalizeStatusKey(item?.loaiDichVu);
+    if (serviceType === 'tienich') return 'module-row-ok';
+    if (serviceType === 'tiennghi') return 'module-row-warn';
+    if (serviceType === 'tinhphi') return 'module-row-partial';
+
+    const keys = [
+        item?.trangThai,
+        item?.trangThaiText,
+        item?.trangThaiThanhToan,
+        item?.trangThaiXacNhan,
+        item?.trangThaiHopDong,
+        item?.trangThaiPhong,
+        item?.tenTrangThai
+    ].filter(Boolean).map(normalizeStatusKey);
+
+    if (keys.some(k => ['huy', 'dahuy', 'daxoa', 'ketthuc', 'daketthuc', 'khonghoatdong', 'ngunghoatdong'].includes(k))) return 'module-row-cancel';
+    if (keys.some(k => ['tuchoi', 'quahan', 'trehan', 'thatbai'].includes(k))) return 'module-row-danger';
+    if (keys.some(k => ['chuathanhtoan', 'choduyet', 'choxuly', 'dangxuly', 'baotri', 'suachua', 'sua', 'saphethan', 'saphethopdong'].includes(k))) return 'module-row-warn';
+    if (keys.some(k => ['moi', 'motphan', 'thanhtoanmotphan', 'dangthue', 'dathue', 'dangcodon', 'dangsudung'].includes(k))) return 'module-row-partial';
+    if (keys.some(k => ['dathanhtoan', 'daxuly', 'hoanthanh', 'daduyet', 'dachapnhan', 'dalaphopdong', 'danghieuluc', 'dangconhieuluc', 'danghoatdong', 'controng', 'trong'].includes(k))) return 'module-row-ok';
+    return '';
+}
+
 function filterSortGenericData(cfg, data, section) {
     const state = getGenericState(section);
     let rows = normalizeArrayResponse(data);
@@ -1408,6 +1624,11 @@ function renderGenericToolbar(cfg, data, section, filteredCount) {
     const moneyTotal = caps.moneyKey
         ? filterSortGenericData(cfg, rows, section).reduce((sum, item) => sum + (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0), 0)
         : null;
+    const chips = getGenericFilterChips(cfg, rows, section);
+    const createButton = userCanCreateSection(section) ? `
+                <button class="module-btn module-btn-primary" onclick="openModal()">
+                    <i class="fas fa-plus"></i> Thêm mới
+                </button>` : '';
 
     const customFilterHtml = customFilters.map(filter => `
             <div style="min-width:180px;">
@@ -1470,36 +1691,52 @@ function renderGenericToolbar(cfg, data, section, filteredCount) {
                     value="${escapeHtmlDashboard(state.filterMoneyTo)}"
                     onchange="window.GenericTable.onMoneyTo('${section}', this.value)">
             </div>` : '';
+    const advancedFilterHtml = [customFilterHtml, nhaTroFilter, phongFilter, dateFilter, moneyFilter].filter(Boolean).join('');
+    const hasAdvanced = Boolean(advancedFilterHtml);
 
     slot.innerHTML = `
         <div class="generic-table-toolbar" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:.75rem;">
             <div style="position:relative;flex:1;min-width:220px;max-width:420px;">
                 <i class="fas fa-search" style="position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
                 <input type="text" class="form-control" style="padding-left:2.5rem;"
-                    placeholder="Tìm kiếm trong ${escapeHtmlDashboard(cfg.title || 'danh sách')}..."
+                    placeholder="Mã, tên, phòng, trạng thái..."
                     value="${escapeHtmlDashboard(state.keyword)}"
                     oninput="window.GenericTable.onKeyword('${section}', this.value)">
             </div>
-            ${customFilterHtml}
             ${statusFilter}
-            ${nhaTroFilter}
-            ${phongFilter}
-        </div>
-        <div class="generic-table-toolbar" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:.75rem;">
-            ${dateFilter}
-            ${moneyFilter}
-            <div style="font-size:.875rem;color:var(--text-light);">
-                Tìm thấy <strong>${filteredCount}</strong> / ${total}
-                ${moneyTotal !== null ? ` | Tổng: <strong>${fmtCurrency(moneyTotal)}</strong>` : ''}
-            </div>
-            <div style="display:flex;gap:.4rem;margin-left:auto;">
-                <button class="btn btn-secondary" style="white-space:nowrap;" onclick="window.GenericTable.reset('${section}')">
+            <div style="display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;">
+                ${createButton}
+                ${hasAdvanced ? `<button class="module-btn module-btn-muted ${state.advancedOpen ? 'active' : ''}" onclick="window.GenericTable.toggleAdvanced('${section}')">
+                    <i class="fas fa-sliders-h"></i> Nâng cao
+                    <i class="fas fa-chevron-${state.advancedOpen ? 'up' : 'down'}" style="font-size:.7rem;"></i>
+                </button>` : ''}
+                <button class="module-btn module-btn-muted" onclick="window.GenericTable.reset('${section}')">
                     <i class="fas fa-filter-circle-xmark"></i> Xóa lọc
                 </button>
-                <button class="btn btn-secondary" style="white-space:nowrap;" onclick="window.GenericTable.refresh('${section}')">
+                <button class="module-btn module-btn-muted" onclick="window.GenericTable.refresh('${section}')">
                     <i class="fas fa-rotate-right"></i> Làm mới
                 </button>
             </div>
+        </div>
+        ${hasAdvanced ? `
+        <div class="generic-advanced-panel ${state.advancedOpen ? 'open' : ''}">
+            ${advancedFilterHtml}
+        </div>` : ''}
+        ${chips.length ? `
+        <div class="module-filter-chips">
+            ${chips.map(chip => `<button class="module-chip" onclick="${chip.clear}">${escapeHtmlDashboard(chip.label)} <i class="fas fa-times"></i></button>`).join('')}
+            <button class="module-chip module-chip-clear" onclick="window.GenericTable.reset('${section}')"><i class="fas fa-times-circle"></i> Xóa tất cả</button>
+        </div>` : ''}
+        <div class="module-summary-grid">
+            <div class="module-summary-card">
+                <div class="module-summary-icon"><i class="fas fa-list"></i></div>
+                <div><div class="module-summary-label">Tổng mục</div><div class="module-summary-value">${filteredCount}</div></div>
+            </div>
+            ${moneyTotal !== null ? `
+            <div class="module-summary-card">
+                <div class="module-summary-icon dark"><i class="fas fa-coins"></i></div>
+                <div><div class="module-summary-label">Tổng tiền</div><div class="module-summary-value dark">${fmtCurrency(moneyTotal)}</div></div>
+            </div>` : ''}
         </div>`;
 }
 
@@ -1519,13 +1756,15 @@ function renderGenericPaging(total, section) {
     const hi = Math.min(totalPages, lo + 4);
     let buttons = '';
     if (totalPages > 1) {
-        if (current > 1) buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${current - 1})"><i class="fas fa-chevron-left"></i></button>`;
+        buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', 1)" title="Trang đầu" ${current === 1 ? 'disabled' : ''}><i class="fas fa-angle-double-left"></i></button>`;
+        buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${current - 1})" title="Trang trước" ${current === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
         if (lo > 1) buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', 1)">1</button><span class="generic-pg-ell">...</span>`;
         for (let i = lo; i <= hi; i++) {
             buttons += `<button class="generic-pg-btn${i === current ? ' generic-pg-active' : ''}" onclick="window.GenericTable.onPage('${section}', ${i})">${i}</button>`;
         }
         if (hi < totalPages) buttons += `<span class="generic-pg-ell">...</span><button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${totalPages})">${totalPages}</button>`;
-        if (current < totalPages) buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${current + 1})"><i class="fas fa-chevron-right"></i></button>`;
+        buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${current + 1})" title="Trang sau" ${current === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+        buttons += `<button class="generic-pg-btn" onclick="window.GenericTable.onPage('${section}', ${totalPages})" title="Trang cuối" ${current === totalPages ? 'disabled' : ''}><i class="fas fa-angle-double-right"></i></button>`;
     }
 
     const start = total === 0 ? 0 : ((current - 1) * state.pageSize) + 1;
@@ -1543,6 +1782,7 @@ function renderGenericPaging(total, section) {
         <style>
             .generic-pg-btn{padding:.3rem .65rem;border:1px solid var(--border-color,#e2e8f0);border-radius:6px;background:#fff;cursor:pointer;font-size:.85rem;color:var(--text-primary,#1e293b);transition:all .15s;}
             .generic-pg-btn:hover{background:var(--primary-light,#eff6ff);border-color:var(--primary,#3b82f6);}
+            .generic-pg-btn:disabled{opacity:.45;cursor:not-allowed;background:#f8fafc;}
             .generic-pg-active{background:var(--primary,#3b82f6)!important;color:#fff!important;border-color:var(--primary,#3b82f6)!important;}
             .generic-pg-ell{padding:0 .25rem;color:var(--text-light);}
         </style>`;
@@ -1618,6 +1858,11 @@ window.GenericTable = {
         state.page = 1;
         renderTable(modules[section], currentData, section);
     },
+    toggleAdvanced(section) {
+        const state = getGenericState(section);
+        state.advancedOpen = !state.advancedOpen;
+        renderTable(modules[section], currentData, section);
+    },
     onSort(section, key) {
         const state = getGenericState(section);
         if (state.sortKey === key) {
@@ -1653,7 +1898,8 @@ window.GenericTable = {
             sortKey: '',
             sortDir: 'asc',
             page: 1,
-            pageSize: 10
+            pageSize: 10,
+            advancedOpen: false
         });
         renderTable(modules[section], currentData, section);
     },
@@ -1678,17 +1924,6 @@ async function loadGenericSection(section) {
 
     let extraToolbarHtml = '';
     if (section === 'thongbao') {
-        // Nút "Thêm mới" cho Admin/ChuTro
-        const addBtn = document.getElementById('addBtn');
-        if (addBtn && (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro')) {
-            addBtn.style.display = 'inline-flex';
-            addBtn.onclick = () => {
-                if (typeof window.AppThongBao !== 'undefined') {
-                    window.AppThongBao.openCreateModal();
-                }
-            };
-        }
-
         // Mount container & gọi onLoad của module thongbao
         document.getElementById('genericSection').innerHTML = `
             <div id="thongBaoContainer" style="padding:.25rem 0;"></div>`;
@@ -1699,10 +1934,6 @@ async function loadGenericSection(section) {
             await cfg.onLoad(container);
         }
         return;
-    }
-
-    if (section === 'hoadon') {
-        extraToolbarHtml = `<div id="hoaDonFilterBarWrapper"></div>`;
     }
 
     if (section === 'nguoithue') {
@@ -1758,7 +1989,6 @@ async function loadGenericSection(section) {
     // ── Hóa đơn dùng module Search riêng ─────────────────────────────
     if (section === 'hoadon') {
         document.getElementById('genericSection').innerHTML = `
-            ${extraToolbarHtml}
             <div id="hdnToolbarSlot"></div>
             <div class="data-card">
                 <div id="hdnTableSlot">
@@ -1939,13 +2169,13 @@ function renderTable(cfg, data, section) {
                 <button class="btn-action btn-delete" onclick="deleteItem('${section}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>`;
         }
 
-        return `<tr>
+        return `<tr class="${getGenericRowClass(item)}">
             ${cfg.headers.map(h => {
                 const val = h.key ? item[h.key] : null;
                 const rendered = h.render ? h.render(val, item) : (val != null && val !== '' ? val : '---');
                 return `<td>${rendered}</td>`;
             }).join('')}
-            <td style="white-space:nowrap;">${actionHtml}</td>
+            <td style="white-space:nowrap;">${renderGenericActionMenu(actionHtml)}</td>
         </tr>`;
     }).join('');
 }
@@ -2041,8 +2271,8 @@ function mergeNguoiThueDisplayRows(data) {
 // ĐIỆN & NƯỚC SECTION
 // ==========================================
 const dienNuocTableState = {
-    dien: { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: 'ngayThangDien', sortDir: 'desc', page: 1, pageSize: 10 },
-    nuoc: { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: 'ngayThangNuoc', sortDir: 'desc', page: 1, pageSize: 10 }
+    dien: { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: 'ngayThangDien', sortDir: 'desc', page: 1, pageSize: 10, advancedOpen: false },
+    nuoc: { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: 'ngayThangNuoc', sortDir: 'desc', page: 1, pageSize: 10, advancedOpen: false }
 };
 
 function getDienNuocState(tab) {
@@ -2117,9 +2347,20 @@ function renderDienNuocToolbar(tab, cfg, data, filtered) {
     const phongOptions = normalizeArrayResponse(lookups.phongDienNuoc || []);
     const totalTien = filtered.reduce((sum, item) => sum + (Number(item[metric.totalKey]) || 0), 0);
     const totalTieuThu = filtered.reduce((sum, item) => sum + Math.max((Number(item[metric.newKey]) || 0) - (Number(item[metric.oldKey]) || 0), 0), 0);
+    const canWrite = CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro';
+    const addButton = canWrite && selectedDienNuocNhaTroId ? `
+                <button class="module-btn module-btn-primary" onclick="openDienNuocModal()">
+                    <i class="fas fa-plus"></i> Thêm mới
+                </button>` : '';
+    const chips = [];
+    const selectedPhong = state.filterPhong ? phongOptions.find(p => String(p.maPhong) === String(state.filterPhong)) : null;
+    if (state.keyword) chips.push({ label: `"${state.keyword}"`, clear: `window.DienNuocTable.onKeyword('${tab}', '')` });
+    if (state.filterPhong) chips.push({ label: selectedPhong?.tenPhong || `Phòng #${state.filterPhong}`, clear: `window.DienNuocTable.onPhong('${tab}', '')` });
+    if (state.dateFrom) chips.push({ label: `Từ ngày: ${state.dateFrom}`, clear: `window.DienNuocTable.onDateFrom('${tab}', '')` });
+    if (state.dateTo) chips.push({ label: `Đến ngày: ${state.dateTo}`, clear: `window.DienNuocTable.onDateTo('${tab}', '')` });
 
     slot.innerHTML = `
-        <div style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:.75rem;">
+        <div class="generic-table-toolbar" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:.75rem;">
             <div style="position:relative;flex:1;min-width:220px;max-width:420px;">
                 <i class="fas fa-search" style="position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:var(--text-light);pointer-events:none;"></i>
                 <input type="text" class="form-control" style="padding-left:2.5rem;"
@@ -2127,6 +2368,17 @@ function renderDienNuocToolbar(tab, cfg, data, filtered) {
                     value="${escapeHtmlDashboard(state.keyword)}"
                     oninput="window.DienNuocTable.onKeyword('${tab}', this.value)">
             </div>
+            <div style="display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;">
+                ${addButton}
+                <button class="module-btn module-btn-muted ${state.advancedOpen ? 'active' : ''}" onclick="window.DienNuocTable.toggleAdvanced('${tab}')">
+                    <i class="fas fa-sliders-h"></i> Nâng cao
+                    <i class="fas fa-chevron-${state.advancedOpen ? 'up' : 'down'}" style="font-size:.7rem;"></i>
+                </button>
+                <button class="module-btn module-btn-muted" onclick="window.DienNuocTable.reset('${tab}')"><i class="fas fa-filter-circle-xmark"></i> Xóa lọc</button>
+                <button class="module-btn module-btn-muted" onclick="loadDienNuocData('${tab}')"><i class="fas fa-rotate-right"></i> Làm mới</button>
+            </div>
+        </div>
+        <div class="generic-advanced-panel ${state.advancedOpen ? 'open' : ''}">
             <div style="min-width:160px;">
                 <select class="form-control" onchange="window.DienNuocTable.onPhong('${tab}', this.value)">
                     <option value="">Tất cả phòng</option>
@@ -2140,15 +2392,23 @@ function renderDienNuocToolbar(tab, cfg, data, filtered) {
                 <input type="date" class="form-control" style="width:150px;" value="${escapeHtmlDashboard(state.dateTo)}" onchange="window.DienNuocTable.onDateTo('${tab}', this.value)">
             </div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-bottom:.75rem;font-size:.875rem;">
-            <span>Tìm thấy <strong>${filtered.length}</strong> / ${normalizeArrayResponse(data).length}</span>
-            <span style="color:var(--text-light);">|</span>
-            <span>Tiêu thụ: <strong>${new Intl.NumberFormat('vi-VN').format(totalTieuThu)} ${metric.unit}</strong></span>
-            <span style="color:var(--text-light);">|</span>
-            <span>Tổng tiền: <strong>${fmtCurrency(totalTien)}</strong></span>
-            <div style="display:flex;gap:.4rem;margin-left:auto;">
-                <button class="btn btn-secondary" style="white-space:nowrap;" onclick="window.DienNuocTable.reset('${tab}')"><i class="fas fa-filter-circle-xmark"></i> Xóa lọc</button>
-                <button class="btn btn-secondary" style="white-space:nowrap;" onclick="loadDienNuocData('${tab}')"><i class="fas fa-rotate-right"></i> Làm mới</button>
+        ${chips.length ? `
+        <div class="module-filter-chips">
+            ${chips.map(chip => `<button class="module-chip" onclick="${chip.clear}">${escapeHtmlDashboard(chip.label)} <i class="fas fa-times"></i></button>`).join('')}
+            <button class="module-chip module-chip-clear" onclick="window.DienNuocTable.reset('${tab}')"><i class="fas fa-times-circle"></i> Xóa tất cả</button>
+        </div>` : ''}
+        <div class="module-summary-grid">
+            <div class="module-summary-card">
+                <div class="module-summary-icon"><i class="fas fa-${tab === 'dien' ? 'bolt' : 'tint'}"></i></div>
+                <div><div class="module-summary-label">Tổng bản ghi</div><div class="module-summary-value">${filtered.length}</div><div class="hdn-sum-amount">${normalizeArrayResponse(data).length} tất cả</div></div>
+            </div>
+            <div class="module-summary-card">
+                <div class="module-summary-icon dark"><i class="fas fa-chart-line"></i></div>
+                <div><div class="module-summary-label">Tiêu thụ</div><div class="module-summary-value dark">${new Intl.NumberFormat('vi-VN').format(totalTieuThu)} ${metric.unit}</div></div>
+            </div>
+            <div class="module-summary-card">
+                <div class="module-summary-icon ${tab === 'dien' ? 'warn' : 'paid'}"><i class="fas fa-coins"></i></div>
+                <div><div class="module-summary-label">Tổng tiền</div><div class="module-summary-value ${tab === 'dien' ? 'warn-text' : 'paid-text'}">${fmtCurrency(totalTien)}</div></div>
             </div>
         </div>`;
 }
@@ -2202,6 +2462,7 @@ function renderDienNuocTable(tab, cfg, data) {
 
     const filtered = filterSortDienNuocData(tab, cfg, data);
     const state = getDienNuocState(tab);
+    const metric = getDienNuocMetricKeys(tab);
     const totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
     if (state.page > totalPages) state.page = totalPages;
     const start = (state.page - 1) * state.pageSize;
@@ -2216,19 +2477,28 @@ function renderDienNuocTable(tab, cfg, data) {
         return;
     }
 
-    body.innerHTML = pageRows.map(item => `<tr>
-        ${cfg.headers.map(h => {
-            const val = h.key ? item[h.key] : null;
-            const rendered = h.render ? h.render(val, item) : (val != null ? val : '---');
-            return `<td>${rendered}</td>`;
-        }).join('')}
-        <td style="white-space:nowrap;">
-            ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
-            <button class="btn-action btn-edit" onclick="editDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
-            <button class="btn-action btn-delete" onclick="deleteDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>
+    body.innerHTML = pageRows.map(item => {
+        const used = Math.max((Number(item[metric.newKey]) || 0) - (Number(item[metric.oldKey]) || 0), 0);
+        const rowCls = used <= 0 ? 'module-row-warn' : (tab === 'dien' ? 'module-row-partial' : 'module-row-ok');
+        return `<tr class="${rowCls}">
+            ${cfg.headers.map(h => {
+                const val = h.key ? item[h.key] : null;
+                const rendered = h.render ? h.render(val, item) : (val != null ? val : '---');
+                return `<td>${rendered}</td>`;
+            }).join('')}
+            <td style="white-space:nowrap;">
+                ${(CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') ? `
+            <details class="module-action-menu">
+                <summary title="Thao tác"><i class="fas fa-ellipsis-vertical"></i></summary>
+                <div class="module-action-list">
+                    <button class="btn-action btn-edit" onclick="editDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-edit"></i> Sửa</button>
+                    <button class="btn-action btn-delete" onclick="deleteDienNuoc('${tab}',${item[cfg.pk]})"><i class="fas fa-trash"></i> Xóa</button>
+                </div>
+            </details>
             ` : ''}
-        </td>
-    </tr>`).join('');
+            </td>
+        </tr>`;
+    }).join('');
 }
 
 window.DienNuocTable = {
@@ -2239,7 +2509,8 @@ window.DienNuocTable = {
     onSort(tab, key) { const s = getDienNuocState(tab); if (s.sortKey === key) s.sortDir = s.sortDir === 'asc' ? 'desc' : 'asc'; else { s.sortKey = key; s.sortDir = 'asc'; } s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
     onPage(tab, page) { getDienNuocState(tab).page = page; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
     onPageSize(tab, value) { const s = getDienNuocState(tab); s.pageSize = parseInt(value) || 10; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
-    reset(tab) { const metric = getDienNuocMetricKeys(tab); Object.assign(getDienNuocState(tab), { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: metric.dateKey, sortDir: 'desc', page: 1, pageSize: 10 }); renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); }
+    toggleAdvanced(tab) { const s = getDienNuocState(tab); s.advancedOpen = !s.advancedOpen; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    reset(tab) { const metric = getDienNuocMetricKeys(tab); Object.assign(getDienNuocState(tab), { keyword: '', filterPhong: '', dateFrom: '', dateTo: '', sortKey: metric.dateKey, sortDir: 'desc', page: 1, pageSize: 10, advancedOpen: false }); renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); }
 };
 
 function renderDienNuocSection() {
@@ -2303,8 +2574,7 @@ function updateDienNuocAddButton() {
     const addBtn = document.getElementById('addBtn');
     if (!addBtn) return;
 
-    const canWrite = CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro';
-    addBtn.style.display = canWrite && selectedDienNuocNhaTroId ? 'inline-flex' : 'none';
+    addBtn.style.display = 'none';
     addBtn.onclick = () => openDienNuocModal();
 }
 
@@ -3827,6 +4097,80 @@ function logout() {
     window.location.href = '/index.html';
 }
 
+function setupFloatingActionMenus() {
+    if (window.__floatingActionMenusReady) return;
+    window.__floatingActionMenusReady = true;
+
+    const closeOtherMenus = current => {
+        document.querySelectorAll('details.module-action-menu[open]').forEach(menu => {
+            if (menu !== current) menu.removeAttribute('open');
+        });
+    };
+
+    const clearMenuPosition = menu => {
+        const list = menu?.querySelector('.module-action-list');
+        if (!list) return;
+        list.style.left = '';
+        list.style.top = '';
+        list.style.right = '';
+        list.style.position = '';
+        list.style.visibility = '';
+    };
+
+    const positionMenu = menu => {
+        const summary = menu.querySelector('summary');
+        const list = menu.querySelector('.module-action-list');
+        if (!summary || !list || !menu.open) return;
+
+        list.style.position = 'fixed';
+        list.style.right = 'auto';
+        list.style.visibility = 'hidden';
+        list.style.left = '0px';
+        list.style.top = '0px';
+
+        const summaryRect = summary.getBoundingClientRect();
+        const width = list.offsetWidth || 180;
+        const height = list.offsetHeight || 120;
+        const gap = 6;
+        const margin = 8;
+
+        let left = summaryRect.right - width;
+        left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+
+        let top = summaryRect.bottom + gap;
+        if (top + height > window.innerHeight - margin) {
+            top = summaryRect.top - height - gap;
+        }
+        top = Math.max(margin, Math.min(top, window.innerHeight - height - margin));
+
+        list.style.left = `${left}px`;
+        list.style.top = `${top}px`;
+        list.style.visibility = 'visible';
+    };
+
+    document.addEventListener('toggle', event => {
+        const menu = event.target;
+        if (!(menu instanceof HTMLElement) || !menu.matches('details.module-action-menu')) return;
+        if (menu.open) {
+            closeOtherMenus(menu);
+            requestAnimationFrame(() => positionMenu(menu));
+        } else {
+            clearMenuPosition(menu);
+        }
+    }, true);
+
+    document.addEventListener('click', event => {
+        if (event.target.closest?.('details.module-action-menu')) return;
+        document.querySelectorAll('details.module-action-menu[open]').forEach(menu => menu.removeAttribute('open'));
+    });
+
+    const repositionOpenMenu = () => {
+        document.querySelectorAll('details.module-action-menu[open]').forEach(positionMenu);
+    };
+    window.addEventListener('resize', repositionOpenMenu);
+    window.addEventListener('scroll', repositionOpenMenu, true);
+}
+
 // ==========================================
 // STARTUP
 // ==========================================
@@ -3837,6 +4181,7 @@ async function startDashboard() {
     if (window.__dashboardStarted) return;
     window.__dashboardStarted = true;
 
+    setupFloatingActionMenus();
     await loadLookups();
 
     const firstSection = normalizeSectionFromHash();
