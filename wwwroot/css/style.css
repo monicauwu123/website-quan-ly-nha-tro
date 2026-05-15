@@ -1574,6 +1574,12 @@ tr:last-child td { border-bottom: none; }
     gap: 1.4rem;
     align-items: start;
 }
+.account-shell-single {
+    grid-template-columns: 1fr;
+}
+.account-main-full {
+    width: 100%;
+}
 .account-main-column,
 .account-side-column { display: grid; gap: 1.4rem; }
 .account-card {
