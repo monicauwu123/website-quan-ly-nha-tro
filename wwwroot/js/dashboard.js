@@ -679,22 +679,20 @@ function renderChuTroAdminOverview(data) {
                 </div>
             </div>
 
-            <div class="dash-side-column">
-                <div class="data-card dash-side-card dash-contract-card">
-                    <div class="dash-card-header">
-                        <span><i class="fas fa-calendar-times" style="color:#8b5cf6;"></i> Hợp đồng sắp hết hạn</span>
-                        <button class="btn-link-sm" onclick="showSection('hopdong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
-                    </div>
-                    <div class="mini-list dash-compact-list">${sapHetHtml}</div>
+            <div class="data-card dash-side-card dash-contract-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-calendar-times" style="color:#8b5cf6;"></i> Hợp đồng sắp hết hạn</span>
+                    <button class="btn-link-sm" onclick="showSection('hopdong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
                 </div>
+                <div class="mini-list dash-compact-list">${sapHetHtml}</div>
+            </div>
 
-                <div class="data-card dash-side-card dash-room-card">
-                    <div class="dash-card-header">
-                        <span><i class="fas fa-door-open" style="color:var(--primary);"></i> Danh sách phòng</span>
-                        <button class="btn-link-sm" onclick="showSection('phong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
-                    </div>
-                    <div class="mini-list dash-scroll-list">${roomsHtml}</div>
+            <div class="data-card dash-side-card dash-room-card">
+                <div class="dash-card-header">
+                    <span><i class="fas fa-door-open" style="color:var(--primary);"></i> Danh sách phòng</span>
+                    <button class="btn-link-sm" onclick="showSection('phong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
                 </div>
+                <div class="mini-list dash-scroll-list">${roomsHtml}</div>
             </div>
         </div>
     `;
