@@ -1,0 +1,301 @@
+/* =====================================================================
+   DARK MODE – Quản lý nhà trọ
+   Thêm vào cuối file: wwwroot/css/dashboard-additions.css
+   ===================================================================== */
+
+/* ── Transition mượt khi chuyển theme ──────────────────────────────── */
+body,
+.sidebar, .top-bar, .data-card, .stat-card, .modal-card,
+.form-control, .nav-link, table, th, td, .badge,
+.btn, .btn-secondary, .btn-primary,
+.modal-overlay, .sidebar-toggle, input, select, textarea {
+    transition:
+        background-color 0.25s ease,
+        border-color 0.25s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+/* ── CSS Variables override ─────────────────────────────────────────── */
+body.dark-mode {
+    --primary:        #14b8a6;
+    --primary-dark:   #2dd4bf;
+    --primary-light:  #134e4a;
+    --secondary:      #fbbf24;
+    --accent:         #22d3ee;
+    --background:     #0f172a;
+    --surface:        #1e293b;
+    --text:           #e2e8f0;
+    --text-light:     #94a3b8;
+    --error:          #f87171;
+    --success:        #34d399;
+    --warning:        #fbbf24;
+    --border:         #334155;
+    --shadow:         0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-md:      0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg:      0 10px 20px -3px rgb(0 0 0 / 0.5), 0 4px 8px -4px rgb(0 0 0 / 0.3);
+}
+
+/* ── Body & Background ──────────────────────────────────────────────── */
+body.dark-mode {
+    background-color: var(--background);
+    color: var(--text);
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────── */
+body.dark-mode .sidebar {
+    background: #1e293b;
+    border-right-color: #334155;
+    box-shadow: 6px 0 24px rgba(0,0,0,.35);
+}
+
+body.dark-mode .sidebar-logo {
+    border-bottom-color: #334155;
+}
+
+body.dark-mode .sidebar-toggle {
+    background: #273548;
+    border-color: #334155;
+    color: #94a3b8;
+}
+body.dark-mode .sidebar-toggle:hover {
+    background: #1e3a5f;
+    border-color: #14b8a6;
+    color: #14b8a6;
+}
+
+body.dark-mode .nav-link {
+    color: #cbd5e1;
+}
+body.dark-mode .nav-link:hover,
+body.dark-mode .nav-link.active {
+    background: #1e3a5f;
+    color: #2dd4bf;
+}
+body.dark-mode .nav-link.active {
+    box-shadow: inset 3px 0 0 #14b8a6;
+}
+
+body.dark-mode .sidebar-footer {
+    border-top-color: #334155;
+}
+
+body.dark-mode .user-name { color: var(--text); }
+body.dark-mode .user-role { color: var(--text-light); }
+body.dark-mode .nav-logout { color: #f87171 !important; }
+
+/* ── Top Bar ────────────────────────────────────────────────────────── */
+body.dark-mode .top-bar {
+    border-bottom-color: rgba(20, 184, 166, .15);
+}
+body.dark-mode .top-bar h1 { color: var(--text); }
+
+/* ── Data Card ──────────────────────────────────────────────────────── */
+body.dark-mode .data-card {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: var(--shadow);
+}
+
+/* ── Stat Cards ─────────────────────────────────────────────────────── */
+body.dark-mode .stat-card {
+    background: #1e293b;
+    box-shadow: var(--shadow);
+}
+body.dark-mode .stat-card-blue  .stat-icon { background: #0c2840; color: #22d3ee; }
+body.dark-mode .stat-card-red   .stat-icon { background: #2d1212; color: #f87171; }
+body.dark-mode .stat-card-green .stat-icon { background: #052e16; color: #34d399; }
+body.dark-mode .stat-card-purple .stat-icon { background: #1e1b4b; color: #a78bfa; }
+body.dark-mode .stat-card-indigo .stat-icon { background: #134e4a; color: #14b8a6; }
+body.dark-mode .stat-info h3    { color: var(--text-light); }
+body.dark-mode .stat-info .value { color: var(--text); }
+
+/* ── Table ──────────────────────────────────────────────────────────── */
+body.dark-mode th {
+    background: #162032;
+    color: #2dd4bf;
+    border-bottom-color: #334155;
+}
+body.dark-mode td {
+    border-bottom-color: #263347;
+    color: #cbd5e1;
+}
+body.dark-mode tr:hover td {
+    background: #1a2d42;
+}
+
+/* ── Form Controls ──────────────────────────────────────────────────── */
+body.dark-mode .form-control {
+    background: #162032;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+body.dark-mode .form-control:focus {
+    border-color: #14b8a6;
+    background: #1a2d42;
+    box-shadow: 0 0 0 3px rgba(20,184,166,.15);
+}
+body.dark-mode .form-control::placeholder { color: #475569; }
+body.dark-mode select.form-control option  { background: #1e293b; color: #e2e8f0; }
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+body.dark-mode .btn-secondary {
+    background: #273548;
+    color: #2dd4bf;
+    border-color: #334155;
+}
+body.dark-mode .btn-secondary:hover {
+    background: #1e3a5f;
+    border-color: #14b8a6;
+    color: #14b8a6;
+}
+body.dark-mode .btn-danger {
+    background: #7f1d1d;
+    border-color: #991b1b;
+    color: #fecaca;
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────── */
+body.dark-mode .modal-overlay {
+    background: rgba(0,0,0,.72);
+    backdrop-filter: blur(3px);
+}
+body.dark-mode .modal-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    box-shadow: 0 25px 60px rgba(0,0,0,.55);
+}
+body.dark-mode .modal-header {
+    background: linear-gradient(135deg, #134e4a, #0c2840);
+    border-bottom-color: #334155;
+}
+body.dark-mode .modal-header h2 { color: #2dd4bf; }
+body.dark-mode .modal-footer {
+    background: #162032;
+    border-top-color: #334155;
+}
+
+/* ── Badges ─────────────────────────────────────────────────────────── */
+body.dark-mode .badge-success   { background: #052e16; color: #34d399; border-color: #065f46; }
+body.dark-mode .badge-warning   { background: #2d1f00; color: #fbbf24; border-color: #78350f; }
+body.dark-mode .badge-danger    { background: #2d1212; color: #f87171; border-color: #7f1d1d; }
+body.dark-mode .badge-info      { background: #0c2840; color: #22d3ee; border-color: #155e75; }
+body.dark-mode .badge-secondary { background: #273548; color: #94a3b8; border-color: #334155; }
+body.dark-mode .badge-teal      { background: #134e4a; color: #2dd4bf; border-color: #115e59; }
+body.dark-mode .badge-blue      { background: #0c2840; color: #93c5fd; border-color: #1e3a8a; }
+body.dark-mode .badge-green     { background: #052e16; color: #86efac; border-color: #14532d; }
+body.dark-mode .badge-amber     { background: #2d1f00; color: #fbbf24; border-color: #78350f; }
+body.dark-mode .badge-red       { background: #2d1212; color: #f87171; border-color: #7f1d1d; }
+
+/* ── Btn-action (bảng Sửa/Xóa) ─────────────────────────────────────── */
+body.dark-mode .btn-action.btn-edit {
+    background: #1e3a5f;
+    color: #2dd4bf;
+    border-color: #334155;
+}
+body.dark-mode .btn-action.btn-edit:hover {
+    background: #14b8a6;
+    color: #fff;
+}
+body.dark-mode .btn-action.btn-delete {
+    background: #2d1212;
+    color: #f87171;
+    border-color: #7f1d1d;
+}
+
+/* ── Phân trang (pt-page-btn) ───────────────────────────────────────── */
+body.dark-mode .pt-page-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #94a3b8;
+}
+body.dark-mode .pt-page-btn:hover:not(.disabled):not(.active) {
+    background: #1e3a5f;
+    border-color: #14b8a6;
+    color: #14b8a6;
+}
+body.dark-mode .pt-page-btn.active {
+    background: #14b8a6;
+    border-color: #14b8a6;
+    color: #fff;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────── */
+body.dark-mode ::-webkit-scrollbar       { width: 7px; height: 7px; }
+body.dark-mode ::-webkit-scrollbar-track { background: #0f172a; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #14b8a6; }
+
+/* ── Room cards (NguoiDung) ─────────────────────────────────────────── */
+body.dark-mode .room-house-card {
+    background: #1e293b;
+    border-color: #334155;
+    color: var(--text);
+}
+body.dark-mode .room-house-card:hover,
+body.dark-mode .room-house-card.active {
+    border-color: #14b8a6;
+    background: #162032;
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────── */
+body.dark-mode .toast {
+    background: #1e293b;
+    border-color: #334155;
+    color: var(--text);
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+
+/* ── Nút dark mode toggle ───────────────────────────────────────────── */
+#darkModeToggle {
+    width: 34px;
+    height: 34px;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.6rem;
+    background: #f8fafc;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: .95rem;
+    transition: all .2s;
+    flex-shrink: 0;
+}
+#darkModeToggle:hover {
+    background: #fef9c3;
+    border-color: #fbbf24;
+    color: #92400e;
+}
+body.dark-mode #darkModeToggle {
+    background: #273548;
+    border-color: #334155;
+    color: #fbbf24;
+}
+body.dark-mode #darkModeToggle:hover {
+    background: #1e3a5f;
+    border-color: #fbbf24;
+    color: #fde68a;
+}
+
+/* ── Module summary (dashboard overview) ───────────────────────────── */
+body.dark-mode .module-summary-icon       { background: #273548; color: #2dd4bf; }
+body.dark-mode .module-summary-icon.dark  { background: #162032; color: #94a3b8; }
+body.dark-mode .module-summary-label      { color: var(--text-light); }
+body.dark-mode .module-summary-value      { color: var(--primary-dark); }
+body.dark-mode .module-summary-value.dark { color: #94a3b8; }
+
+/* ── KPI card ───────────────────────────────────────────────────────── */
+body.dark-mode .kpi-card { background: #1e293b; }
+
+/* ── Misc overrides ─────────────────────────────────────────────────── */
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3,
+body.dark-mode h4, body.dark-mode h5, body.dark-mode h6 { color: var(--text); }
+body.dark-mode label { color: var(--text); }
+body.dark-mode small { color: var(--text-light); }
+body.dark-mode hr    { border-color: #334155; }
+body.dark-mode code  { background: #162032; color: #2dd4bf; border-radius: 4px; padding: 0 .3rem; }
+body.dark-mode .text-muted { color: var(--text-light) !important; }
+
+/* ── Empty state ────────────────────────────────────────────────────── */
+body.dark-mode .empty-state-inline { color: var(--text-light); }

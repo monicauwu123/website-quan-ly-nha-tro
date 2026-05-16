@@ -4,7 +4,7 @@
 // ==========================================
 
 (function () {
-    const VERSION = '7.9';
+    const VERSION = '8.0';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },
@@ -39,7 +39,8 @@
         `js/modules/dien-nuoc.js?v=${VERSION}`,
         `js/modules/thong-bao.js?v=${VERSION}`,
         `js/modules/bien-lai.js?v=${VERSION}`,   // ← Module Biên Lai
-        `js/modules/sidebar-badges.js?v=${VERSION}`
+        `js/modules/sidebar-badges.js?v=${VERSION}`,
+        `js/dark-mode.js?v=${VERSION}`
     ];
 
     const appScripts = [
