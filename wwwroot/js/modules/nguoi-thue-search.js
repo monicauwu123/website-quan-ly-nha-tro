@@ -124,7 +124,14 @@
     }
 
     // ── Handlers ────────────────────────────────────────────────────────────────
-    function onKeyword(v) { NT.keyword = v.trim(); NT.page = 1; _applyAndRender(); }
+    // ✅ Mới – thêm debounce 300ms
+    let _kwTimer;
+    function onKeyword(v) {
+        NT.keyword = v.trim();
+        NT.page = 1;
+        clearTimeout(_kwTimer);
+        _kwTimer = setTimeout(_applyAndRender, 300);
+    }
     function onTrangThai(v) { NT.filterTrangThai = v; NT.page = 1; _applyAndRender(); }
     function onNhaTro(v) {
         NT.filterNhaTro = v;

@@ -1645,6 +1645,14 @@ function filterSortGenericData(cfg, data, section) {
 function renderGenericToolbar(cfg, data, section, filteredCount) {
     const slot = document.getElementById('genericToolbarSlot');
     if (!slot) return;
+    // ── Nếu input đang được focus → KHÔNG rebuild innerHTML, chỉ sync state ──
+    const activeEl = document.activeElement;
+    const inputBelongsHere = slot.contains(activeEl) && activeEl.tagName === 'INPUT' && activeEl.type === 'text';
+    if (inputBelongsHere) {
+        // Chỉ update những phần không phải input (chips, summary, v.v.)
+        // Bỏ qua rebuild để tránh mất focus
+        return;
+    }
     const state = getGenericState(section);
     const rows = normalizeArrayResponse(data);
     const total = rows.length;
@@ -1840,7 +1848,10 @@ window.GenericTable = {
         const state = getGenericState(section);
         state.keyword = value || '';
         state.page = 1;
-        renderTable(modules[section], currentData, section);
+        clearTimeout(state._kwTimer);
+        state._kwTimer = setTimeout(() => {
+            renderTable(modules[section], currentData, section);
+        }, 300);
     },
     onStatus(section, value) {
         const state = getGenericState(section);
@@ -2380,6 +2391,11 @@ function filterSortDienNuocData(tab, cfg, data) {
 function renderDienNuocToolbar(tab, cfg, data, filtered) {
     const slot = document.getElementById('dienNuocToolbar');
     if (!slot) return;
+    // Không rebuild nếu input đang focus
+    const activeEl = document.activeElement;
+    if (slot.contains(activeEl) && activeEl.tagName === 'INPUT' && activeEl.type === 'text') {
+        return;
+    }
     const state = getDienNuocState(tab);
     const metric = getDienNuocMetricKeys(tab);
     const phongOptions = normalizeArrayResponse(lookups.phongDienNuoc || []);
@@ -2540,7 +2556,15 @@ function renderDienNuocTable(tab, cfg, data) {
 }
 
 window.DienNuocTable = {
-    onKeyword(tab, value) { const s = getDienNuocState(tab); s.keyword = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    onKeyword(tab, value) {
+        const s = getDienNuocState(tab);
+        s.keyword = value || '';
+        s.page = 1;
+        clearTimeout(s._kwTimer);
+        s._kwTimer = setTimeout(() => {
+            renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData);
+        }, 300);
+    },
     onPhong(tab, value) { const s = getDienNuocState(tab); s.filterPhong = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
     onDateFrom(tab, value) { const s = getDienNuocState(tab); s.dateFrom = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
     onDateTo(tab, value) { const s = getDienNuocState(tab); s.dateTo = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },

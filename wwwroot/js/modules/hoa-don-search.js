@@ -291,7 +291,13 @@
     }
 
     // ── Handlers ──────────────────────────────────────────────────────────────
-    function onKeyword(v)       { HDN.keyword = v.trim(); HDN.page = 1; _applyAndRender(); }
+    let _kwTimer;
+    function onKeyword(v) {
+        HDN.keyword = v.trim();
+        HDN.page = 1;
+        clearTimeout(_kwTimer);
+        _kwTimer = setTimeout(_applyAndRender, 300);
+    }
     function onTrangThai(v)     { HDN.filterTrangThai = v; HDN.page = 1; _buildToolbar(); _applyAndRender(); }
     function onKyHoaDon(v)      { HDN.filterKyHoaDon = v; HDN.page = 1; _buildToolbar(); _applyAndRender(); }
     function onNhaTro(v)        { HDN.filterNhaTro = v; HDN.filterPhong = ''; HDN.page = 1; _rebuildPhong(); _buildToolbar(); _applyAndRender(); }

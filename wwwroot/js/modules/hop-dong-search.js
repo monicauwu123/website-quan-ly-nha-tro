@@ -140,7 +140,14 @@
     }
 
     // ── Handlers ────────────────────────────────────────────────────────────────
-    function onKeyword(v)         { HD.keyword = v.trim(); HD.page = 1; _applyAndRender(); }
+    // ✅ Mới
+    let _kwTimer;
+    function onKeyword(v) {
+        HD.keyword = v.trim();
+        HD.page = 1;
+        clearTimeout(_kwTimer);
+        _kwTimer = setTimeout(_applyAndRender, 300);
+    }
     function onTrangThai(v)       { HD.filterTrangThai = v; HD.filterSapHetHan = ''; HD.page = 1; _applyAndRender(); }
     function onSapHetHan(v)       { HD.filterSapHetHan = v; HD.filterTrangThai = ''; HD.page = 1; _applyAndRender(); }
     function onNhaTro(v)          { HD.filterNhaTro = v; HD.filterPhong = ''; HD.page = 1; _rebuildPhong(); _applyAndRender(); }
