@@ -399,7 +399,7 @@ namespace DoAnSE104.Controllers
                 .SumAsync(t => t.TongTien);
             var conLai = Math.Max(hoaDon.TongTien - tongDaXacNhan, 0m);
             if (conLai <= 0)
-                return BadRequest(ApiResponse<object>.Loi("HÃ³a Ä‘Æ¡n nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘á»§"));
+                return BadRequest(ApiResponse<object>.Loi("Hóa đơn này đã được thanh toán đủ"));
 
             var kieuThanhToan = string.IsNullOrWhiteSpace(dto.KieuThanhToan)
                 ? "ThanhToanHet"
@@ -411,15 +411,15 @@ namespace DoAnSE104.Controllers
             else if (kieuThanhToan == "MotPhan")
             {
                 if (dto.TongTien >= conLai)
-                    return BadRequest(ApiResponse<object>.Loi("Thanh toÃ¡n má»™t pháº§n pháº£i nhá» hÆ¡n sá»‘ tiá»n cÃ²n láº¡i. Náº¿u tráº£ Ä‘á»§, vui lÃ²ng chá»n Thanh toÃ¡n háº¿t."));
+                    return BadRequest(ApiResponse<object>.Loi("Thanh toán một phần phải nhỏ hơn số tiền còn lại. Nếu trả đủ, vui lòng chọn Thanh toán hết."));
             }
             else
             {
-                return BadRequest(ApiResponse<object>.Loi("Kiá»ƒu thanh toÃ¡n khÃ´ng há»£p lá»‡"));
+                return BadRequest(ApiResponse<object>.Loi("Kiểu thanh toán không hợp lệ"));
             }
 
             if (dto.TongTien > conLai)
-                return BadRequest(ApiResponse<object>.Loi("Sá»‘ tiá»n gá»­i biÃªn lai vÆ°á»£t quÃ¡ sá»‘ tiá»n cÃ²n láº¡i cá»§a hÃ³a Ä‘Æ¡n"));
+                return BadRequest(ApiResponse<object>.Loi("Số tiền gửi biên lai vượt quá số tiền còn lại của hóa đơn"));
 
             string? urlBienLai = null;
             if (anhBienLai != null && anhBienLai.Length > 0)

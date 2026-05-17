@@ -512,6 +512,10 @@
                 const menuItems = [];
                 menuItems.push(`<button class="btn-action" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In hóa đơn</button>`);
 
+                if (conLai > 0 && tt !== 'Huy' && tt !== 'DaThanhToan') {
+                    menuItems.push(`<button class="btn-action" style="background:#0f766e;" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thông tin thanh toán</button>`);
+                }
+
                 if (canSend && conLai > 0 && tt !== 'Huy' && tt !== 'DaThanhToan') {
                     const daCoBienLai = item._daCoBienLaiChoXacNhan === true;
                     if (daCoBienLai) {

@@ -8,6 +8,7 @@
 (function () {
     const POLL_MS = 60000;
     const DISMISS_KEY = 'sidebarBadgeDismissedCounts';
+    const GROUP_DISMISS_KEY = 'sidebarGroupBadgeDismissedCounts';
     const SECTION_TO_BADGE = {
         yeucauthue: 'yeuCauThueBadge',
         baocaosuco: 'baoCaoSuCoBadge',
@@ -92,6 +93,17 @@
         localStorage.setItem(DISMISS_KEY, JSON.stringify(dismissed));
     }
 
+    function getDismissedGroupCounts() {
+        try { return JSON.parse(localStorage.getItem(GROUP_DISMISS_KEY) || '{}') || {}; }
+        catch { return {}; }
+    }
+
+    function setDismissedGroupCount(id, count) {
+        const dismissed = getDismissedGroupCounts();
+        dismissed[id] = Math.max(0, Number(count || 0));
+        localStorage.setItem(GROUP_DISMISS_KEY, JSON.stringify(dismissed));
+    }
+
     function setBadge(id, count) {
         const badge = document.getElementById(id);
         if (!badge) return;
@@ -129,11 +141,13 @@
     }
 
     function refreshGroupBadges() {
+        const dismissedGroups = getDismissedGroupCounts();
         Object.entries(GROUP_BADGES).forEach(([groupId, childIds]) => {
             const badge = document.getElementById(groupId);
             if (!badge) return;
             const total = childIds.reduce((sum, childId) => sum + getVisibleChildBadgeCount(childId), 0);
-            if (total > 0) {
+            const dismissedTotal = Number(dismissedGroups[groupId] || 0);
+            if (total > 0 && total > dismissedTotal) {
                 badge.textContent = total > 99 ? '99+' : String(total);
                 badge.style.display = 'inline-flex';
                 badge.title = `${total} mục cần xử lý trong nhóm`;
@@ -143,6 +157,14 @@
                 badge.removeAttribute('title');
             }
         });
+    }
+
+    function acknowledgeSidebarGroup(groupId) {
+        const childIds = GROUP_BADGES[groupId];
+        if (!childIds) return;
+        const total = childIds.reduce((sum, childId) => sum + getVisibleChildBadgeCount(childId), 0);
+        setDismissedGroupCount(groupId, total);
+        refreshGroupBadges();
     }
 
     function dismissSidebarBadgeForSection(section) {
@@ -167,7 +189,7 @@
         return !(
             st === 'daxuly' || st === 'dahoanthanh' || st === 'hoanthanh' ||
             st === 'huy' || st === 'tuchoi' ||
-            st.includes('d� x? l�') || st.includes('da xu ly') ||
+            st.includes('đã xử lý') || st.includes('da xu ly') ||
             st.includes('hoàn thành') || st.includes('hoan thanh') ||
             st.includes('hủy') || st.includes('huy') ||
             st.includes('từ chối') || st.includes('tu choi')
@@ -219,6 +241,7 @@
     window.startSidebarBadges = startSidebarBadges;
     window.dismissSidebarBadgeForSection = dismissSidebarBadgeForSection;
     window.refreshSidebarGroupBadges = refreshGroupBadges;
+    window.acknowledgeSidebarGroup = acknowledgeSidebarGroup;
 
     window.addEventListener('app:ready', startSidebarBadges);
     window.addEventListener('focus', refreshSidebarBadges);

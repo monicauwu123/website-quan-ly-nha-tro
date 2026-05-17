@@ -220,6 +220,8 @@ using (var scope = app.Services.CreateScope())
         {
             InvokeSampleDataSeederIfAvailable(context);
         }
+
+        EnsureStoredPasswordsAreHashed(context);
     }
     catch (Exception ex)
     {
@@ -260,4 +262,28 @@ static void InvokeSampleDataSeederIfAvailable(ApplicationDbContext context)
         modifiers: null);
 
     seedMethod?.Invoke(null, new object[] { context });
+}
+
+static void EnsureStoredPasswordsAreHashed(ApplicationDbContext context)
+{
+    var usersWithPlainPassword = context.Users
+        .Where(u => !string.IsNullOrWhiteSpace(u.MatKhau))
+        .AsEnumerable()
+        .Where(u => !IsBcryptHash(u.MatKhau))
+        .ToList();
+
+    if (usersWithPlainPassword.Count == 0) return;
+
+    foreach (var user in usersWithPlainPassword)
+    {
+        user.MatKhau = BCrypt.Net.BCrypt.HashPassword(user.MatKhau);
+    }
+
+    context.SaveChanges();
+}
+
+static bool IsBcryptHash(string value)
+{
+    return value.Length == 60
+        && (value.StartsWith("$2a$") || value.StartsWith("$2b$") || value.StartsWith("$2y$"));
 }

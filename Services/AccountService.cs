@@ -120,10 +120,12 @@ namespace DoAnSE104.Services
 
         public async Task QuenMatKhau(string email, string baseUrl)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            var normalizedEmail = (email ?? string.Empty).Trim().ToLower();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
 
             // Không tiết lộ email có tồn tại hay không (bảo mật)
-            if (user == null) return;
+            if (user == null)
+                throw new Exception("Email không tồn tại trong hệ thống. Vui lòng kiểm tra lại.");
 
             if (!user.TrangThai)
                 throw new Exception("Tài khoản đã bị khóa, không thể đặt lại mật khẩu");
@@ -137,10 +139,10 @@ namespace DoAnSE104.Services
             await _context.SaveChangesAsync();
 
             // URL có email & raw otp để client tự điền vào form reset
-            var resetUrl = $"{baseUrl}/reset-mat-khau?email={Uri.EscapeDataString(email)}&token={otp}";
+            var resetUrl = $"{baseUrl}/reset-mat-khau?email={Uri.EscapeDataString(user.Email)}&token={otp}";
 
             await _emailService.GuiEmailResetMatKhau(
-                toEmail: email,
+                toEmail: user.Email,
                 hoTen: user.HoTen ?? user.TenDangNhap,
                 token: otp,
                 resetUrl: resetUrl
@@ -154,8 +156,9 @@ namespace DoAnSE104.Services
             if (dto.MatKhauMoi != dto.NhapLaiMatKhau)
                 throw new Exception("Mật khẩu nhập lại không khớp");
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email)
-                ?? throw new Exception("Không tìm thấy tài khoản với email này");
+            var normalizedEmail = (dto.Email ?? string.Empty).Trim().ToLower();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail)
+                ?? throw new Exception("Email không tồn tại trong hệ thống. Vui lòng kiểm tra lại.");
 
             if (string.IsNullOrEmpty(user.PasswordResetToken))
                 throw new Exception("Chưa có yêu cầu đặt lại mật khẩu cho tài khoản này");

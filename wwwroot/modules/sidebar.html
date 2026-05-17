@@ -14,11 +14,11 @@
 
             <a href="#" class="nav-link active" data-role="Admin,ChuTro,NguoiDung"
                onclick="showSection('overview', this); return false;">
-                <i class="fas fa-chart-line"></i> Tổng quan
+                <i class="fas fa-chart-line"></i> <span class="nav-text">Tổng quan</span>
             </a>
 
-            <details class="sidebar-group" data-sidebar-group="nha-tro" open>
-                <summary class="sidebar-group-toggle">
+            <details class="sidebar-group" data-sidebar-group="nha-tro">
+                <summary class="sidebar-group-toggle" onclick="acknowledgeSidebarGroup('groupNhaTroBadge')">
                     <span><i class="fas fa-city"></i><span class="sidebar-group-title">Quản lý nhà trọ</span></span>
                     <span class="sidebar-group-meta"><span id="groupNhaTroBadge" class="sidebar-badge sidebar-group-badge"></span><i class="fas fa-chevron-down"></i></span>
                 </summary>
@@ -54,8 +54,8 @@
                 </div>
             </details>
 
-            <details class="sidebar-group" data-sidebar-group="thue-tro" open>
-                <summary class="sidebar-group-toggle">
+            <details class="sidebar-group" data-sidebar-group="thue-tro">
+                <summary class="sidebar-group-toggle" onclick="acknowledgeSidebarGroup('groupThueTroBadge')">
                     <span><i class="fas fa-key"></i><span class="sidebar-group-title">Quản lý thuê trọ</span></span>
                     <span class="sidebar-group-meta"><span id="groupThueTroBadge" class="sidebar-badge sidebar-group-badge"></span><i class="fas fa-chevron-down"></i></span>
                 </summary>
@@ -77,8 +77,8 @@
                 </div>
             </details>
 
-            <details class="sidebar-group" data-sidebar-group="tai-chinh" open>
-                <summary class="sidebar-group-toggle">
+            <details class="sidebar-group" data-sidebar-group="tai-chinh">
+                <summary class="sidebar-group-toggle" onclick="acknowledgeSidebarGroup('groupTaiChinhBadge')">
                     <span><i class="fas fa-wallet"></i><span class="sidebar-group-title">Quản lý tài chính</span></span>
                     <span class="sidebar-group-meta"><span id="groupTaiChinhBadge" class="sidebar-badge sidebar-group-badge"></span><i class="fas fa-chevron-down"></i></span>
                 </summary>
@@ -96,8 +96,8 @@
                 </div>
             </details>
 
-            <details class="sidebar-group" data-sidebar-group="ho-tro" open>
-                <summary class="sidebar-group-toggle">
+            <details class="sidebar-group" data-sidebar-group="ho-tro">
+                <summary class="sidebar-group-toggle" onclick="acknowledgeSidebarGroup('groupHoTroBadge')">
                     <span><i class="fas fa-bullhorn"></i><span class="sidebar-group-title">Hỗ trợ &amp; Thông báo</span></span>
                     <span class="sidebar-group-meta"><span id="groupHoTroBadge" class="sidebar-badge sidebar-group-badge"></span><i class="fas fa-chevron-down"></i></span>
                 </summary>
@@ -127,7 +127,7 @@
 
             <a href="#" class="nav-link" id="navTaiKhoan" data-role="Admin,ChuTro,NguoiDung"
                onclick="showSection('taikhoan', this); return false;">
-                <i class="fas fa-id-card"></i> Tài khoản của tôi
+                <i class="fas fa-id-card"></i> <span class="nav-text">Tài khoản của tôi</span>
             </a>
         </nav>
 
@@ -140,7 +140,7 @@
                 </div>
             </div>
             <a href="#" class="nav-link nav-logout" onclick="logout(); return false;">
-                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                <i class="fas fa-sign-out-alt"></i> <span class="nav-text">Đăng xuất</span>
             </a>
         </div>
     </aside>
