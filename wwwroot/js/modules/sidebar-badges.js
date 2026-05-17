@@ -14,6 +14,12 @@
         thongbao: 'thongBaoBadge',
         bienlai: 'bienLaiBadge'
     };
+    const GROUP_BADGES = {
+        groupNhaTroBadge: [],
+        groupThueTroBadge: ['yeuCauThueBadge'],
+        groupTaiChinhBadge: ['bienLaiBadge'],
+        groupHoTroBadge: ['baoCaoSuCoBadge', 'thongBaoBadge']
+    };
     const latestCounts = {};
     let poller = null;
 
@@ -109,6 +115,34 @@
             badge.style.display = 'none';
             badge.removeAttribute('title');
         }
+
+        refreshGroupBadges();
+    }
+
+    function getVisibleChildBadgeCount(id) {
+        const badge = document.getElementById(id);
+        if (!badge || badge.style.display === 'none') return 0;
+        const text = (badge.textContent || '').trim();
+        if (text === '99+') return 99;
+        const parsed = Number(text);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function refreshGroupBadges() {
+        Object.entries(GROUP_BADGES).forEach(([groupId, childIds]) => {
+            const badge = document.getElementById(groupId);
+            if (!badge) return;
+            const total = childIds.reduce((sum, childId) => sum + getVisibleChildBadgeCount(childId), 0);
+            if (total > 0) {
+                badge.textContent = total > 99 ? '99+' : String(total);
+                badge.style.display = 'inline-flex';
+                badge.title = `${total} mục cần xử lý trong nhóm`;
+            } else {
+                badge.textContent = '';
+                badge.style.display = 'none';
+                badge.removeAttribute('title');
+            }
+        });
     }
 
     function dismissSidebarBadgeForSection(section) {
@@ -184,6 +218,7 @@
     window.refreshSidebarBadges = refreshSidebarBadges;
     window.startSidebarBadges = startSidebarBadges;
     window.dismissSidebarBadgeForSection = dismissSidebarBadgeForSection;
+    window.refreshSidebarGroupBadges = refreshGroupBadges;
 
     window.addEventListener('app:ready', startSidebarBadges);
     window.addEventListener('focus', refreshSidebarBadges);

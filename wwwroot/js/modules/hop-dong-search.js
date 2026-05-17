@@ -84,6 +84,9 @@
 
             <div style="display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;">
                 ${addBtn}
+                <button class="module-btn module-btn-muted module-btn-excel" onclick="window._HopDongSearch.exportExcel()" title="Xuất danh sách hợp đồng đang lọc">
+                    <i class="fas fa-file-excel"></i> Xuất Excel
+                </button>
                 <button class="module-btn module-btn-muted ${HD.advancedOpen ? 'active' : ''}" onclick="window._HopDongSearch.toggleAdvanced()">
                     <i class="fas fa-sliders-h"></i> Nâng cao
                     <i class="fas fa-chevron-${HD.advancedOpen ? 'up' : 'down'}" style="font-size:.7rem;"></i>
@@ -471,11 +474,93 @@
         return `<details class="module-action-menu"><summary title="Thao tác"><i class="fas fa-ellipsis-vertical"></i></summary><div class="module-action-list">${actionHtml}</div></details>`;
     }
 
+    function _statusText(row) {
+        const days = daysUntil(row.ngayKetThuc);
+        if (row.trangThai === 'DangHieuLuc' && days !== null && days >= 0 && days <= 30) {
+            return `Sắp hết hạn (${days === 0 ? 'hôm nay' : days + ' ngày'})`;
+        }
+        return (STATUS_MAP[row.trangThai] || {}).label || row.trangThai || '';
+    }
+
+    function _excelDate(v) {
+        if (!v) return '';
+        const d = new Date(v);
+        return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('vi-VN');
+    }
+
+    function _excelMoney(v) {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function _csvEscape(v) {
+        const s = v == null ? '' : String(v);
+        return `"${s.replace(/"/g, '""')}"`;
+    }
+
+    function _downloadCsv(rows, filename) {
+        const content = '\uFEFF' + rows.map(r => r.map(_csvEscape).join(',')).join('\r\n');
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function exportExcel() {
+        const rows = HD.filtered || [];
+        if (!rows.length) {
+            window.showToast?.('Không có hợp đồng để xuất.', 'info');
+            return;
+        }
+
+        const headers = [
+            'Mã hợp đồng', 'Phòng', 'Nhà trọ', 'Khách thuê', 'Ngày bắt đầu',
+            'Ngày kết thúc', 'Tiền cọc', 'Trạng thái', 'Nội dung'
+        ];
+
+        const dataRows = rows.map(r => [
+            r.maHopDong || '',
+            r.phong?.tenPhong || `Phòng #${r.maPhong || ''}`,
+            _getNhaTroName(r.maPhong),
+            r.nguoiThue?.hoTen || '',
+            _excelDate(r.ngayBatDau),
+            _excelDate(r.ngayKetThuc),
+            _excelMoney(r.tienCoc),
+            _statusText(r),
+            r.noiDung || ''
+        ]);
+
+        const stamp = new Date().toISOString().slice(0, 10);
+        if (window.XLSX) {
+            const wsData = [headers, ...dataRows];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = [
+                { wch: 12 }, { wch: 22 }, { wch: 26 }, { wch: 24 },
+                { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 24 }, { wch: 45 }
+            ];
+
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let r = 1; r <= range.e.r; r++) {
+                const cell = ws[XLSX.utils.encode_cell({ r, c: 6 })];
+                if (cell) cell.z = '#,##0';
+            }
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Hợp đồng');
+            XLSX.writeFile(wb, `hop-dong-${stamp}.xlsx`);
+        } else {
+            _downloadCsv([headers, ...dataRows], `hop-dong-${stamp}.csv`);
+        }
+    }
+
     // ── Public API ────────────────────────────────────────────────────────────
     Object.assign(HD, {
         init, onKeyword, onTrangThai, onSapHetHan, onNhaTro, onPhong,
         onNgayBatDauTu, onNgayBatDauDen, onNgayKetThucTu, onNgayKetThucDen,
-        onSort, onPageSize, onPage, reset, toggleAdvanced,
+        onSort, onPageSize, onPage, reset, toggleAdvanced, exportExcel,
         refresh: (data) => { HD.rawData = data || []; HD.page = 1; _applyAndRender(); }
     });
 

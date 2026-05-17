@@ -25,6 +25,12 @@ function applyRoleUI() {
         link.style.display = (CURRENT_ROLE && allowed.includes(CURRENT_ROLE)) ? '' : 'none';
     });
 
+    document.querySelectorAll('.sidebar-group').forEach(group => {
+        const hasVisibleLink = Array.from(group.querySelectorAll('.sidebar-group-items .nav-link[data-role]'))
+            .some(link => link.style.display !== 'none');
+        group.style.display = hasVisibleLink ? '' : 'none';
+    });
+
     // Ẩn nút "Thêm mới" với NguoiDung (chỉ xem)
     if (CURRENT_ROLE === 'NguoiDung') {
         const addBtn = document.getElementById('addBtn');
@@ -2720,12 +2726,12 @@ function buildModal(title, fields, item, onSubmit) {
                 .filter(dv => !currentHouseId || Number(dv.maNhaTro) === currentHouseId);
             return `<div class="form-group" style="grid-column:1/-1;">
                 <label>${f.label}</label>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.45rem;padding:.75rem;border:1px solid #e5e7eb;border-radius:.65rem;background:#f8fafc;">
+                <div class="service-checkbox-grid">
                     ${services.length ? services.map(dv => {
                         const typeLabel = dv.loaiDichVu === 'TienIch' ? 'Tiện ích' : 'Tiện nghi';
                         const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(dv.maNhaTro));
-                        return `<label style="display:flex;gap:.5rem;align-items:flex-start;font-size:.9rem;">
-                            <input type="checkbox" name="f_${f.id}" value="${dv.maDichVu}" ${selectedIds.has(Number(dv.maDichVu)) ? 'checked' : ''} style="margin-top:.2rem;">
+                        return `<label class="service-checkbox-item">
+                            <input type="checkbox" name="f_${f.id}" value="${dv.maDichVu}" ${selectedIds.has(Number(dv.maDichVu)) ? 'checked' : ''}>
                             <span><strong>${escapeHtmlDashboard(dv.tenDichVu)}</strong><br><small style="color:var(--text-light);">${typeLabel}${house ? ' - ' + escapeHtmlDashboard(house.tenNhaTro) : ''}</small></span>
                         </label>`;
                     }).join('') : '<span style="color:var(--text-light);">Chưa có tiện ích/tiện nghi. Hãy thêm trong mục Dịch vụ.</span>'}

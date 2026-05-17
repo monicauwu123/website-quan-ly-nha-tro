@@ -16,78 +16,110 @@
                onclick="showSection('overview', this); return false;">
                 <i class="fas fa-chart-line"></i> Tổng quan
             </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro"
-               onclick="showSection('nhatro', this); return false;">
-                <i class="fas fa-building"></i> Nhà trọ
-            </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
-               onclick="showSection('phong', this); return false;">
-                <i class="fas fa-door-open"></i> Phòng trọ
-            </a>
-            <a href="#" class="nav-link" data-role="NguoiDung"
-               onclick="showSection('phongdangthue', this); return false;">
-                <i class="fas fa-house-user"></i> Phòng của tôi
-            </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro"
-               onclick="showSection('nguoithue', this); return false;">
-                <i class="fas fa-users"></i> Khách thuê
-            </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
-               onclick="showSection('yeucauthue', this); return false;"
-               style="position:relative;">
-                <i class="fas fa-paper-plane"></i> <span class="nav-text">Yêu cầu thuê</span>
-                <span id="yeuCauThueBadge" class="sidebar-badge"></span>
-            </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
-               onclick="showSection('hopdong', this); return false;">
-                <i class="fas fa-file-contract"></i> Hợp đồng
-            </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
-               onclick="showSection('hoadon', this); return false;">
-                <i class="fas fa-file-invoice-dollar"></i> Hóa đơn
-            </a>
 
-            <!-- ── BIÊN LAI THANH TOÁN (chủ trọ / admin xác nhận) ── -->
-            <a href="#" class="nav-link" data-role="Admin,ChuTro"
-               onclick="showSection('bienlai', this); return false;"
-               style="position:relative;">
-                <i class="fas fa-receipt"></i> <span class="nav-text">Biên lai chờ duyệt</span>
-                <span id="bienLaiBadge" class="sidebar-badge"></span>
-            </a>
+            <details class="sidebar-group" data-sidebar-group="nha-tro" open>
+                <summary class="sidebar-group-toggle">
+                    <span><i class="fas fa-city"></i><span class="sidebar-group-title">Quản lý nhà trọ</span></span>
+                    <span class="sidebar-group-meta"><span id="groupNhaTroBadge" class="sidebar-badge sidebar-group-badge"></span><i class="fas fa-chevron-down"></i></span>
+                </summary>
+                <div class="sidebar-group-items">
+                <a href="#" class="nav-link" data-role="Admin,ChuTro"
+                   onclick="showSection('nhatro', this); return false;">
+                    <i class="fas fa-building"></i> <span class="nav-text">Nhà trọ</span>
+                </a>
+                <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+                   onclick="showSection('phong', this); return false;">
+                    <i class="fas fa-door-open"></i> <span class="nav-text">Phòng trọ</span>
+                </a>
+                <a href="#" class="nav-link" data-role="NguoiDung"
+                   onclick="showSection('phongdangthue', this); return false;">
+                    <i class="fas fa-house-user"></i> <span class="nav-text">Phòng của tôi</span>
+                </a>
+                <a href="#" class="nav-link" data-role="Admin,ChuTro"
+                   onclick="showSection('loaiphong', this); return false;">
+                    <i class="fas fa-tags"></i> <span class="nav-text">Loại phòng</span>
+                </a>
+                <a href="#" class="nav-link" data-role="Admin,ChuTro"
+                   onclick="showSection('dichvu', this); return false;">
+                    <i class="fas fa-concierge-bell"></i> <span class="nav-text">Dịch vụ</span>
+                </a>
+                <a href="#" class="nav-link" data-role="NguoiDung"
+                   onclick="showSection('dangkydichvu', this); return false;">
+                    <i class="fas fa-concierge-bell"></i> <span class="nav-text">Đăng ký dịch vụ</span>
+                </a>
+                <a href="#" class="nav-link" data-role="Admin,ChuTro"
+                   onclick="showSection('diennuoc', this); return false;">
+                    <i class="fas fa-bolt"></i> <span class="nav-text">Điện &amp; Nước</span>
+                </a>
+                </div>
+            </details>
 
-            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
-               onclick="showSection('baocaosuco', this); return false;"
-               style="position:relative;">
-                <i class="fas fa-tools"></i> <span class="nav-text">Báo cáo sự cố</span>
-                <span id="baoCaoSuCoBadge" class="sidebar-badge"></span>
-            </a>
-            <a href="#" class="nav-link" data-role="NguoiDung"
-               onclick="showSection('dangkydichvu', this); return false;">
-                <i class="fas fa-concierge-bell"></i> Đăng ký dịch vụ
-            </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro"
-               onclick="showSection('dichvu', this); return false;">
-                <i class="fas fa-concierge-bell"></i> Dịch vụ
-            </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro"
-               onclick="showSection('loaiphong', this); return false;">
-                <i class="fas fa-tags"></i> Loại phòng
-            </a>
-            <a href="#" class="nav-link" data-role="Admin,ChuTro"
-               onclick="showSection('diennuoc', this); return false;">
-                <i class="fas fa-bolt"></i> Điện &amp; Nước
-            </a>
+            <details class="sidebar-group" data-sidebar-group="thue-tro" open>
+                <summary class="sidebar-group-toggle">
+                    <span><i class="fas fa-key"></i><span class="sidebar-group-title">Quản lý thuê trọ</span></span>
+                    <span class="sidebar-group-meta"><span id="groupThueTroBadge" class="sidebar-badge sidebar-group-badge"></span><i class="fas fa-chevron-down"></i></span>
+                </summary>
+                <div class="sidebar-group-items">
+                <a href="#" class="nav-link" data-role="Admin,ChuTro"
+                   onclick="showSection('nguoithue', this); return false;">
+                    <i class="fas fa-users"></i> <span class="nav-text">Khách thuê</span>
+                </a>
+                <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+                   onclick="showSection('yeucauthue', this); return false;"
+                   style="position:relative;">
+                    <i class="fas fa-paper-plane"></i> <span class="nav-text">Yêu cầu thuê</span>
+                    <span id="yeuCauThueBadge" class="sidebar-badge"></span>
+                </a>
+                <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+                   onclick="showSection('hopdong', this); return false;">
+                    <i class="fas fa-file-contract"></i> <span class="nav-text">Hợp đồng</span>
+                </a>
+                </div>
+            </details>
+
+            <details class="sidebar-group" data-sidebar-group="tai-chinh" open>
+                <summary class="sidebar-group-toggle">
+                    <span><i class="fas fa-wallet"></i><span class="sidebar-group-title">Quản lý tài chính</span></span>
+                    <span class="sidebar-group-meta"><span id="groupTaiChinhBadge" class="sidebar-badge sidebar-group-badge"></span><i class="fas fa-chevron-down"></i></span>
+                </summary>
+                <div class="sidebar-group-items">
+                <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+                   onclick="showSection('hoadon', this); return false;">
+                    <i class="fas fa-file-invoice-dollar"></i> <span class="nav-text">Hóa đơn</span>
+                </a>
+                <a href="#" class="nav-link" data-role="Admin,ChuTro"
+                   onclick="showSection('bienlai', this); return false;"
+                   style="position:relative;">
+                    <i class="fas fa-receipt"></i> <span class="nav-text">Biên lai chờ duyệt</span>
+                    <span id="bienLaiBadge" class="sidebar-badge"></span>
+                </a>
+                </div>
+            </details>
+
+            <details class="sidebar-group" data-sidebar-group="ho-tro" open>
+                <summary class="sidebar-group-toggle">
+                    <span><i class="fas fa-bullhorn"></i><span class="sidebar-group-title">Hỗ trợ &amp; Thông báo</span></span>
+                    <span class="sidebar-group-meta"><span id="groupHoTroBadge" class="sidebar-badge sidebar-group-badge"></span><i class="fas fa-chevron-down"></i></span>
+                </summary>
+                <div class="sidebar-group-items">
+                <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+                   onclick="showSection('baocaosuco', this); return false;"
+                   style="position:relative;">
+                    <i class="fas fa-tools"></i> <span class="nav-text">Báo cáo sự cố</span>
+                    <span id="baoCaoSuCoBadge" class="sidebar-badge"></span>
+                </a>
+                <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
+                   onclick="showSection('thongbao', this); return false;"
+                   style="position:relative;">
+                    <i class="fas fa-bell"></i> <span class="nav-text">Thông báo</span>
+                    <span id="thongBaoBadge" class="sidebar-badge"></span>
+                </a>
+                </div>
+            </details>
+
             <a href="#" class="nav-link" data-role="Admin"
                onclick="showSection('user', this); return false;">
-                <i class="fas fa-user-shield"></i> Người dùng
-            </a>
-
-            <!-- ── THÔNG BÁO ── -->
-            <a href="#" class="nav-link" data-role="Admin,ChuTro,NguoiDung"
-               onclick="showSection('thongbao', this); return false;"
-               style="position:relative;">
-                <i class="fas fa-bell"></i> <span class="nav-text">Thông báo</span>
-                <span id="thongBaoBadge" class="sidebar-badge"></span>
+                <i class="fas fa-user-shield"></i> <span class="nav-text">Người dùng</span>
             </a>
 
             <!-- divider -->

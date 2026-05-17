@@ -282,6 +282,95 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
 .sidebar-nav { flex: 1; }
 
+.sidebar-group {
+    margin: .85rem 0 .35rem;
+}
+
+.sidebar-group > summary {
+    list-style: none;
+}
+
+.sidebar-group > summary::-webkit-details-marker {
+    display: none;
+}
+
+.sidebar-group-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    min-height: 34px;
+    padding: .45rem .75rem;
+    border-radius: .55rem;
+    color: #64748b;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+.sidebar-group-toggle:hover {
+    background: #f8fafc;
+    color: #0f766e;
+}
+
+.sidebar-group-toggle > span:first-child {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+}
+
+.sidebar-group-toggle i:first-child {
+    width: 1.1rem;
+    text-align: center;
+    font-size: .86rem;
+}
+
+.sidebar-group-title {
+    font-size: .68rem;
+    font-weight: 850;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-group-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    flex: 0 0 auto;
+}
+
+.sidebar-group-meta > .fa-chevron-down {
+    width: auto;
+    font-size: .66rem;
+    transition: transform .16s ease;
+}
+
+.sidebar-group:not([open]) .sidebar-group-meta > .fa-chevron-down {
+    transform: rotate(-90deg);
+}
+
+.sidebar-group-items {
+    display: grid;
+    gap: .16rem;
+}
+
+.sidebar-group-badge {
+    position: static;
+    transform: none;
+    border-width: 1px;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    font-size: .62rem;
+}
+
+.sidebar-group .nav-link {
+    margin-bottom: .16rem;
+}
+
 .nav-link {
     display: flex;
     align-items: center;
@@ -319,6 +408,15 @@ textarea.form-control { resize: vertical; min-height: 80px; }
     justify-content: center;
     line-height: 1;
     box-shadow: 0 4px 10px rgba(220, 38, 38, .28);
+}
+
+.sidebar-group-toggle .sidebar-group-badge {
+    position: static;
+    transform: none;
+    border-width: 1px;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    font-size: .62rem;
 }
 
 .sidebar-footer { padding-top: 1.25rem; border-top: 1px solid #d1fae5; }
@@ -364,9 +462,46 @@ body.sidebar-collapsed .nav-link {
     gap: 0;
 }
 body.sidebar-collapsed .nav-link i { font-size: 1rem; }
+body.sidebar-collapsed .sidebar-group {
+    margin: .45rem 0;
+}
+body.sidebar-collapsed .sidebar-group-title {
+    display: none;
+}
+body.sidebar-collapsed .sidebar-group-toggle {
+    justify-content: center;
+    padding-inline: 0;
+}
+body.sidebar-collapsed .sidebar-group-toggle > span:first-child {
+    justify-content: center;
+}
+body.sidebar-collapsed .sidebar-group-toggle .sidebar-group-meta > .fa-chevron-down {
+    display: none;
+}
+body.sidebar-collapsed .sidebar-group-badge {
+    position: absolute;
+    right: .35rem;
+    top: .22rem;
+    min-width: .78rem;
+    width: .78rem;
+    height: .78rem;
+    padding: 0;
+    font-size: 0;
+}
 body.sidebar-collapsed .sidebar-badge {
     right: .35rem;
     top: .32rem;
+    transform: none;
+    min-width: .78rem;
+    width: .78rem;
+    height: .78rem;
+    padding: 0;
+    font-size: 0;
+}
+body.sidebar-collapsed .sidebar-group-toggle .sidebar-group-badge {
+    position: absolute;
+    right: .35rem;
+    top: .22rem;
     transform: none;
     min-width: .78rem;
     width: .78rem;
@@ -808,6 +943,19 @@ body.sidebar-collapsed .user-info { justify-content: center; padding-inline: 0; 
     color: #3b82f6;
 }
 
+.module-btn-excel {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: #fff;
+    font-weight: 700;
+}
+
+.module-btn-excel:hover {
+    background: #15803d;
+    border-color: #15803d;
+    color: #fff;
+}
+
 .generic-advanced-panel {
     display: none;
     flex-wrap: wrap;
@@ -1090,6 +1238,29 @@ tr:last-child td { border-bottom: none; }
 }
 
 .modal-body .form-group { margin-bottom: 0; }
+
+.service-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: .45rem;
+    padding: .75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: .65rem;
+    background: #f8fafc;
+}
+
+.service-checkbox-item {
+    display: flex;
+    gap: .5rem;
+    align-items: flex-start;
+    padding: .45rem .5rem;
+    border-radius: .5rem;
+    font-size: .9rem;
+}
+
+.service-checkbox-item input {
+    margin-top: .2rem;
+}
 
 .modal-footer {
     display: flex;

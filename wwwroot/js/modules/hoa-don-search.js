@@ -556,10 +556,10 @@
         // Banner quá hạn
         const soQuaHan = HDN.filtered.filter(r => r._tt === 'QuaHan').length;
         const quaHanBanner = soQuaHan > 0 && !HDN.filterTrangThai ? `
-            <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:.6rem 1rem;margin-bottom:.75rem;font-size:.875rem;display:flex;gap:.5rem;align-items:center;">
-                <i class="fas fa-exclamation-triangle" style="color:#dc2626;"></i>
+            <div class="hdn-overdue-banner">
+                <i class="fas fa-exclamation-triangle"></i>
                 <span>Có <strong>${soQuaHan}</strong> hóa đơn quá hạn chưa thanh toán.</span>
-                <button class="btn btn-secondary" style="padding:.2rem .65rem;font-size:.8rem;margin-left:auto;"
+                <button class="btn btn-secondary hdn-overdue-action"
                     onclick="window._HoaDonSearch.onTrangThai('QuaHan')">Xem</button>
             </div>` : '';
 
@@ -627,6 +627,13 @@
 
             <style>
             /* ── Row colors ── */
+            .hdn-overdue-banner{background:var(--hdn-overdue-bg,#fee2e2);border:1px solid var(--hdn-overdue-border,#fca5a5);border-radius:8px;padding:.6rem 1rem;margin-bottom:.75rem;font-size:.875rem;display:flex;gap:.5rem;align-items:center;color:var(--hdn-overdue-text,#7f1d1d);}
+            .hdn-overdue-banner i{color:var(--hdn-overdue-icon,#dc2626);}
+            .hdn-overdue-action{width:auto!important;min-width:64px;flex:0 0 auto;margin-left:auto;padding:.2rem .65rem!important;font-size:.8rem!important;}
+            body.dark-mode{--hdn-overdue-bg:#2d1212;--hdn-overdue-border:#7f1d1d;--hdn-overdue-text:#fecaca;--hdn-overdue-icon:#f87171;}
+            body.dark-mode .hdn-overdue-action{background:#162032!important;border-color:#334155!important;color:#2dd4bf!important;}
+            body.dark-mode .hdn-overdue-action:hover{background:#1e3a5f!important;border-color:#14b8a6!important;color:#5eead4!important;}
+
             .hdn-tr{transition:background .12s;}
             .hdn-tr:hover{background:rgba(59,130,246,.04) !important;}
             .hdn-row-warn    {background:rgba(251,191,36,.08);}
@@ -642,6 +649,11 @@
             .hdn-badge-partial {background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;}
             .hdn-badge-overdue {background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;}
             .hdn-badge-cancel  {background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;}
+            body.dark-mode .hdn-badge-ok{background:#052e16;color:#86efac;border-color:#14532d;}
+            body.dark-mode .hdn-badge-warn{background:#2d1f00;color:#fbbf24;border-color:#78350f;}
+            body.dark-mode .hdn-badge-partial{background:#0c2840;color:#93c5fd;border-color:#1e3a8a;}
+            body.dark-mode .hdn-badge-overdue{background:#2d1212;color:#f87171;border-color:#7f1d1d;}
+            body.dark-mode .hdn-badge-cancel{background:#273548;color:#94a3b8;border-color:#334155;}
             @keyframes hdn-pulse{0%,100%{opacity:1}50%{opacity:.6}}
             .hdn-badge-pulse{animation:hdn-pulse 1.8s ease-in-out infinite;}
 
