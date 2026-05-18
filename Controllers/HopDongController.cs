@@ -56,7 +56,6 @@ namespace DoAnSE104.Controllers
             var phongDangCoHopDongHieuLuc = await _context.HopDong.AnyAsync(h =>
                 h.MaPhong == maPhong &&
                 h.MaHopDong != maHopDong &&
-                h.TrangThai != "Huy" &&
                 (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
 
             if (phongDangCoHopDongHieuLuc)
@@ -67,7 +66,6 @@ namespace DoAnSE104.Controllers
 
         private string GetTrangThaiText(string? trangThai, DateTime? ngayKetThuc)
         {
-            if (trangThai == "ChoXacNhan") return "Chờ người thuê xác nhận";
             if (trangThai == "Huy") return "Đã hủy";
             if (trangThai == "KetThuc") return "Kết thúc hợp đồng";
 

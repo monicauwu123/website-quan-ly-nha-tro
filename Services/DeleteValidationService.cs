@@ -391,7 +391,7 @@ namespace DoAnSE104.Services
             if (yeuCau == null)
                 return DeleteResult.Missing("Không tìm thấy yêu cầu thuê.");
 
-            if ((yeuCau.TrangThai == "DaDuyet" || yeuCau.TrangThai == "DaLapHopDong" || yeuCau.TrangThai == "ChoNguoiThueXacNhan") && (yeuCau.MaHopDong.HasValue || yeuCau.MaNguoiThue.HasValue))
+            if ((yeuCau.TrangThai == "DaDuyet" || yeuCau.TrangThai == "DaLapHopDong") && (yeuCau.MaHopDong.HasValue || yeuCau.MaNguoiThue.HasValue))
                 return DeleteResult.Block("Yêu cầu đã được duyệt và đã sinh dữ liệu, không thể xóa.");
 
             if (yeuCau.TrangThai == ChoDuyet && !yeuCau.MaHopDong.HasValue && !yeuCau.MaNguoiThue.HasValue)

@@ -254,40 +254,13 @@
 .dash-side-card {
     display: flex;
     flex-direction: column;
-    height: 500px;
-    max-height: 500px;
+    height: 100%;
     box-sizing: border-box;
-    overflow: hidden;
-}
-.dash-card-lg {
-    height: 500px;
-}
-.dash-side-card {
-    height: 500px;
-    align-self: stretch;
 }
 .dash-card-lg .bar-chart-wrap,
 .dash-side-card .mini-list {
     flex: 1;
-    min-height: 0;
     overflow-y: auto;
-}
-.dash-card-lg .bar-chart-wrap {
-    flex: 1;
-}
-
-@media (max-width: 680px) {
-    .dash-card-lg,
-    .dash-side-card {
-        height: auto;
-        max-height: none;
-        overflow: visible;
-    }
-
-    .dash-side-card .mini-list {
-        max-height: 320px;
-        overflow-y: auto;
-    }
 }
 .user-alert-banner:hover { box-shadow: 0 0 0 3px rgba(251,191,36,.25); }
 .user-alert-banner i:first-child { color: #d97706; font-size: 1.1rem; flex-shrink: 0; }

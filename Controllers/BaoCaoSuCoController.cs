@@ -270,8 +270,8 @@ namespace DoAnSE104.Controllers
 
         // PUT: api/BaoCaoSuCo/5
         [HttpPut("{id}")]
-        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro},{VaiTroConst.NguoiDung}")]
-        public async Task<IActionResult> PutBaoCaoSuCo(int id, [FromBody] CapNhatBaoCaoSuCoDto dto)
+        [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
+        public async Task<IActionResult> PutBaoCaoSuCo(int id, [FromBody] XuLyBaoCaoSuCoDto dto)
         {
             try
             {
@@ -285,48 +285,12 @@ namespace DoAnSE104.Controllers
                 if (baoCao == null)
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy báo cáo sự cố"));
 
-                if (role == VaiTroConst.NguoiDung)
-                {
-                    if (baoCao.MaNguoiDung != userId)
-                        return Forbid();
-
-                    if (baoCao.TrangThai != Moi)
-                        return BadRequest(ApiResponse<object>.Loi("Chỉ có thể sửa báo cáo khi chủ trọ chưa tiếp nhận xử lý"));
-
-                    if (dto.MaPhong.HasValue && dto.MaPhong.Value != baoCao.MaPhong)
-                    {
-                        var dangThuePhong = await NguoiDungDangThuePhong(userId, dto.MaPhong.Value);
-                        if (!dangThuePhong)
-                            return BadRequest(ApiResponse<object>.Loi("Bạn chỉ có thể báo cáo sự cố cho phòng đang thuê"));
-
-                        baoCao.MaPhong = dto.MaPhong.Value;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(dto.TieuDe))
-                        return BadRequest(ApiResponse<object>.Loi("Tiêu đề không được để trống"));
-
-                    if (string.IsNullOrWhiteSpace(dto.NoiDung))
-                        return BadRequest(ApiResponse<object>.Loi("Nội dung sự cố không được để trống"));
-
-                    var mucDo = string.IsNullOrWhiteSpace(dto.MucDo) ? "Bình thường" : dto.MucDo.Trim();
-                    var mucDoHopLe = new[] { "Bình thường", "Gấp", "Rất gấp" };
-                    if (!mucDoHopLe.Contains(mucDo))
-                        return BadRequest(ApiResponse<object>.Loi("Mức độ sự cố không hợp lệ"));
-
-                    baoCao.TieuDe = dto.TieuDe.Trim();
-                    baoCao.NoiDung = dto.NoiDung.Trim();
-                    baoCao.MucDo = mucDo;
-
-                    await _context.SaveChangesAsync();
-                    return Ok(ApiResponse<object>.Ok(MapBaoCao(baoCao), "Cập nhật báo cáo sự cố thành công"));
-                }
-
                 if (role == VaiTroConst.ChuTro && baoCao.Phong.NhaTro.MaChuTro != userId)
                     return Forbid();
 
-                var trangThai = dto.TrangThai?.Trim();
+                var trangThai = dto.TrangThai.Trim();
                 var trangThaiHopLe = new[] { Moi, DangXuLy, DaXuLy };
-                if (string.IsNullOrWhiteSpace(trangThai) || !trangThaiHopLe.Contains(trangThai))
+                if (!trangThaiHopLe.Contains(trangThai))
                     return BadRequest(ApiResponse<object>.Loi("Trạng thái báo cáo không hợp lệ"));
 
                 baoCao.TrangThai = trangThai;

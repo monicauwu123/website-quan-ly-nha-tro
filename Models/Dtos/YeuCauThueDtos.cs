@@ -35,16 +35,10 @@ namespace DoAnSE104.Models.Dtos
         [Required]
         public decimal TienCoc { get; set; }
 
-        [MaxLength(1000)]
+        [MaxLength(255)]
         public string? NoiDung { get; set; }
 
         [MaxLength(255)]
         public string? GhiChuChuTro { get; set; }
-    }
-
-    public class TuChoiHopDongYeuCauThueDto
-    {
-        [MaxLength(255)]
-        public string? GhiChuNguoiDung { get; set; }
     }
 }

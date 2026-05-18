@@ -181,8 +181,6 @@ const API = {
         getAll: () => apiFetch('/api/YeuCauThue'),
         create: (data) => apiFetch('/api/YeuCauThue', 'POST', data),
         accept: (id, data) => apiFetch(`/api/YeuCauThue/${id}/chap-nhan`, 'POST', data),
-        confirmContract: (id) => apiFetch(`/api/YeuCauThue/${id}/xac-nhan-hop-dong`, 'POST', {}),
-        rejectContract: (id, data) => apiFetch(`/api/YeuCauThue/${id}/tu-choi-hop-dong`, 'POST', data),
         reject: (id, data) => apiFetch(`/api/YeuCauThue/${id}/tu-choi`, 'POST', data),
         delete: (id) => apiFetch(`/api/YeuCauThue/${id}`, 'DELETE'),
     },

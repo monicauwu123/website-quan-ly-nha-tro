@@ -19,12 +19,7 @@ namespace DoAnSE104.Controllers
         private const string ChoDuyet = "ChoDuyet";
         private const string DaChapNhan = "DaChapNhan";
         private const string TuChoi = "TuChoi";
-        private const string ChoNguoiThueXacNhan = "ChoNguoiThueXacNhan";
-        private const string NguoiThueTuChoi = "NguoiThueTuChoi";
         private const string DaLapHopDong = "DaLapHopDong";
-        private const string HopDongChoXacNhan = "ChoXacNhan";
-        private const string HopDongDangHieuLuc = "DangHieuLuc";
-        private const string HopDongHuy = "Huy";
 
         private readonly ApplicationDbContext _context;
         private readonly INotificationEmailService _notificationEmailService;
@@ -79,9 +74,7 @@ namespace DoAnSE104.Controllers
                 {
                     ChoDuyet => "Chờ duyệt",
                     DaChapNhan => "Đã chấp nhận",
-                    ChoNguoiThueXacNhan => "Chờ người thuê xác nhận",
                     DaLapHopDong => "Đã lập hợp đồng",
-                    NguoiThueTuChoi => "Người thuê từ chối hợp đồng",
                     TuChoi => "Từ chối",
                     _ => y.TrangThai
                 },
@@ -89,15 +82,6 @@ namespace DoAnSE104.Controllers
                 y.GhiChuChuTro,
                 y.SoThangMuonThue,
                 y.NgayBatDauMongMuon,
-                HopDong = y.HopDong == null ? null : new
-                {
-                    y.HopDong.MaHopDong,
-                    y.HopDong.NgayBatDau,
-                    y.HopDong.NgayKetThuc,
-                    y.HopDong.TienCoc,
-                    y.HopDong.NoiDung,
-                    y.HopDong.TrangThai
-                },
                 NguoiDung = new
                 {
                     y.NguoiDung.MaNguoiDung,
@@ -200,16 +184,14 @@ namespace DoAnSE104.Controllers
                     return NotFound(ApiResponse<object>.Loi("Phòng không tồn tại"));
 
                 var daCoHopDongHieuLuc = await _context.HopDong
-                    .AnyAsync(h => h.Phong.MaPhong == dto.MaPhong &&
-                        h.TrangThai != HopDongHuy &&
-                        (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
+                    .AnyAsync(h => h.Phong.MaPhong == dto.MaPhong && (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
                 if (daCoHopDongHieuLuc)
-                    return BadRequest(ApiResponse<object>.Loi("Phòng này đã có hợp đồng hiệu lực hoặc đang chờ người thuê xác nhận"));
+                    return BadRequest(ApiResponse<object>.Loi("Phòng này đã có hợp đồng hiệu lực"));
 
                 var daCoYeuCauChoDuyet = await _context.YeuCauThue.AnyAsync(y =>
                     y.MaNguoiDung == userId &&
                     y.MaPhong == dto.MaPhong &&
-                    (y.TrangThai == ChoDuyet || y.TrangThai == ChoNguoiThueXacNhan));
+                    y.TrangThai == ChoDuyet);
 
                 if (daCoYeuCauChoDuyet)
                     return BadRequest(ApiResponse<object>.Loi("Bạn đã gửi yêu cầu thuê phòng này và đang chờ chủ trọ duyệt"));
@@ -315,7 +297,6 @@ namespace DoAnSE104.Controllers
 
                         var phongDangCoHopDongHieuLuc = await _context.HopDong.AnyAsync(h =>
                             h.MaPhong == yeuCau.MaPhong &&
-                            h.TrangThai != HopDongHuy &&
                             (h.NgayKetThuc == null || h.NgayKetThuc >= DateTime.Now));
 
                         if (phongDangCoHopDongHieuLuc)
@@ -357,8 +338,7 @@ namespace DoAnSE104.Controllers
                             NgayBatDau = dto.NgayBatDau,
                             NgayKetThuc = ngayKetThucHopDong,
                             TienCoc = dto.TienCoc,
-                            NoiDung = dto.NoiDung,
-                            TrangThai = HopDongChoXacNhan
+                            NoiDung = dto.NoiDung
                         };
 
                         _context.HopDong.Add(hopDong);
@@ -366,9 +346,15 @@ namespace DoAnSE104.Controllers
 
                         yeuCau.MaNguoiThue = nguoiThue.MaNguoiThue;
                         yeuCau.MaHopDong = hopDong.MaHopDong;
-                        yeuCau.TrangThai = ChoNguoiThueXacNhan;
+                        yeuCau.TrangThai = DaLapHopDong;
                         yeuCau.GhiChuChuTro = dto.GhiChuChuTro;
                         yeuCau.NgayXuLy = DateTime.Now;
+
+                        // Chuyển phòng sang trạng thái "Đã thuê" khi có hợp đồng hiệu lực.
+                        var trangThaiDaThue = await _context.TrangThai
+                            .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("thuê") || t.TenTrangThai.Contains("thue"));
+                        if (trangThaiDaThue != null)
+                            yeuCau.Phong.MaTrangThai = trangThaiDaThue.MaTrangThai;
 
                         await _context.SaveChangesAsync();
                         await transaction.CommitAsync();
@@ -381,9 +367,8 @@ namespace DoAnSE104.Controllers
                             hopDong.MaHopDong,
                             yeuCau.MaPhong,
                             SoThangThue = soThangThue,
-                            NgayKetThuc = ngayKetThucHopDong,
-                            TrangThaiHopDong = hopDong.TrangThai
-                        }, "Đã lập hợp đồng, đang chờ người thuê xác nhận điều khoản"));
+                            NgayKetThuc = ngayKetThucHopDong
+                        }, "Đã chấp nhận yêu cầu và lập hợp đồng thành công"));
                     }
                     catch
                     {
@@ -393,95 +378,6 @@ namespace DoAnSE104.Controllers
                 });
 
                 return ketQua ?? StatusCode(500, ApiResponse<object>.Loi("Không thể xử lý yêu cầu thuê"));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse<object>.Loi(ex.Message));
-            }
-        }
-
-        // POST: api/YeuCauThue/5/xac-nhan-hop-dong
-        [HttpPost("{id}/xac-nhan-hop-dong")]
-        [Authorize(Roles = VaiTroConst.NguoiDung)]
-        public async Task<IActionResult> XacNhanHopDong(int id)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-
-                var yeuCau = await _context.YeuCauThue
-                    .Include(y => y.HopDong)
-                    .Include(y => y.Phong)
-                    .FirstOrDefaultAsync(y => y.MaYeuCau == id);
-
-                if (yeuCau == null)
-                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy yêu cầu thuê"));
-
-                if (yeuCau.MaNguoiDung != userId)
-                    return Forbid();
-
-                if (yeuCau.TrangThai != ChoNguoiThueXacNhan || yeuCau.HopDong == null)
-                    return BadRequest(ApiResponse<object>.Loi("Yêu cầu này không có hợp đồng đang chờ xác nhận"));
-
-                if (yeuCau.HopDong.TrangThai != HopDongChoXacNhan)
-                    return BadRequest(ApiResponse<object>.Loi("Hợp đồng này không còn ở trạng thái chờ xác nhận"));
-
-                yeuCau.HopDong.TrangThai = HopDongDangHieuLuc;
-                yeuCau.TrangThai = DaLapHopDong;
-                yeuCau.NgayXuLy = DateTime.Now;
-
-                var trangThaiDaThue = await _context.TrangThai
-                    .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("thuê") || t.TenTrangThai.Contains("thue"));
-                if (trangThaiDaThue != null)
-                    yeuCau.Phong.MaTrangThai = trangThaiDaThue.MaTrangThai;
-
-                await _context.SaveChangesAsync();
-
-                return Ok(ApiResponse<object>.Ok(new
-                {
-                    yeuCau.MaYeuCau,
-                    yeuCau.MaHopDong,
-                    TrangThaiHopDong = yeuCau.HopDong.TrangThai
-                }, "Đã xác nhận hợp đồng. Hợp đồng bắt đầu có hiệu lực."));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse<object>.Loi(ex.Message));
-            }
-        }
-
-        // POST: api/YeuCauThue/5/tu-choi-hop-dong
-        [HttpPost("{id}/tu-choi-hop-dong")]
-        [Authorize(Roles = VaiTroConst.NguoiDung)]
-        public async Task<IActionResult> TuChoiHopDong(int id, [FromBody] TuChoiHopDongYeuCauThueDto dto)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-
-                var yeuCau = await _context.YeuCauThue
-                    .Include(y => y.HopDong)
-                    .FirstOrDefaultAsync(y => y.MaYeuCau == id);
-
-                if (yeuCau == null)
-                    return NotFound(ApiResponse<object>.Loi("Không tìm thấy yêu cầu thuê"));
-
-                if (yeuCau.MaNguoiDung != userId)
-                    return Forbid();
-
-                if (yeuCau.TrangThai != ChoNguoiThueXacNhan || yeuCau.HopDong == null)
-                    return BadRequest(ApiResponse<object>.Loi("Yêu cầu này không có hợp đồng đang chờ xác nhận"));
-
-                yeuCau.HopDong.TrangThai = HopDongHuy;
-                yeuCau.TrangThai = NguoiThueTuChoi;
-                yeuCau.GhiChuNguoiDung = string.IsNullOrWhiteSpace(dto.GhiChuNguoiDung)
-                    ? yeuCau.GhiChuNguoiDung
-                    : dto.GhiChuNguoiDung;
-                yeuCau.NgayXuLy = DateTime.Now;
-
-                await _context.SaveChangesAsync();
-
-                return Ok(ApiResponse<object>.Ok(null!, "Đã từ chối hợp đồng. Chủ trọ có thể điều chỉnh và duyệt lại yêu cầu mới."));
             }
             catch (Exception ex)
             {

@@ -291,13 +291,7 @@
     }
 
     // ── Handlers ──────────────────────────────────────────────────────────────
-    let _kwTimer;
-    function onKeyword(v) {
-        HDN.keyword = v.trim();
-        HDN.page = 1;
-        clearTimeout(_kwTimer);
-        _kwTimer = setTimeout(_applyAndRender, 300);
-    }
+    function onKeyword(v)       { HDN.keyword = v.trim(); HDN.page = 1; _applyAndRender(); }
     function onTrangThai(v)     { HDN.filterTrangThai = v; HDN.page = 1; _buildToolbar(); _applyAndRender(); }
     function onKyHoaDon(v)      { HDN.filterKyHoaDon = v; HDN.page = 1; _buildToolbar(); _applyAndRender(); }
     function onNhaTro(v)        { HDN.filterNhaTro = v; HDN.filterPhong = ''; HDN.page = 1; _rebuildPhong(); _buildToolbar(); _applyAndRender(); }
@@ -516,12 +510,7 @@
 
                 // Nút thao tác dạng dropdown ⋮
                 const menuItems = [];
-                menuItems.push(`<button class="btn-action" style="background:#0891b2;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-image"></i> Xem ảnh hóa đơn</button>`);
                 menuItems.push(`<button class="btn-action" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In hóa đơn</button>`);
-
-                if (conLai > 0 && tt !== 'Huy' && tt !== 'DaThanhToan') {
-                    menuItems.push(`<button class="btn-action" style="background:#0f766e;" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thông tin thanh toán</button>`);
-                }
 
                 if (canSend && conLai > 0 && tt !== 'Huy' && tt !== 'DaThanhToan') {
                     const daCoBienLai = item._daCoBienLaiChoXacNhan === true;

@@ -180,12 +180,6 @@
 
     function isPendingRentalRequest(item) {
         const st = statusOf(item).toLowerCase();
-        const role = getCurrentRole();
-        if (role === 'NguoiDung') {
-            return st === 'chonguoithuexacnhan' ||
-                st.includes('chờ người thuê xác nhận') ||
-                st.includes('cho nguoi thue xac nhan');
-        }
         return st === 'choduyet' || st.includes('chờ duyệt') || st.includes('cho duyet');
     }
 
@@ -195,7 +189,7 @@
         return !(
             st === 'daxuly' || st === 'dahoanthanh' || st === 'hoanthanh' ||
             st === 'huy' || st === 'tuchoi' ||
-            st.includes('đã xử lý') || st.includes('da xu ly') ||
+            st.includes('d� x? l�') || st.includes('da xu ly') ||
             st.includes('hoàn thành') || st.includes('hoan thanh') ||
             st.includes('hủy') || st.includes('huy') ||
             st.includes('từ chối') || st.includes('tu choi')
