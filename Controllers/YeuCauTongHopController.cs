@@ -29,6 +29,7 @@ namespace DoAnSE104.Controllers
             var thueQuery = _context.YeuCauThue
                 .Include(y => y.NguoiDung)
                 .Include(y => y.Phong).ThenInclude(p => p.NhaTro)
+                .Include(y => y.HopDong)
                 .AsQueryable();
 
             if (role == VaiTroConst.NguoiDung)
@@ -70,7 +71,9 @@ namespace DoAnSE104.Controllers
                 {
                     "ChoDuyet" => "Chờ duyệt",
                     "DaChapNhan" => "Đã chấp nhận",
+                    "ChoNguoiThueXacNhan" => "Chờ người thuê xác nhận",
                     "DaLapHopDong" => "Đã lập hợp đồng",
+                    "NguoiThueTuChoi" => "Người thuê từ chối hợp đồng",
                     "TuChoi" => "Từ chối",
                     _ => y.TrangThai
                 },
@@ -78,6 +81,15 @@ namespace DoAnSE104.Controllers
                 y.GhiChuChuTro,
                 y.SoThangMuonThue,
                 y.NgayBatDauMongMuon,
+                HopDong = y.HopDong == null ? null : new
+                {
+                    y.HopDong.MaHopDong,
+                    y.HopDong.NgayBatDau,
+                    y.HopDong.NgayKetThuc,
+                    y.HopDong.TienCoc,
+                    y.HopDong.NoiDung,
+                    y.HopDong.TrangThai
+                },
                 NgayKetThucCu = (DateTime?)null,
                 NgayKetThucMoiDeXuat = (DateTime?)null,
                 NgayKetThucMoi = (DateTime?)null,

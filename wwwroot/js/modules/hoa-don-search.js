@@ -516,6 +516,7 @@
 
                 // Nút thao tác dạng dropdown ⋮
                 const menuItems = [];
+                menuItems.push(`<button class="btn-action" style="background:#0891b2;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-image"></i> Xem ảnh hóa đơn</button>`);
                 menuItems.push(`<button class="btn-action" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In hóa đơn</button>`);
 
                 if (conLai > 0 && tt !== 'Huy' && tt !== 'DaThanhToan') {

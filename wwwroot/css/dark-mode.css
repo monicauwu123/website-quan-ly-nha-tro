@@ -293,6 +293,38 @@ body.dark-mode .modal-footer {
     border-top-color: #334155;
 }
 
+.yc-contract-summary {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: .75rem;
+    padding: 1rem;
+    color: var(--text);
+}
+
+.yc-contract-warning {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: .75rem;
+    padding: .85rem;
+    color: #9a3412;
+}
+
+body.dark-mode .yc-contract-summary {
+    background: #162032;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.dark-mode .yc-contract-summary strong {
+    color: #f8fafc;
+}
+
+body.dark-mode .yc-contract-warning {
+    background: #2d1f00;
+    border-color: #78350f;
+    color: #fbbf24;
+}
+
 body.dark-mode .service-checkbox-grid {
     background: #162032;
     border-color: #334155;

@@ -2142,6 +2142,13 @@ function renderTable(cfg, data, section) {
                 actionHtml = `
                     <button class="btn-action btn-edit" onclick="openYeuCauThueDuyetModal(${item.maYeuCau})"><i class="fas fa-check"></i> Duyệt</button>
                     <button class="btn-action btn-delete" onclick="rejectYeuCauThue(${item.maYeuCau})"><i class="fas fa-times"></i> Từ chối</button>`;
+            } else if (item.loaiYeuCau === 'Thue' && CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'ChoNguoiThueXacNhan') {
+                actionHtml = `
+                    <button class="btn-action btn-edit" onclick="openYeuCauThueXacNhanModal(${item.maYeuCau})"><i class="fas fa-file-signature"></i> Xem & xác nhận</button>
+                    <button class="btn-action btn-delete" onclick="rejectHopDongYeuCauThue(${item.maYeuCau})"><i class="fas fa-times"></i> Từ chối</button>`;
+            } else if (item.loaiYeuCau === 'Thue' && item.maHopDong) {
+                actionHtml = `<button class="btn-action" style="background:#0891b2;" onclick="HopDongPrint.openModal(${item.maHopDong})"><i class="fas fa-image"></i> Xem ảnh HĐ</button>
+                    <button class="btn-action" style="background:#6366f1;" onclick="HopDongPrint.openModal(${item.maHopDong})"><i class="fas fa-print"></i> In HĐ</button>`;
             } else if (CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'ChoDuyet') {
                 actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('yeucauthue',${item.maYeuCau})"><i class="fas fa-trash"></i> Hủy</button>`;
             }
@@ -2163,7 +2170,8 @@ function renderTable(cfg, data, section) {
             if (isHuy) {
                 actionHtml = `<span class="badge badge-red">Đã hủy</span>`;
             } else {
-                actionHtml = `<button class="btn-action btn-edit" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In</button>
+                actionHtml = `<button class="btn-action" style="background:#0891b2;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-image"></i> Xem ảnh</button>
+                    <button class="btn-action btn-edit" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In</button>
                     <button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thông tin TT</button>`;
                 if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
                     actionHtml += `
@@ -2196,7 +2204,8 @@ function renderTable(cfg, data, section) {
                 actionHtml = `<button class="btn-action btn-edit" onclick="openBaoCaoSuCoXuLyModal(${item.maBaoCao})"><i class="fas fa-clipboard-check"></i> Xử lý</button>`;
             }
         } else if (section === 'hopdong') {
-            actionHtml = `<button class="btn-action" style="background:#6366f1;" onclick="HopDongPrint.openModal(${item.maHopDong})"><i class="fas fa-print"></i> In</button>`;
+            actionHtml = `<button class="btn-action" style="background:#0891b2;" onclick="HopDongPrint.openModal(${item.maHopDong})"><i class="fas fa-image"></i> Xem ảnh</button>
+                <button class="btn-action" style="background:#6366f1;" onclick="HopDongPrint.openModal(${item.maHopDong})"><i class="fas fa-print"></i> In</button>`;
             if (canWrite) {
                 actionHtml += `<button class="btn-action btn-edit" onclick="editItem('hopdong',${item.maHopDong})"><i class="fas fa-edit"></i> Sửa</button>`;
                 if (item.trangThai === 'DangHieuLuc') {
@@ -3173,6 +3182,74 @@ async function rejectYeuCauThue(maYeuCau) {
         refreshData();
     } catch (e) {
         showToast(e.message || 'Lỗi từ chối yêu cầu thuê', 'error');
+    }
+}
+
+async function openYeuCauThueXacNhanModal(maYeuCau) {
+    let yc = currentData.find(x => x.maYeuCau == maYeuCau && x.loaiYeuCau === 'Thue');
+    try {
+        yc = await apiFetch(`/api/YeuCauThue/${maYeuCau}`) || yc;
+    } catch { }
+
+    if (!yc?.hopDong && !yc?.maHopDong) {
+        showToast('Không tìm thấy hợp đồng chờ xác nhận', 'error');
+        return;
+    }
+
+    const hd = yc.hopDong || {};
+    resetModalFooter();
+    document.getElementById('modalTitle').textContent = 'Xác nhận hợp đồng thuê';
+    document.getElementById('modalFields').innerHTML = `
+        <div class="yc-contract-summary" style="grid-column:1/-1;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;">
+                <div><small style="color:var(--text-light);">Phòng</small><br><strong>${escapeHtmlDashboard(yc.phong?.tenPhong || '---')}</strong></div>
+                <div><small style="color:var(--text-light);">Nhà trọ</small><br><strong>${escapeHtmlDashboard(yc.phong?.nhaTro?.tenNhaTro || '---')}</strong></div>
+                <div><small style="color:var(--text-light);">Ngày bắt đầu</small><br><strong>${window.AppFormat.date(hd.ngayBatDau)}</strong></div>
+                <div><small style="color:var(--text-light);">Ngày kết thúc</small><br><strong>${window.AppFormat.date(hd.ngayKetThuc)}</strong></div>
+                <div><small style="color:var(--text-light);">Tiền cọc</small><br><strong>${fmtCurrency(hd.tienCoc)}</strong></div>
+            </div>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Điều khoản / nội dung hợp đồng</label>
+            <textarea class="form-control" rows="8" readonly>${escapeHtmlDashboard(hd.noiDung || '')}</textarea>
+        </div>
+        <div class="form-group yc-contract-warning" style="grid-column:1/-1;">
+            Vui lòng đọc kỹ điều khoản. Chỉ khi bạn xác nhận, hợp đồng mới chuyển sang trạng thái đang hiệu lực.
+        </div>`;
+
+    const footer = document.querySelector('#universalModal .modal-footer');
+    if (footer) {
+        footer.innerHTML = `
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Đóng</button>
+            <button type="button" class="btn btn-delete" onclick="rejectHopDongYeuCauThue(${maYeuCau})"><i class="fas fa-times"></i> Từ chối</button>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Xác nhận hợp đồng</button>`;
+    }
+
+    document.getElementById('modalForm').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await apiFetch(`/api/YeuCauThue/${maYeuCau}/xac-nhan-hop-dong`, 'POST', {});
+            showToast('Đã xác nhận hợp đồng!');
+            closeModal();
+            await loadLookups();
+            refreshData();
+        } catch (err) {
+            showToast(err.message || 'Lỗi xác nhận hợp đồng', 'error');
+        }
+    };
+
+    document.getElementById('universalModal').style.display = 'flex';
+}
+
+async function rejectHopDongYeuCauThue(maYeuCau) {
+    const ghiChu = prompt('Lý do từ chối điều khoản hợp đồng:') || '';
+    try {
+        await apiFetch(`/api/YeuCauThue/${maYeuCau}/tu-choi-hop-dong`, 'POST', { ghiChuNguoiDung: ghiChu });
+        showToast('Đã từ chối hợp đồng');
+        closeModal();
+        refreshData();
+    } catch (e) {
+        showToast(e.message || 'Lỗi từ chối hợp đồng', 'error');
     }
 }
 
