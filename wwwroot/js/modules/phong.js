@@ -219,7 +219,8 @@ window.PhongTable = (function () {
             const rowCls = trangThaiRowClass(r.maTrangThai);
 
             const actionHtml = canWrite
-                ? `<button class="btn-action btn-edit" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Sửa</button>
+                ? `<button class="btn-action" style="background:#0891b2;" onclick="openRoomGallery(${r.maPhong})"><i class="fas fa-images"></i> Xem ảnh</button>
+                   <button class="btn-action btn-edit" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Sửa</button>
                    <button class="btn-action btn-delete" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i></button>`
                 : `<button class="btn-action btn-edit" onclick="openYeuCauThueModal(null,${r.maPhong})"><i class="fas fa-paper-plane"></i> Thuê</button>`;
 

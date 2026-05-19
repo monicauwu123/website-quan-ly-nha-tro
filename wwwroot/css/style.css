@@ -391,10 +391,12 @@ textarea.form-control { resize: vertical; min-height: 80px; }
     align-items: center;
     gap: .55rem;
     min-width: 0;
+    flex: 1 1 auto;
 }
 
 .sidebar-group-toggle i:first-child {
-    width: 1.1rem;
+    flex: 0 0 1.25rem;
+    width: 1.25rem;
     text-align: center;
     font-size: .86rem;
 }
@@ -429,6 +431,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .sidebar-group-items {
     display: grid;
     gap: .16rem;
+    padding-top: .16rem;
 }
 
 .sidebar-group-badge {
@@ -445,10 +448,12 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 
 .nav-link {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.65rem;
     padding: 0.65rem 0.9rem;
+    padding-right: 2.35rem;
     border-radius: 0.625rem;
     text-decoration: none;
     color: #334155;
@@ -458,7 +463,21 @@ textarea.form-control { resize: vertical; min-height: 80px; }
     transition: all 0.2s;
 }
 
-.nav-link i { width: 1.1rem; text-align: center; font-size: 0.95rem; }
+.nav-link i {
+    flex: 0 0 1.25rem;
+    width: 1.25rem;
+    text-align: center;
+    font-size: 0.95rem;
+}
+
+.nav-link .nav-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .nav-link.active, .nav-link:hover { background: #e0f2fe; color: #075985; }
 .nav-link.active { font-weight: 800; box-shadow: inset 3px 0 0 #0d9488; }
 
@@ -804,8 +823,9 @@ body.sidebar-collapsed .user-info { justify-content: center; padding-inline: 0; 
 .dash-side-column {
     min-height: 0;
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
     gap: 1.1rem;
+    align-content: start;
 }
 .dash-side-card {
     margin-bottom: 0;
@@ -819,13 +839,13 @@ body.sidebar-collapsed .user-info { justify-content: center; padding-inline: 0; 
 }
 .dash-room-card .dash-card-header { flex: 0 0 auto; }
 .dash-scroll-list {
-    max-height: 300px;
-    overflow-y: auto;
+    max-height: none;
+    overflow: visible;
     padding-right: .2rem;
 }
 .dash-compact-list {
-    max-height: 190px;
-    overflow-y: auto;
+    max-height: none;
+    overflow: visible;
     padding-right: .2rem;
 }
 .dash-scroll-list::-webkit-scrollbar,

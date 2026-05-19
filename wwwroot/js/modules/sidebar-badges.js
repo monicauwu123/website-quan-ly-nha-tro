@@ -189,7 +189,7 @@
         return !(
             st === 'daxuly' || st === 'dahoanthanh' || st === 'hoanthanh' ||
             st === 'huy' || st === 'tuchoi' ||
-            st.includes('d� x? l�') || st.includes('da xu ly') ||
+            st.includes('đã xử lý') || st.includes('da xu ly') ||
             st.includes('hoàn thành') || st.includes('hoan thanh') ||
             st.includes('hủy') || st.includes('huy') ||
             st.includes('từ chối') || st.includes('tu choi')
