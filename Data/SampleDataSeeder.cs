@@ -10,6 +10,9 @@ namespace DoAnSE104.Data
             if (context.NhaTro.Any())
                 return;
 
+            if (context.Users.Any(u => u.TenDangNhap != "Admin"))
+                return;
+
             var password = BCrypt.Net.BCrypt.HashPassword("123456");
             var today = DateTime.Today;
             var kyHienTai = today.ToString("yyyy-MM");

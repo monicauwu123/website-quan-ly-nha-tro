@@ -139,6 +139,13 @@ body.dark-mode .dash-inline-metrics {
     color: #94a3b8;
 }
 
+body.dark-mode .dash-revenue-card .bar-tooltip {
+    background: #020617;
+    color: #e2e8f0;
+    border-color: #334155;
+    box-shadow: 0 16px 34px rgba(0, 0, 0, .42);
+}
+
 body.dark-mode .btn-link-sm {
     color: #2dd4bf;
 }
@@ -146,6 +153,52 @@ body.dark-mode .btn-link-sm {
 body.dark-mode .btn-link-sm:hover {
     background: #134e4a;
     color: #5eead4;
+}
+
+body.dark-mode .alert-card {
+    box-shadow: 0 14px 30px rgba(0, 0, 0, .28);
+}
+
+body.dark-mode .alert-card:hover {
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .38);
+}
+
+body.dark-mode .alert-orange {
+    color: #fdba74;
+    background: linear-gradient(135deg, #331a08 0%, #4a250b 100%);
+    border-color: #9a3412;
+}
+
+body.dark-mode .alert-blue {
+    color: #93c5fd;
+    background: linear-gradient(135deg, #0b1d3a 0%, #12305c 100%);
+    border-color: #1d4ed8;
+}
+
+body.dark-mode .alert-red {
+    color: #fca5a5;
+    background: linear-gradient(135deg, #3b0a0a 0%, #551313 100%);
+    border-color: #991b1b;
+}
+
+body.dark-mode .alert-purple {
+    color: #c4b5fd;
+    background: linear-gradient(135deg, #21124a 0%, #321a69 100%);
+    border-color: #6d28d9;
+}
+
+body.dark-mode .alert-orange .alert-icon-wrap { background: #7c2d12; color: #fed7aa; }
+body.dark-mode .alert-blue .alert-icon-wrap { background: #1e3a8a; color: #dbeafe; }
+body.dark-mode .alert-red .alert-icon-wrap { background: #7f1d1d; color: #fee2e2; }
+body.dark-mode .alert-purple .alert-icon-wrap { background: #4c1d95; color: #ede9fe; }
+
+body.dark-mode .alert-count,
+body.dark-mode .alert-label {
+    color: #f8fafc;
+}
+
+body.dark-mode .alert-hint {
+    color: #cbd5e1;
 }
 
 body.dark-mode .mini-list-item {
@@ -165,14 +218,149 @@ body.dark-mode .mini-list-sub {
     color: #94a3b8;
 }
 
+body.dark-mode .dash-finance-card {
+    --finance-panel: rgba(15, 23, 42, .62);
+    --finance-border: #334155;
+    --finance-muted: #94a3b8;
+}
+
+body.dark-mode .dash-finance-alert {
+    background: rgba(146, 64, 14, .45);
+    border-color: #92400e;
+    color: #fbbf24;
+}
+
+body.dark-mode .dash-finance-metrics > div {
+    background: #162032;
+    border-color: #334155;
+}
+
+body.dark-mode .dash-finance-metrics strong,
+body.dark-mode .dash-finance-top h3,
+body.dark-mode .dash-finance-progress-head,
+body.dark-mode .dash-finance-house-main strong,
+body.dark-mode .dash-finance-house-money strong {
+    color: #f8fafc;
+}
+
+body.dark-mode .dash-finance-metrics .finance-paid {
+    color: #86efac;
+}
+
+body.dark-mode .dash-finance-metrics .finance-debt,
+body.dark-mode .dash-finance-house-money span {
+    color: #fca5a5;
+}
+
 body.dark-mode .dash-scroll-list::-webkit-scrollbar-thumb,
-body.dark-mode .dash-compact-list::-webkit-scrollbar-thumb {
+body.dark-mode .dash-compact-list::-webkit-scrollbar-thumb,
+body.dark-mode .dash-activity-list::-webkit-scrollbar-thumb {
     background: #334155;
 }
 
 body.dark-mode .dash-scroll-list::-webkit-scrollbar-thumb:hover,
-body.dark-mode .dash-compact-list::-webkit-scrollbar-thumb:hover {
+body.dark-mode .dash-compact-list::-webkit-scrollbar-thumb:hover,
+body.dark-mode .dash-activity-list::-webkit-scrollbar-thumb:hover {
     background: #14b8a6;
+}
+
+body.dark-mode .dash-activity-item {
+    border-color: #334155;
+}
+
+body.dark-mode .dash-activity-item:hover {
+    background: rgba(20, 184, 166, .08);
+    border-color: rgba(45, 212, 191, .35);
+}
+
+body.dark-mode .dash-activity-title {
+    color: #f8fafc;
+}
+
+body.dark-mode .dash-activity-sub,
+body.dark-mode .dash-activity-side small {
+    color: #94a3b8;
+}
+
+body.dark-mode .dash-activity-avatar {
+    color: #f8fafc;
+}
+
+body.dark-mode .dash-activity-success { color: #86efac; }
+body.dark-mode .dash-activity-warning { color: #fbbf24; }
+body.dark-mode .dash-activity-danger { color: #fca5a5; }
+body.dark-mode .dash-activity-info { color: #93c5fd; }
+body.dark-mode .dash-activity-neutral { color: #cbd5e1; }
+
+body.dark-mode .dash-quick-grid::-webkit-scrollbar-thumb {
+    background: #334155;
+}
+
+body.dark-mode .dash-quick-grid::-webkit-scrollbar-thumb:hover {
+    background: #14b8a6;
+}
+
+body.dark-mode .dash-quick-action {
+    background: #162032;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.dark-mode .dash-quick-action:hover {
+    background: rgba(20, 184, 166, .10);
+    border-color: rgba(45, 212, 191, .35);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, .22);
+}
+
+body.dark-mode .dash-quick-text strong {
+    color: #f8fafc;
+}
+
+body.dark-mode .dash-quick-text small,
+body.dark-mode .dash-quick-arrow {
+    color: #94a3b8;
+}
+
+body.dark-mode .dash-quick-action:hover .dash-quick-arrow {
+    color: #5eead4;
+}
+
+body.dark-mode .dash-quick-primary .dash-quick-icon { background: rgba(20, 184, 166, .18); color: #5eead4; }
+body.dark-mode .dash-quick-warning .dash-quick-icon { background: rgba(245, 158, 11, .20); color: #fbbf24; }
+body.dark-mode .dash-quick-success .dash-quick-icon { background: rgba(34, 197, 94, .18); color: #86efac; }
+body.dark-mode .dash-quick-info .dash-quick-icon { background: rgba(59, 130, 246, .18); color: #93c5fd; }
+body.dark-mode .dash-quick-cyan .dash-quick-icon { background: rgba(6, 182, 212, .18); color: #67e8f9; }
+body.dark-mode .dash-quick-neutral .dash-quick-icon { background: rgba(148, 163, 184, .16); color: #cbd5e1; }
+body.dark-mode .dash-quick-purple .dash-quick-icon { background: rgba(139, 92, 246, .20); color: #c4b5fd; }
+body.dark-mode .dash-quick-danger .dash-quick-icon { background: rgba(239, 68, 68, .18); color: #fca5a5; }
+body.dark-mode .dash-quick-orange .dash-quick-icon { background: rgba(249, 115, 22, .20); color: #fdba74; }
+
+body.dark-mode .dash-pie-center {
+    background: #0f172a;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .34);
+}
+
+body.dark-mode .dash-pie-center strong,
+body.dark-mode .dash-pie-legend-row strong {
+    color: #e2e8f0;
+}
+
+body.dark-mode .dash-pie-center span,
+body.dark-mode .dash-pie-legend-row em {
+    color: #94a3b8;
+}
+
+body.dark-mode .dash-pie-legend-row {
+    background: #162032;
+    border-color: #334155;
+}
+
+body.dark-mode .dash-pie-name {
+    color: #cbd5e1;
+}
+
+body.dark-mode .dash-pie-legend-row em {
+    color: #5eead4;
 }
 
 body.dark-mode .empty-state-sm {
@@ -293,6 +481,98 @@ body.dark-mode .modal-footer {
     border-top-color: #334155;
 }
 
+body.dark-mode .bl-confirm-summary {
+    background: #162032;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.dark-mode #modalGuiBienLai .bl-invoice-summary {
+    background: #10243a !important;
+    border-color: #1f5f5a !important;
+    color: #e2e8f0;
+}
+
+body.dark-mode #modalGuiBienLai .bl-invoice-summary div {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode #modalGuiBienLai .bl-invoice-summary strong {
+    color: #5eead4 !important;
+}
+
+body.dark-mode .bl-pay-option {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.dark-mode .bl-pay-option:hover {
+    background: #142235;
+    border-color: #2dd4bf;
+}
+
+body.dark-mode .bl-pay-option strong {
+    color: #f8fafc;
+}
+
+body.dark-mode .bl-pay-option small {
+    color: #94a3b8;
+}
+
+body.dark-mode .bl-pay-option.active {
+    background: #0f2f2d;
+    border-color: #2dd4bf;
+    box-shadow: 0 8px 18px rgba(45, 212, 191, .12);
+}
+
+body.dark-mode .bl-confirm-summary span,
+body.dark-mode .bl-receipt-preview p,
+body.dark-mode .bl-receipt-empty {
+    color: #94a3b8;
+}
+
+body.dark-mode .bl-confirm-amount {
+    color: #5eead4;
+}
+
+body.dark-mode .bl-receipt-image {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.yc-contract-summary {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: .75rem;
+    padding: 1rem;
+    color: var(--text);
+}
+
+.yc-contract-warning {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: .75rem;
+    padding: .85rem;
+    color: #9a3412;
+}
+
+body.dark-mode .yc-contract-summary {
+    background: #162032;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.dark-mode .yc-contract-summary strong {
+    color: #f8fafc;
+}
+
+body.dark-mode .yc-contract-warning {
+    background: #2d1f00;
+    border-color: #78350f;
+    color: #fbbf24;
+}
+
 body.dark-mode .service-checkbox-grid {
     background: #162032;
     border-color: #334155;
@@ -340,6 +620,22 @@ body.dark-mode .btn-action.btn-delete {
     background: #2d1212 !important;
     color: #f87171 !important;
     border-color: #7f1d1d !important;
+}
+
+body.dark-mode .btn-view-image,
+body.dark-mode .btn-action[style*="background:#0891b2"],
+body.dark-mode .btn-action[style*="background: #0891b2"] {
+    background: #0c2840 !important;
+    color: #67e8f9 !important;
+    border-color: #155e75 !important;
+}
+
+body.dark-mode .btn-view-image:hover,
+body.dark-mode .btn-action[style*="background:#0891b2"]:hover,
+body.dark-mode .btn-action[style*="background: #0891b2"]:hover {
+    background: #164e63 !important;
+    color: #cffafe !important;
+    border-color: #0891b2 !important;
 }
 
 body.dark-mode .btn-action[style*="background:#6366f1"],
@@ -911,7 +1207,7 @@ body.dark-mode #thongBaoContainer .generic-table-toolbar strong {
     color: #cbd5e1 !important;
 }
 
-/* Invoice preview must keep print colors in dark mode */
+/* Giữ màu bản in khi xem hóa đơn ở dark mode */
 body.dark-mode #invoicePrintModal,
 body.dark-mode #invoicePrintContent,
 body.dark-mode #invoicePrintContent * {
@@ -993,7 +1289,7 @@ body.dark-mode #invoicePrintContent .inv-note {
     color: #78350f !important;
 }
 
-/* Contract preview must keep print colors in dark mode */
+/* Giữ màu bản in khi xem hợp đồng ở dark mode */
 body.dark-mode #hopDongPrintModal,
 body.dark-mode #hopDongPrintContent,
 body.dark-mode #hopDongPrintContent * {

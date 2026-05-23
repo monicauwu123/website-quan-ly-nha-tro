@@ -31,7 +31,7 @@ function moModalGuiBienLai(hoaDon) {
             </div>
             <form id="formGuiBienLai">
                 <div class="modal-body" style="grid-template-columns:1fr;gap:1rem;">
-                    <div style="background:#f0fdf9;border:1px solid #d1fae5;border-radius:.9rem;padding:1rem;display:grid;gap:.35rem;">
+                    <div class="bl-invoice-summary" style="background:#f0fdf9;border:1px solid #d1fae5;border-radius:.9rem;padding:1rem;display:grid;gap:.35rem;">
                         <div style="font-size:.85rem;color:var(--text-light);">Hóa đơn cần thanh toán</div>
                         <strong style="color:var(--primary-dark);font-size:1rem;">
                             HĐ#${hoaDon.maHoaDon} ${hoaDon.kyHoaDon ? '– ' + hoaDon.kyHoaDon : ''} – còn lại ${formatMoney(soTienMacDinh)}
@@ -225,25 +225,25 @@ function moModalXacNhanBienLai(thanhToan) {
                 <button type="button" class="close-btn" onclick="document.getElementById('modalXacNhanBienLai').remove()">&times;</button>
             </div>
             <div class="modal-body" style="grid-template-columns:1fr;gap:1rem;">
-                <div style="display:grid;gap:8px;background:#f0fdf9;border:1px solid #d1fae5;border-radius:.9rem;padding:12px 14px;font-size:.9rem;">
-                    <div><span style="color:var(--text-muted);">Người thuê:</span> <strong>${thanhToan.tenNguoiThue || '#' + thanhToan.maNguoiThue}</strong></div>
-                    <div><span style="color:var(--text-muted);">Hóa đơn:</span> <strong>HĐ#${thanhToan.maHoaDon}</strong></div>
-                    <div><span style="color:var(--text-muted);">Số tiền:</span> <strong style="color:var(--primary)">${AppFormat.currency(thanhToan.tongTien)}</strong></div>
-                    <div><span style="color:var(--text-muted);">Hình thức:</span> ${thanhToan.hinhThucThanhToan}</div>
-                    ${thanhToan.maGiaoDich ? `<div><span style="color:var(--text-muted);">Mã GD:</span> ${thanhToan.maGiaoDich}</div>` : ''}
-                    ${thanhToan.ghiChu ? `<div><span style="color:var(--text-muted);">Ghi chú:</span> ${thanhToan.ghiChu}</div>` : ''}
+                <div class="bl-confirm-summary">
+                    <div><span>Người thuê:</span> <strong>${thanhToan.tenNguoiThue || '#' + thanhToan.maNguoiThue}</strong></div>
+                    <div><span>Hóa đơn:</span> <strong>HĐ#${thanhToan.maHoaDon}</strong></div>
+                    <div><span>Số tiền:</span> <strong class="bl-confirm-amount">${AppFormat.currency(thanhToan.tongTien)}</strong></div>
+                    <div><span>Hình thức:</span> ${thanhToan.hinhThucThanhToan}</div>
+                    ${thanhToan.maGiaoDich ? `<div><span>Mã GD:</span> ${thanhToan.maGiaoDich}</div>` : ''}
+                    ${thanhToan.ghiChu ? `<div><span>Ghi chú:</span> ${thanhToan.ghiChu}</div>` : ''}
                 </div>
 
                 ${thanhToan.hinhAnhBienLai ? `
-                <div style="margin-bottom:16px;text-align:center;">
-                    <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:6px;">Ảnh biên lai:</p>
+                <div class="bl-receipt-preview">
+                    <p>Ảnh biên lai:</p>
                     <a href="${thanhToan.hinhAnhBienLai}" target="_blank">
                         <img src="${thanhToan.hinhAnhBienLai}" 
-                             style="max-width:100%;max-height:280px;border-radius:8px;border:1px solid var(--border);cursor:zoom-in;" 
+                             class="bl-receipt-image"
                              title="Click để xem full" />
                     </a>
                 </div>
-                ` : '<p style="color:var(--text-muted);font-size:.85rem;margin-bottom:12px;"><i class="fas fa-image"></i> Không có ảnh biên lai</p>'}
+                ` : '<p class="bl-receipt-empty"><i class="fas fa-image"></i> Không có ảnh biên lai</p>'}
 
                 <div id="tuChoiGroup" style="display:none;" class="form-group">
                     <label class="form-label required">Lý do từ chối</label>

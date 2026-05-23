@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: doanse104
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Database__Provider
+        value: PostgreSql
+      - key: Database__RecreateOnStartup
+        value: false
+      - key: Database__SeedSampleData
+        value: true
+      - key: MonthlyInvoiceAuto__Enabled
+        value: false
+      - key: EmailReminder__Enabled
+        value: false
+      - key: ConnectionStrings__DefaultConnection
+        sync: false

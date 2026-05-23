@@ -89,7 +89,7 @@ namespace DoAnSE104.Controllers
         }
 
         /// <summary>
-        /// Đăng nhập — phải chọn vai trò (Admin / ChuTro / NguoiDung)
+        /// Đăng nhập bằng tên đăng nhập hoặc email, kèm vai trò đã chọn.
         /// </summary>
         [HttpPost("dang-nhap")]
         public async Task<IActionResult> DangNhap([FromBody] DangNhapDto dto)

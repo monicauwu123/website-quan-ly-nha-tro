@@ -16,12 +16,14 @@ namespace DoAnSE104.Controllers
     public class ThongBaoController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly INotificationEmailService _notificationEmailService;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public ThongBaoController(ApplicationDbContext context, INotificationEmailService notificationEmailService)
+        public ThongBaoController(
+            ApplicationDbContext context,
+            IServiceScopeFactory scopeFactory)
         {
             _context = context;
-            _notificationEmailService = notificationEmailService;
+            _scopeFactory = scopeFactory;
         }
 
         private int GetCurrentUserId()
@@ -198,15 +200,29 @@ namespace DoAnSE104.Controllers
             var userId = GetCurrentUserId();
             var role = GetCurrentRole();
 
-            var loaiNhanHopLe = new[] { "TatCa", "Phong", "NguoiDung" };
+            var loaiNhanHopLe = new[] { "TatCa", "NhaTro", "Phong", "NguoiDung" };
             if (!loaiNhanHopLe.Contains(dto.LoaiNguoiNhan))
                 return BadRequest(new { thanhCong = false, thongBao = "Loại người nhận không hợp lệ." });
+
+            if (dto.LoaiNguoiNhan == "NhaTro" && !dto.NhaTroId.HasValue)
+                return BadRequest(new { thanhCong = false, thongBao = "Vui lòng chọn nhà trọ nhận thông báo." });
 
             if (dto.LoaiNguoiNhan == "Phong" && !dto.PhongId.HasValue)
                 return BadRequest(new { thanhCong = false, thongBao = "Vui lòng chọn phòng nhận thông báo." });
 
             if (dto.LoaiNguoiNhan == "NguoiDung" && !dto.NguoiNhanId.HasValue)
                 return BadRequest(new { thanhCong = false, thongBao = "Vui lòng chọn người dùng nhận thông báo." });
+
+            if (dto.LoaiNguoiNhan == "NhaTro" && dto.NhaTroId.HasValue)
+            {
+                var nhaTroQuery = _context.NhaTro.Where(n => n.MaNhaTro == dto.NhaTroId);
+                if (role == VaiTroConst.ChuTro)
+                    nhaTroQuery = nhaTroQuery.Where(n => n.MaChuTro == userId);
+
+                var coQuyen = await nhaTroQuery.AnyAsync();
+                if (!coQuyen)
+                    return StatusCode(403, new { thanhCong = false, thongBao = "Bạn không có quyền gửi thông báo cho nhà trọ này." });
+            }
 
             if (dto.LoaiNguoiNhan == "Phong" && dto.PhongId.HasValue && role == VaiTroConst.ChuTro)
             {
@@ -222,6 +238,53 @@ namespace DoAnSE104.Controllers
                 var exists = await _context.Users.AnyAsync(u => u.MaNguoiDung == dto.NguoiNhanId && u.VaiTro == VaiTroConst.NguoiDung && u.TrangThai);
                 if (!exists)
                     return BadRequest(new { thanhCong = false, thongBao = "Người nhận không tồn tại, không phải người dùng hoặc đã bị khóa." });
+            }
+
+            if (dto.LoaiNguoiNhan == "NhaTro" && dto.NhaTroId.HasValue)
+            {
+                var phongIds = await _context.Phong
+                    .Where(p => p.MaNhaTro == dto.NhaTroId)
+                    .Select(p => p.MaPhong)
+                    .ToListAsync();
+
+                if (!phongIds.Any())
+                    return BadRequest(new { thanhCong = false, thongBao = "Nhà trọ này chưa có phòng để gửi thông báo." });
+
+                var now = DateTime.Now;
+                var thongBaos = phongIds.Select(phongId => new ThongBao
+                {
+                    TieuDe = dto.TieuDe.Trim(),
+                    NoiDung = dto.NoiDung.Trim(),
+                    LoaiThongBao = string.IsNullOrWhiteSpace(dto.LoaiThongBao) ? "ThuCong" : dto.LoaiThongBao.Trim(),
+                    LoaiNguoiNhan = "Phong",
+                    PhongId = phongId,
+                    NguoiTaoId = userId,
+                    NgayTao = now,
+                    TrangThai = "HienThi",
+                    DaDoc = false
+                }).ToList();
+
+                _context.ThongBao.AddRange(thongBaos);
+                await _context.SaveChangesAsync();
+
+                foreach (var thongBao in thongBaos)
+                    QueueThongBaoEmail(thongBao.ThongBaoId);
+
+                var ids = thongBaos.Select(x => x.ThongBaoId).ToList();
+                var savedList = await _context.ThongBao
+                    .Include(x => x.NguoiNhan)
+                    .Include(x => x.Phong)
+                    .Include(x => x.NguoiTao)
+                    .Where(x => ids.Contains(x.ThongBaoId))
+                    .OrderByDescending(x => x.ThongBaoId)
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    thanhCong = true,
+                    thongBao = $"Tạo thông báo thành công cho {savedList.Count} phòng trong nhà trọ.",
+                    duLieu = savedList.Select(x => MapDto(x, false, false)).ToList()
+                });
             }
 
             var tb = new ThongBao
@@ -240,13 +303,30 @@ namespace DoAnSE104.Controllers
 
             _context.ThongBao.Add(tb);
             await _context.SaveChangesAsync();
-            await _notificationEmailService.GuiEmailThongBaoMoiAsync(tb.ThongBaoId);
+            QueueThongBaoEmail(tb.ThongBaoId);
 
             await _context.Entry(tb).Reference(x => x.NguoiNhan).LoadAsync();
             await _context.Entry(tb).Reference(x => x.Phong).LoadAsync();
             await _context.Entry(tb).Reference(x => x.NguoiTao).LoadAsync();
 
             return Ok(new { thanhCong = true, thongBao = "Tạo thông báo thành công.", duLieu = MapDto(tb, false, false) });
+        }
+
+        private void QueueThongBaoEmail(int thongBaoId)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var service = scope.ServiceProvider.GetRequiredService<INotificationEmailService>();
+                    await service.GuiEmailThongBaoMoiAsync(thongBaoId);
+                }
+                catch
+                {
+                    // Email là tác vụ phụ; không để lỗi SMTP làm chậm thao tác tạo thông báo.
+                }
+            });
         }
 
         // PUT: Đánh dấu đã đọc 1 thông báo của chính người nhận
@@ -356,6 +436,14 @@ namespace DoAnSE104.Controllers
             if (role == VaiTroConst.ChuTro)
                 phongQuery = phongQuery.Where(p => p.NhaTro != null && p.NhaTro.MaChuTro == userId);
 
+            IQueryable<NhaTro> nhaTroQuery = _context.NhaTro;
+            if (role == VaiTroConst.ChuTro)
+                nhaTroQuery = nhaTroQuery.Where(n => n.MaChuTro == userId);
+
+            var nhaTros = await nhaTroQuery
+                .Select(n => new { n.MaNhaTro, n.TenNhaTro, n.DiaChi })
+                .ToListAsync();
+
             var phongs = await phongQuery
                 .Select(p => new { p.MaPhong, p.TenPhong, TenNhaTro = p.NhaTro != null ? p.NhaTro.TenNhaTro : "" })
                 .ToListAsync();
@@ -365,7 +453,7 @@ namespace DoAnSE104.Controllers
                 .Select(u => new { u.MaNguoiDung, u.HoTen, u.Email, u.SoDienThoai })
                 .ToListAsync();
 
-            return Ok(new { thanhCong = true, duLieu = new { phongs, nguoiDungs } });
+            return Ok(new { thanhCong = true, duLieu = new { nhaTros, phongs, nguoiDungs } });
         }
     }
 }

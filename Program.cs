@@ -7,25 +7,51 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.HttpOverrides;
 using System.Text;
 using DoAnSE104.Services;
 using DoAnSE104.Services.Interfaces;
-using DoAnSE104.Models;
 using DoAnSE104.Helpers;
 
+// Neon/PostgreSQL with Npgsql is strict about DateTime.Kind for timestamptz.
+// The current project uses DateTime.Now/Today widely, so keep legacy timestamp
+// behavior for demo deployment without rewriting every model/controller.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.AddJsonFile(
+    "appsettings.Local.json",
+    optional: true,
+    reloadOnChange: true);
 
 // ─── DB ───────────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure(
+    var provider = builder.Configuration["Database:Provider"] ?? "SqlServer";
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection");
+
+    if (provider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase)
+        || provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase)
+        || provider.Equals("Npgsql", StringComparison.OrdinalIgnoreCase))
+    {
+        connectionString = ConnectionStringHelper.NormalizePostgresConnectionString(connectionString);
+
+        options.UseNpgsql(connectionString, npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorCodesToAdd: null
+        ));
+    }
+    else
+    {
+        options.UseSqlServer(connectionString, sqlOptions => sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(30),
             errorNumbersToAdd: null
-        )
-    );
+        ));
+    }
 });
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
@@ -168,68 +194,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ─── Tự động cập nhật database + Seed Admin mặc định ──────────────────────────
-using (var scope = app.Services.CreateScope())
+app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
-    var services = scope.ServiceProvider;
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
-    try
-    {
-        var context = services.GetRequiredService<ApplicationDbContext>();
-
-        // Tự động tạo/cập nhật database theo migration
-        var recreateDatabase = builder.Configuration.GetValue<bool>("Database:RecreateOnStartup");
-
-        if (recreateDatabase)
-        {
-            context.Database.EnsureDeleted();
-        }
-
-        context.Database.EnsureCreated();
-        context.EnsureCustomSchema();
-
-        if (!context.TrangThai.Any())
-        {
-            context.TrangThai.AddRange(
-                new TrangThai { TenTrangThai = "Còn trống" },
-                new TrangThai { TenTrangThai = "Đã thuê" },
-                new TrangThai { TenTrangThai = "Đang sửa chữa" },
-                new TrangThai { TenTrangThai = "Ngưng hoạt động" }
-            );
-
-            context.SaveChanges();
-        }
-
-        // Tạo tài khoản Admin mặc định nếu chưa có
-        if (!context.Users.Any(u => u.TenDangNhap == "Admin"))
-        {
-            context.Users.Add(new User
-            {
-                TenDangNhap = "Admin",
-                HoTen = "Administrator",
-                Email = "admin@example.com",
-                SoDienThoai = "0123456789",
-                VaiTro = "Admin",
-                MatKhau = BCrypt.Net.BCrypt.HashPassword("Admin123")
-            });
-
-            context.SaveChanges();
-        }
-
-        if (builder.Configuration.GetValue<bool>("Database:SeedSampleData"))
-        {
-            InvokeSampleDataSeederIfAvailable(context);
-        }
-
-        EnsureStoredPasswordsAreHashed(context);
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-
-        logger.LogError(ex, "Lỗi khi tự động cập nhật database hoặc seed dữ liệu mặc định.");
-    }
-}
+// ─── Tự động cập nhật database + Seed Admin mặc định ──────────────────────────
+StartupDatabaseInitializer.Initialize(app);
 
 // ─── Middleware Pipeline ───────────────────────────────────────────────────────
 app.UseSwagger();
@@ -250,40 +221,3 @@ app.MapControllers();
 app.MapFallbackToFile("index.html");
 
 app.Run();
-
-static void InvokeSampleDataSeederIfAvailable(ApplicationDbContext context)
-{
-    var seederType = typeof(ApplicationDbContext).Assembly.GetType("DoAnSE104.Data.SampleDataSeeder");
-    var seedMethod = seederType?.GetMethod(
-        "Seed",
-        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
-        binder: null,
-        types: new[] { typeof(ApplicationDbContext) },
-        modifiers: null);
-
-    seedMethod?.Invoke(null, new object[] { context });
-}
-
-static void EnsureStoredPasswordsAreHashed(ApplicationDbContext context)
-{
-    var usersWithPlainPassword = context.Users
-        .Where(u => !string.IsNullOrWhiteSpace(u.MatKhau))
-        .AsEnumerable()
-        .Where(u => !IsBcryptHash(u.MatKhau))
-        .ToList();
-
-    if (usersWithPlainPassword.Count == 0) return;
-
-    foreach (var user in usersWithPlainPassword)
-    {
-        user.MatKhau = BCrypt.Net.BCrypt.HashPassword(user.MatKhau);
-    }
-
-    context.SaveChanges();
-}
-
-static bool IsBcryptHash(string value)
-{
-    return value.Length == 60
-        && (value.StartsWith("$2a$") || value.StartsWith("$2b$") || value.StartsWith("$2y$"));
-}

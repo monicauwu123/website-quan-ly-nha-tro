@@ -90,6 +90,21 @@ window.lookups = lookups;
 // --- FORMATTERS ---
 const fmtCurrency = v => (v != null && v !== '') ? new Intl.NumberFormat('vi-VN').format(v) + 'đ' : '---';
 const fmtDate = v => v ? new Date(v).toLocaleDateString('vi-VN') : '---';
+const fmtNumber = v => new Intl.NumberFormat('vi-VN').format(dashNumber(v));
+function fmtRelativeTime(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return '';
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.max(0, Math.floor(diffMs / 60000));
+    if (diffMin < 1) return 'Vừa xong';
+    if (diffMin < 60) return `${diffMin} phút trước`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour} giờ trước`;
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay === 1) return 'Hôm qua';
+    if (diffDay < 7) return `${diffDay} ngày trước`;
+    return fmtDate(value);
+}
 window.AppFormat = window.AppFormat || {
     currency: fmtCurrency,
     date: fmtDate,
@@ -479,6 +494,7 @@ async function loadOverview() {
         if (CURRENT_ROLE === 'NguoiDung') {
             renderNguoiDungOverview(data);
         } else {
+            await enrichOverviewStatusBreakdowns(data);
             renderChuTroAdminOverview(data);
         }
     } catch (e) {
@@ -490,6 +506,42 @@ async function loadOverview() {
 function dashNumber(value) {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
+}
+
+function countUpCurrency(value, className = '') {
+    const amount = dashNumber(value);
+    return `<span class="${className}" data-countup="${amount}" data-countup-type="currency">${fmtCurrency(amount)}</span>`;
+}
+
+function countUpNumber(value, className = '') {
+    const amount = dashNumber(value);
+    return `<span class="${className}" data-countup="${amount}" data-countup-type="number">${fmtNumber(amount)}</span>`;
+}
+
+function animateDashboardMetrics(root = document) {
+    const scope = root || document;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    scope.querySelectorAll('[data-countup]').forEach(el => {
+        const target = dashNumber(el.dataset.countup);
+        const type = el.dataset.countupType || 'number';
+        if (reduceMotion) {
+            el.textContent = type === 'currency' ? fmtCurrency(target) : fmtNumber(target);
+            return;
+        }
+
+        const duration = Math.min(1700, Math.max(900, 720 + Math.log10(Math.max(target, 10)) * 210));
+        const start = performance.now();
+        const formatter = type === 'currency' ? fmtCurrency : fmtNumber;
+
+        const tick = now => {
+            const progress = Math.min(1, (now - start) / duration);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = formatter(Math.round(target * eased));
+            if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    });
 }
 
 function dashPercent(value, total) {
@@ -516,7 +568,378 @@ function renderDashSparkline(values, color = '#0d9488') {
 
 function renderDashProgress(pct, tone = 'teal') {
     const width = Math.max(0, Math.min(100, dashNumber(pct)));
-    return `<div class="dash-progress"><div class="dash-progress-fill dash-progress-${tone}" style="width:${width}%"></div></div>`;
+    return `<div class="dash-progress"><div class="dash-progress-fill dash-progress-${tone}" style="--dash-progress-width:${width}%"></div></div>`;
+}
+
+function addDashCount(map, key) {
+    const status = key || 'Khac';
+    map.set(status, (map.get(status) || 0) + 1);
+}
+
+function daysUntilDashboard(dateValue) {
+    if (!dateValue) return null;
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return null;
+    return Math.ceil((date - new Date()) / 86400000);
+}
+
+function getDashboardContractStatus(row) {
+    const status = row?.trangThai || row?.TrangThai || 'Khac';
+    const days = daysUntilDashboard(row?.ngayKetThuc || row?.NgayKetThuc);
+    if (status === 'DangHieuLuc' && days !== null && days >= 0 && days <= 30) return 'SapHetHan';
+    return status;
+}
+
+function isDashboardInvoiceOverdue(period) {
+    if (!period || typeof period !== 'string') return false;
+    const parts = period.split('-');
+    if (parts.length !== 2) return false;
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    if (!year || !month) return false;
+    const due = new Date(year, month, 10);
+    return new Date() > due;
+}
+
+function getDashboardInvoiceStatus(row) {
+    const status = row?.trangThai || row?.TrangThai || '';
+    const paymentText = String(row?.trangThaiThanhToan || row?.TrangThaiThanhToan || '').toLowerCase();
+    if (status === 'Huy' || paymentText.includes('hủy')) return 'Huy';
+    if (status === 'DaThanhToan' || paymentText.includes('đã thanh toán') || paymentText.includes('da thanh toan')) return 'DaThanhToan';
+    if (status === 'ThanhToanMotPhan' || paymentText.includes('một phần') || paymentText.includes('mot phan')) return 'ThanhToanMotPhan';
+    if (status === 'ChuaThanhToan' || paymentText.includes('chưa thanh toán') || paymentText.includes('chua thanh toan')) {
+        return isDashboardInvoiceOverdue(row?.kyHoaDon || row?.KyHoaDon) ? 'QuaHan' : 'ChuaThanhToan';
+    }
+    return status || 'ChuaThanhToan';
+}
+
+function parseDashboardInvoicePeriod(row) {
+    const raw = String(row?.kyHoaDon || row?.KyHoaDon || '').trim();
+    let year = 0;
+    let month = 0;
+
+    const dashMatch = raw.match(/^(\d{4})-(\d{1,2})$/);
+    const slashMatch = raw.match(/^(\d{1,2})\/(\d{4})$/);
+    if (dashMatch) {
+        year = Number(dashMatch[1]);
+        month = Number(dashMatch[2]);
+    } else if (slashMatch) {
+        month = Number(slashMatch[1]);
+        year = Number(slashMatch[2]);
+    }
+
+    if (!year || !month || month < 1 || month > 12) {
+        const date = new Date(row?.ngayLap || row?.NgayLap || '');
+        if (!Number.isNaN(date.getTime())) {
+            year = date.getFullYear();
+            month = date.getMonth() + 1;
+        }
+    }
+
+    if (!year || !month || month < 1 || month > 12) return null;
+    return {
+        key: `${year}-${String(month).padStart(2, '0')}`,
+        label: `${String(month).padStart(2, '0')}/${year}`,
+        sort: year * 100 + month
+    };
+}
+
+function buildDashboardFinanceFromInvoices(invoices) {
+    const rows = normalizeArrayResponse(invoices)
+        .filter(row => getDashboardInvoiceStatus(row) !== 'Huy')
+        .map(row => ({ row, period: parseDashboardInvoicePeriod(row) }))
+        .filter(item => item.period);
+
+    if (!rows.length) return null;
+
+    const latest = rows.reduce((best, item) => item.period.sort > best.sort ? item.period : best, rows[0].period);
+    const periodRows = rows.filter(item => item.period.key === latest.key).map(item => item.row);
+    const houseMap = new Map();
+
+    periodRows.forEach(row => {
+        const total = dashNumber(row.tongTien ?? row.TongTien);
+        const paid = dashNumber(row.daThanhToan ?? row.DaThanhToan);
+        const remain = Math.max(0, dashNumber(row.conLai ?? row.ConLai ?? (total - paid)));
+        const room = normalizeArrayResponse(lookups.phong).find(p => Number(p.maPhong) === Number(row.maPhong ?? row.MaPhong));
+        const house = room ? normalizeArrayResponse(lookups.nhatro).find(n => Number(n.maNhaTro) === Number(room.maNhaTro)) : null;
+        const houseId = house?.maNhaTro ?? room?.maNhaTro ?? row.maNhaTro ?? row.MaNhaTro ?? 0;
+        const houseName = house?.tenNhaTro || row.tenNhaTro || row.TenNhaTro || 'Chưa rõ nhà trọ';
+        const key = String(houseId || houseName);
+
+        if (!houseMap.has(key)) {
+            houseMap.set(key, {
+                maNhaTro: houseId,
+                tenNhaTro: houseName,
+                soHoaDon: 0,
+                soHoaDonChuaThu: 0,
+                phaiThu: 0,
+                daThu: 0,
+                conNo: 0
+            });
+        }
+
+        const item = houseMap.get(key);
+        item.soHoaDon += 1;
+        item.soHoaDonChuaThu += remain > 0 ? 1 : 0;
+        item.phaiThu += total;
+        item.daThu += Math.min(paid, total);
+        item.conNo += remain;
+    });
+
+    const theoNhaTro = Array.from(houseMap.values()).sort((a, b) => b.conNo - a.conNo || a.tenNhaTro.localeCompare(b.tenNhaTro));
+    return {
+        ky: latest.key,
+        thang: latest.label,
+        capNhatLuc: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        phaiThu: theoNhaTro.reduce((sum, item) => sum + item.phaiThu, 0),
+        daThu: theoNhaTro.reduce((sum, item) => sum + item.daThu, 0),
+        conNo: theoNhaTro.reduce((sum, item) => sum + item.conNo, 0),
+        soHoaDon: periodRows.length,
+        soHoaDonChuaThu: theoNhaTro.reduce((sum, item) => sum + item.soHoaDonChuaThu, 0),
+        theoNhaTro
+    };
+}
+
+async function enrichOverviewStatusBreakdowns(data) {
+    try {
+        const [hopDongRaw, hoaDonRaw] = await Promise.all([
+            apiFetch('/api/HopDong').catch(() => []),
+            apiFetch('/api/HoaDon').catch(() => [])
+        ]);
+
+        const hopDongList = normalizeArrayResponse(hopDongRaw);
+        if (hopDongList.length) {
+            const counts = new Map();
+            hopDongList.forEach(row => addDashCount(counts, getDashboardContractStatus(row)));
+            data.hopDongTheoTrangThai = Array.from(counts.entries()).map(([trangThai, soLuong]) => ({ trangThai, soLuong }));
+            data.tongHopDong = hopDongList.length;
+        }
+
+        const hoaDonList = normalizeArrayResponse(hoaDonRaw);
+        if (hoaDonList.length) {
+            const counts = new Map();
+            hoaDonList.forEach(row => addDashCount(counts, getDashboardInvoiceStatus(row)));
+            data.hoaDonTheoTrangThai = Array.from(counts.entries()).map(([trangThai, soLuong]) => ({ trangThai, soLuong }));
+            data.tongHoaDon = hoaDonList.length;
+            const finance = buildDashboardFinanceFromInvoices(hoaDonList);
+            if (finance) data.taiChinhThang = finance;
+        }
+    } catch (e) {
+        console.warn('Overview status breakdown fallback failed', e);
+    }
+}
+
+const DASH_PIE_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#8b5cf6', '#ef4444', '#64748b'];
+const DASH_ROOM_STATUS_COLORS = {
+    1: '#16a34a',
+    2: '#2563eb',
+    3: '#f59e0b',
+    4: '#64748b'
+};
+const DASH_CONTRACT_STATUS_COLORS = {
+    DangHieuLuc: '#10b981',
+    SapHetHan: '#f59e0b',
+    ChoXacNhan: '#3b82f6',
+    KetThuc: '#94a3b8',
+    Huy: '#ef4444'
+};
+const DASH_INVOICE_STATUS_COLORS = {
+    DaThanhToan: '#22c55e',
+    ThanhToanMotPhan: '#eab308',
+    ChuaThanhToan: '#f97316',
+    QuaHan: '#ef4444',
+    Huy: '#64748b'
+};
+const DASH_CONTRACT_STATUS_LABELS = {
+    DangHieuLuc: 'Đang hiệu lực',
+    SapHetHan: 'Sắp hết hạn',
+    ChoXacNhan: 'Chờ xác nhận',
+    KetThuc: 'Đã kết thúc',
+    Huy: 'Đã hủy'
+};
+const DASH_INVOICE_STATUS_LABELS = {
+    ChuaThanhToan: 'Chưa thanh toán',
+    DaThanhToan: 'Đã thanh toán',
+    ThanhToanMotPhan: 'Thanh toán 1 phần',
+    QuaHan: 'Quá hạn',
+    Huy: 'Đã hủy'
+};
+
+function getDashboardRoomStatusColor(statusId, label) {
+    if (DASH_ROOM_STATUS_COLORS[statusId]) return DASH_ROOM_STATUS_COLORS[statusId];
+    const key = normalizeStatusKey(label);
+    if (key.includes('trong')) return '#16a34a';
+    if (key.includes('thue')) return '#2563eb';
+    if (key.includes('sua') || key.includes('baotri')) return '#f59e0b';
+    if (key.includes('ngung') || key.includes('khoong') || key.includes('khong')) return '#64748b';
+    return '#8b5cf6';
+}
+
+function completeDashPieItems(items, definitions) {
+    const source = normalizeArrayResponse(items);
+    const byKey = new Map();
+    source.forEach((item, idx) => {
+        const key = String(item.key || item.Key || item.trangThai || item.TrangThai || item.label || item.Label || idx);
+        byKey.set(key, {
+            ...item,
+            key,
+            label: item.label || item.Label || item.trangThai || item.TrangThai || key,
+            value: dashNumber(item.value ?? item.Value ?? item.soLuong ?? item.SoLuong),
+            color: item.color || DASH_PIE_COLORS[idx % DASH_PIE_COLORS.length]
+        });
+    });
+
+    const result = normalizeArrayResponse(definitions).map((def, idx) => {
+        const key = String(def.key);
+        const current = byKey.get(key);
+        byKey.delete(key);
+        return {
+            key,
+            label: def.label,
+            value: current ? dashNumber(current.value) : 0,
+            color: def.color || current?.color || DASH_PIE_COLORS[idx % DASH_PIE_COLORS.length]
+        };
+    });
+
+    byKey.forEach(item => result.push(item));
+    return result;
+}
+
+function renderDashPieChart({ title, icon, total, items, section }) {
+    const cleanItems = normalizeArrayResponse(items)
+        .map((item, idx) => ({
+            label: item.label || item.Label || item.trangThai || item.TrangThai || 'Khác',
+            value: dashNumber(item.value ?? item.Value ?? item.soLuong ?? item.SoLuong),
+            color: item.color || DASH_PIE_COLORS[idx % DASH_PIE_COLORS.length]
+        }));
+    const sliceItems = cleanItems.filter(item => item.value > 0);
+    const safeTotal = dashNumber(total) || cleanItems.reduce((sum, item) => sum + item.value, 0);
+
+    let start = 0;
+    const gradient = sliceItems.length
+        ? sliceItems.map(item => {
+            const pct = safeTotal > 0 ? (item.value / safeTotal) * 100 : 0;
+            const end = start + pct;
+            const slice = `${item.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+            start = end;
+            return slice;
+        }).join(', ')
+        : '#e5e7eb 0% 100%';
+
+    const legend = cleanItems.length
+        ? cleanItems.map(item => {
+            const pct = dashPercent(item.value, safeTotal);
+            return `<div class="dash-pie-legend-row ${item.value <= 0 ? 'dash-pie-zero' : ''}">
+                <span class="dash-pie-dot" style="background:${item.color};"></span>
+                <span class="dash-pie-name">${escapeHtmlDashboard(item.label)}</span>
+                <strong>${countUpNumber(item.value)}</strong>
+                <em>${pct}%</em>
+            </div>`;
+        }).join('')
+        : '<div class="empty-state-sm">Chưa có dữ liệu</div>';
+
+    return `<div class="data-card dash-pie-card" onclick="showSection('${section}')">
+        <div class="dash-card-header">
+            <span><i class="fas ${icon}"></i> ${title}</span>
+            <span class="dash-card-meta">Tổng ${countUpNumber(safeTotal)}</span>
+        </div>
+        <div class="dash-pie-body">
+            <div class="dash-pie-visual" style="--pie-gradient:${gradient};">
+                <div class="dash-pie-center">
+                    <strong>${countUpNumber(safeTotal)}</strong>
+                    <span>Tổng</span>
+                </div>
+            </div>
+            <div class="dash-pie-legend">${legend}</div>
+        </div>
+    </div>`;
+}
+
+function sumDashPieItems(items) {
+    return normalizeArrayResponse(items)
+        .reduce((sum, item) => sum + dashNumber(item.value ?? item.Value ?? item.soLuong ?? item.SoLuong), 0);
+}
+
+function renderDashboardFinanceCard(finance) {
+    const info = finance || {};
+    const phaiThu = dashNumber(info.phaiThu ?? info.PhaiThu);
+    const daThu = dashNumber(info.daThu ?? info.DaThu);
+    const conNo = dashNumber(info.conNo ?? info.ConNo);
+    const soHoaDonChuaThu = dashNumber(info.soHoaDonChuaThu ?? info.SoHoaDonChuaThu);
+    const thang = info.thang || info.Thang || `${(new Date().getMonth() + 1).toString().padStart(2, '0')}/${new Date().getFullYear()}`;
+    const capNhatLuc = info.capNhatLuc || info.CapNhatLuc || new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const tyLeThu = phaiThu > 0 ? Math.round((daThu / phaiThu) * 1000) / 10 : 0;
+    return `<div class="data-card dash-finance-card">
+        <div class="dash-finance-top">
+            <div>
+                <div class="dash-finance-eyebrow">Tài chính</div>
+                <h3>Tháng ${escapeHtmlDashboard(thang)}</h3>
+            </div>
+            <button class="dash-finance-alert" onclick="showSection('hoadon')">
+                <i class="fas fa-triangle-exclamation"></i> ${countUpNumber(soHoaDonChuaThu)} HĐ chưa thu
+            </button>
+        </div>
+        <div class="dash-finance-metrics">
+            <div><span>Phải thu</span><strong>${countUpCurrency(phaiThu)}</strong></div>
+            <div><span>Đã thu</span><strong>${countUpCurrency(daThu, 'finance-paid')}</strong></div>
+            <div><span>Còn nợ</span><strong>${countUpCurrency(conNo, 'finance-debt')}</strong></div>
+        </div>
+        <div class="dash-finance-progress-head">
+            <span>Tỷ lệ thu nợ</span>
+            <strong>${tyLeThu}%</strong>
+        </div>
+        <div class="dash-finance-progress"><span style="--dash-progress-width:${Math.min(100, Math.max(0, tyLeThu))}%"></span></div>
+        <div class="dash-finance-separator"></div>
+        <div class="dash-finance-footer">
+            <span><i class="fas fa-rotate"></i> Cập nhật lúc ${escapeHtmlDashboard(capNhatLuc)}</span>
+            <button class="btn btn-secondary" onclick="showSection('hoadon')">Xem chi tiết <i class="fas fa-arrow-right"></i></button>
+        </div>
+    </div>`;
+}
+
+function openDashboardQuickCreate(section, modalFn = null) {
+    showSection(section);
+    setTimeout(() => {
+        if (modalFn && typeof window[modalFn] === 'function') {
+            window[modalFn]();
+            return;
+        }
+        openModal();
+    }, 320);
+}
+window.openDashboardQuickCreate = openDashboardQuickCreate;
+
+function renderDashboardQuickActionsCard() {
+    const actions = [
+        { label: 'Tạo hợp đồng', sub: 'Lập HĐ mới', icon: 'fa-file-signature', tone: 'primary', onClick: "openDashboardQuickCreate('hopdong')" },
+        { label: 'Tạo hóa đơn', sub: 'Thu tiền phòng', icon: 'fa-file-invoice-dollar', tone: 'warning', onClick: "openDashboardQuickCreate('hoadon')" },
+        { label: 'Thêm phòng', sub: 'Cập nhật kho phòng', icon: 'fa-door-open', tone: 'success', onClick: "openDashboardQuickCreate('phong')" },
+        { label: 'Gửi thông báo', sub: 'Nhắn cho người thuê', icon: 'fa-paper-plane', tone: 'info', onClick: "openDashboardQuickCreate('thongbao')" },
+        { label: 'Ghi điện nước', sub: 'Nhập chỉ số mới', icon: 'fa-bolt', tone: 'cyan', onClick: "openDashboardQuickCreate('diennuoc', 'openDienNuocModal')" },
+        { label: 'Thêm nhà trọ', sub: 'Tạo khu/nhà mới', icon: 'fa-building', tone: 'neutral', onClick: "openDashboardQuickCreate('nhatro')" },
+        { label: 'Thêm khách thuê', sub: 'Hồ sơ người thuê', icon: 'fa-user-plus', tone: 'purple', onClick: "openDashboardQuickCreate('nguoithue')" },
+        { label: 'Xác nhận biên lai', sub: 'Duyệt thanh toán', icon: 'fa-receipt', tone: 'danger', onClick: "showSection('bienlai')" },
+        { label: 'Xử lý sự cố', sub: 'Báo cáo chờ xử lý', icon: 'fa-screwdriver-wrench', tone: 'orange', onClick: "showSection('baocaosuco')" }
+    ];
+
+    return `<div class="data-card dash-side-card dash-quick-card">
+        <div class="dash-card-header">
+            <span><i class="fas fa-bolt" style="color:var(--primary);"></i> Thao tác nhanh</span>
+            <span class="dash-card-meta">Tạo mới</span>
+        </div>
+        <div class="dash-quick-grid">
+            ${actions.map(action => `
+                <button type="button" class="dash-quick-action dash-quick-${action.tone}" onclick="${action.onClick}">
+                    <span class="dash-quick-icon"><i class="fas ${action.icon}"></i></span>
+                    <span class="dash-quick-text">
+                        <strong>${escapeHtmlDashboard(action.label)}</strong>
+                        <small>${escapeHtmlDashboard(action.sub)}</small>
+                    </span>
+                    <i class="fas fa-arrow-right dash-quick-arrow"></i>
+                </button>
+            `).join('')}
+        </div>
+    </div>`;
 }
 
 // ==========================================
@@ -526,66 +949,94 @@ function renderChuTroAdminOverview(data) {
     document.getElementById('sectionTitle').textContent =
         CURRENT_ROLE === 'ChuTro' ? 'Tổng quan nhà trọ của tôi' : 'Tổng quan hệ thống';
 
-    const now = new Date();
-    const thangNam = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
-
-    // ── KPI Cards ──────────────────────────────────────────────────────────
     const tongPhong = dashNumber(data.tongPhong);
     const phongDangThue = dashNumber(data.phongDangThue);
     const phongTrong = dashNumber(data.phongTrong);
-    const tyLePhong = dashPercent(phongDangThue, tongPhong);
-    const tyLeTrong = dashPercent(phongTrong, tongPhong);
     const dt6 = normalizeArrayResponse(data.doanhThu6Thang || []);
-    const revenueSeries = dt6.map(d => d.doanhThu);
+    let roomStatusDefinitions = normalizeArrayResponse(lookups.trangthai).map((status, idx) => ({
+        key: String(status.maTrangThai ?? status.MaTrangThai ?? idx + 1),
+        label: status.tenTrangThai || status.TenTrangThai || `Trạng thái #${idx + 1}`,
+        color: getDashboardRoomStatusColor(Number(status.maTrangThai ?? status.MaTrangThai), status.tenTrangThai || status.TenTrangThai)
+    }));
+    if (!roomStatusDefinitions.length) {
+        roomStatusDefinitions = [
+            { key: '1', label: 'Còn trống', color: getDashboardRoomStatusColor(1, 'Còn trống') },
+            { key: '2', label: 'Đã thuê', color: getDashboardRoomStatusColor(2, 'Đã thuê') },
+            { key: '3', label: 'Đang sửa chữa', color: getDashboardRoomStatusColor(3, 'Đang sửa chữa') }
+        ];
+    }
+    if (!roomStatusDefinitions.some(x => normalizeStatusKey(x.label).includes('ngung'))) {
+        roomStatusDefinitions.push({ key: 'NgungSuDung', label: 'Ngưng sử dụng', color: '#64748b' });
+    }
 
-    document.getElementById('dashStatsGrid').innerHTML = `
-        <div class="stat-card stat-card-indigo kpi-card dash-kpi-rich" onclick="showSection('phong')">
-            <div class="stat-card-top">
-                <div class="stat-icon"><i class="fas fa-building"></i></div>
-                <div class="dash-kpi-chip">Danh mục</div>
-            </div>
-            <div class="stat-info">
-                <h3>Tổng số phòng</h3>
-                <div class="value">${tongPhong}</div>
-                <div class="kpi-sub">${data.tongNhaTro ?? 0} nhà trọ · ${data.tongKhachThue ?? 0} khách thuê</div>
-            </div>
-        </div>
-        <div class="stat-card stat-card-blue kpi-card dash-kpi-rich" onclick="showSection('phong')">
-            <div class="stat-card-top">
-                <div class="stat-icon"><i class="fas fa-door-closed"></i></div>
-                <div class="dash-kpi-chip">${tyLePhong}%</div>
-            </div>
-            <div class="stat-info">
-                <h3>Đang cho thuê</h3>
-                <div class="value">${phongDangThue}</div>
-                ${renderDashProgress(tyLePhong, 'blue')}
-                <div class="kpi-sub">${tyLePhong}% công suất</div>
-            </div>
-        </div>
-        <div class="stat-card stat-card-green kpi-card dash-kpi-rich" onclick="showSection('phong')">
-            <div class="stat-card-top">
-                <div class="stat-icon"><i class="fas fa-door-open"></i></div>
-                <div class="dash-kpi-chip">${tyLeTrong}%</div>
-            </div>
-            <div class="stat-info">
-                <h3>Phòng trống</h3>
-                <div class="value">${phongTrong}</div>
-                ${renderDashProgress(tyLeTrong, 'green')}
-                <div class="kpi-sub">Có thể khai thác ngay</div>
-            </div>
-        </div>
-        <div class="stat-card stat-card-green kpi-card revenue-card dash-kpi-rich" onclick="showSection('thanhtoan')">
-            <div class="stat-card-top">
-                <div class="stat-icon" style="background:#d1fae5;color:#065f46;"><i class="fas fa-coins"></i></div>
-                ${renderDashSparkline(revenueSeries, '#10b981')}
-            </div>
-            <div class="stat-info">
-                <h3>Doanh thu ${thangNam}</h3>
-                <div class="value" style="font-size:1.25rem;">${fmtCurrency(data.doanhThuThang ?? 0)}</div>
-                <div class="kpi-sub">So sánh nhanh 6 tháng</div>
-            </div>
-        </div>
-    `;
+    let phongChartItems = normalizeArrayResponse(data.phongTheoTrangThai || data.PhongTheoTrangThai).map((item, idx) => {
+        const maTrangThai = Number(item.maTrangThai ?? item.MaTrangThai);
+        return {
+            key: String(item.maTrangThai ?? item.MaTrangThai ?? idx),
+            label: item.trangThai || item.TrangThai || `Trạng thái #${maTrangThai || idx + 1}`,
+            value: item.soLuong ?? item.SoLuong,
+            color: getDashboardRoomStatusColor(maTrangThai, item.trangThai || item.TrangThai)
+        };
+    });
+    if (!phongChartItems.some(item => dashNumber(item.value) > 0)) {
+        const khac = Math.max(0, tongPhong - phongDangThue - phongTrong);
+        phongChartItems = [
+            { key: '2', label: 'Đang cho thuê', value: phongDangThue, color: getDashboardRoomStatusColor(2, 'Đang cho thuê') },
+            { key: '1', label: 'Còn trống', value: phongTrong, color: getDashboardRoomStatusColor(1, 'Còn trống') },
+            { key: 'Khac', label: 'Khác', value: khac, color: '#94a3b8' }
+        ];
+    }
+    phongChartItems = completeDashPieItems(phongChartItems, roomStatusDefinitions);
+
+    const hopDongSapHetHan = dashNumber(data.hopDongSapHetHan ?? data.HopDongSapHetHan);
+    const hoaDonChuaThanhToan = dashNumber(data.hoaDonChuaThanhToan ?? data.HoaDonChuaThanhToan);
+    let tongHopDong = dashNumber(data.tongHopDong ?? data.TongHopDong);
+    let tongHoaDon = dashNumber(data.tongHoaDon ?? data.TongHoaDon);
+    let hopDongChartItems = normalizeArrayResponse(data.hopDongTheoTrangThai || data.HopDongTheoTrangThai).map((item, idx) => {
+        const trangThai = item.trangThai || item.TrangThai;
+        return {
+            key: trangThai || `contract_${idx}`,
+            label: DASH_CONTRACT_STATUS_LABELS[trangThai] || trangThai || 'Khác',
+            value: item.soLuong ?? item.SoLuong,
+            color: DASH_CONTRACT_STATUS_COLORS[trangThai] || DASH_PIE_COLORS[idx % DASH_PIE_COLORS.length]
+        };
+    });
+    tongHopDong = Math.max(tongHopDong, sumDashPieItems(hopDongChartItems), hopDongSapHetHan);
+    if (!hopDongChartItems.some(item => dashNumber(item.value) > 0) && tongHopDong > 0) {
+        hopDongChartItems = [
+            { key: 'SapHetHan', label: 'Sắp hết hạn', value: hopDongSapHetHan, color: DASH_CONTRACT_STATUS_COLORS.SapHetHan },
+            { key: 'DangHieuLuc', label: 'Đang hiệu lực', value: Math.max(0, tongHopDong - hopDongSapHetHan), color: DASH_CONTRACT_STATUS_COLORS.DangHieuLuc }
+        ];
+    }
+    hopDongChartItems = completeDashPieItems(hopDongChartItems, Object.keys(DASH_CONTRACT_STATUS_LABELS).map(key => ({
+        key,
+        label: DASH_CONTRACT_STATUS_LABELS[key],
+        color: DASH_CONTRACT_STATUS_COLORS[key]
+    })));
+
+    let hoaDonChartItems = normalizeArrayResponse(data.hoaDonTheoTrangThai || data.HoaDonTheoTrangThai).map((item, idx) => {
+        const trangThai = item.trangThai || item.TrangThai;
+        return {
+            key: trangThai || `invoice_${idx}`,
+            label: DASH_INVOICE_STATUS_LABELS[trangThai] || trangThai || 'Khác',
+            value: item.soLuong ?? item.SoLuong,
+            color: DASH_INVOICE_STATUS_COLORS[trangThai] || DASH_PIE_COLORS[idx % DASH_PIE_COLORS.length]
+        };
+    });
+    tongHoaDon = Math.max(tongHoaDon, sumDashPieItems(hoaDonChartItems), hoaDonChuaThanhToan);
+    if (!hoaDonChartItems.some(item => dashNumber(item.value) > 0) && tongHoaDon > 0) {
+        hoaDonChartItems = [
+            { key: 'ChuaThanhToan', label: 'Chưa thanh toán', value: hoaDonChuaThanhToan, color: DASH_INVOICE_STATUS_COLORS.ChuaThanhToan },
+            { key: 'DaThanhToan', label: 'Đã thanh toán', value: Math.max(0, tongHoaDon - hoaDonChuaThanhToan), color: DASH_INVOICE_STATUS_COLORS.DaThanhToan }
+        ];
+    }
+    hoaDonChartItems = completeDashPieItems(hoaDonChartItems, Object.keys(DASH_INVOICE_STATUS_LABELS).map(key => ({
+        key,
+        label: DASH_INVOICE_STATUS_LABELS[key],
+        color: DASH_INVOICE_STATUS_COLORS[key]
+    })));
+
+    document.getElementById('dashStatsGrid').innerHTML = '';
 
     // ── Alert Cards ────────────────────────────────────────────────────────
     const alerts = [
@@ -631,7 +1082,7 @@ function renderChuTroAdminOverview(data) {
                         <i class="fas ${a.icon}"></i>
                     </div>
                     <div class="alert-body">
-                        <div class="alert-count">${a.count}</div>
+                        <div class="alert-count">${countUpNumber(a.count)}</div>
                         <div class="alert-label">${a.label}</div>
                         <div class="alert-hint">${a.urgent ? 'Cần xử lý' : 'Ổn định'}</div>
                     </div>
@@ -642,44 +1093,6 @@ function renderChuTroAdminOverview(data) {
     `;
 
     // ── Main Grid ──────────────────────────────────────────────────────────
-    const sapHet = data.danhSachHopDongSapHet || [];
-    const rooms  = data.danhSachPhongGanDay || [];
-
-    const sapHetHtml = sapHet.length
-        ? sapHet.map(h => {
-            const days = Math.ceil((new Date(h.ngayKetThuc) - new Date()) / 86400000);
-            const urgentCls = days <= 7 ? 'badge-danger' : 'badge-warning';
-            return `<div class="mini-list-item">
-                <div class="mini-list-left">
-                    <i class="fas fa-calendar-alt" style="color:#8b5cf6;"></i>
-                    <div>
-                        <div class="mini-list-title">${h.tenPhong || '---'}</div>
-                        <div class="mini-list-sub">${h.tenNhaTro || ''}</div>
-                    </div>
-                </div>
-                <span class="badge ${urgentCls}">${days} ngày</span>
-            </div>`;
-          }).join('')
-        : '<div class="empty-state-sm"><i class="fas fa-check-circle" style="color:var(--success);"></i> Không có hợp đồng sắp hết hạn</div>';
-
-    const roomsHtml = rooms.length
-        ? rooms.slice(0, 8).map(r => {
-            const cls = r.maTrangThai === 1 ? 'badge-success' : r.maTrangThai === 2 ? 'badge-danger' : 'badge-warning';
-            return `<div class="mini-list-item">
-                <div class="mini-list-left">
-                    <i class="fas fa-door-open" style="color:var(--primary);"></i>
-                    <div>
-                        <div class="mini-list-title">${r.tenPhong || '---'}</div>
-                        <div class="mini-list-sub">${r.tenNhaTro || ''}</div>
-                    </div>
-                </div>
-                <div style="text-align:right;">
-                    <span class="badge ${cls}">${r.trangThai || '---'}</span>
-                    <div style="font-size:.78rem;color:var(--text-light);margin-top:.2rem;">${fmtCurrency(r.giaPhong)}</div>
-                </div>
-            </div>`;
-          }).join('')
-        : '<div class="empty-state-sm">Chưa có phòng nào</div>';
 
     // Biểu đồ doanh thu 6 tháng
     const maxDt = Math.max(...dt6.map(d => d.doanhThu), 1);
@@ -689,11 +1102,11 @@ function renderChuTroAdminOverview(data) {
                 const revenue = dashNumber(d.doanhThu);
                 const pct = Math.round((revenue / maxDt) * 100);
                 const isCurrentMonth = d.thang === `${(new Date().getMonth()+1).toString().padStart(2,'0')}/${new Date().getFullYear()}`;
-                return `<div class="bar-col" title="${d.thang}: ${fmtCurrency(revenue)}">
+                return `<div class="bar-col" aria-label="${d.thang}: ${fmtCurrency(revenue)}">
                     <div class="bar-tooltip">${d.thang}<strong>${fmtCurrency(revenue)}</strong></div>
-                    <div class="bar-val">${revenue > 0 ? fmtCurrency(revenue) : ''}</div>
+                    <div class="bar-val">${revenue > 0 ? countUpCurrency(revenue) : ''}</div>
                     <div class="bar-outer">
-                        <div class="bar-inner ${isCurrentMonth ? 'bar-current' : ''}" style="height:${Math.max(pct,2)}%"></div>
+                        <div class="bar-inner ${isCurrentMonth ? 'bar-current' : ''}" style="--bar-height:${Math.max(pct,2)}%"></div>
                     </div>
                     <div class="bar-label">${d.thang}</div>
                 </div>`;
@@ -701,37 +1114,48 @@ function renderChuTroAdminOverview(data) {
         </div>` : '';
 
     document.getElementById('dashMainGrid').innerHTML = `
+        <div class="dash-pie-grid">
+            ${renderDashPieChart({
+                title: 'Tình trạng phòng',
+                icon: 'fa-chart-pie',
+                total: tongPhong,
+                items: phongChartItems,
+                section: 'phong'
+            })}
+            ${renderDashPieChart({
+                title: 'Tình trạng hợp đồng',
+                icon: 'fa-file-contract',
+                total: tongHopDong,
+                items: hopDongChartItems,
+                section: 'hopdong'
+            })}
+            ${renderDashPieChart({
+                title: 'Tình trạng hóa đơn',
+                icon: 'fa-file-invoice-dollar',
+                total: tongHoaDon,
+                items: hoaDonChartItems,
+                section: 'hoadon'
+            })}
+        </div>
         <div class="dash-main-grid">
-            <div class="data-card dash-card-lg">
+            <div class="data-card dash-card-lg dash-revenue-card">
                 <div class="dash-card-header">
                     <span><i class="fas fa-chart-bar" style="color:#6366f1;"></i> Doanh thu 6 tháng gần nhất</span>
                     <span class="dash-card-meta">Hover để xem chi tiết</span>
                 </div>
                 ${chartHtml}
                 <div class="dash-inline-metrics">
-                    <span><i class="fas fa-circle" style="color:#10b981;"></i> Đã thu ${fmtCurrency(data.doanhThuThang ?? 0)}</span>
-                    <span><i class="fas fa-circle" style="color:#ef4444;"></i> HĐ chưa thu ${data.hoaDonChuaThanhToan ?? 0}</span>
-                    <span><i class="fas fa-circle" style="color:#8b5cf6;"></i> HĐ sắp hết hạn ${data.hopDongSapHetHan ?? 0}</span>
+                    <span><i class="fas fa-circle" style="color:#10b981;"></i> Đã thu ${countUpCurrency(data.doanhThuThang ?? 0)}</span>
+                    <span><i class="fas fa-circle" style="color:#ef4444;"></i> HĐ chưa thu ${countUpNumber(data.hoaDonChuaThanhToan ?? 0)}</span>
                 </div>
             </div>
 
-            <div class="data-card dash-side-card dash-contract-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-calendar-times" style="color:#8b5cf6;"></i> Hợp đồng sắp hết hạn</span>
-                    <button class="btn-link-sm" onclick="showSection('hopdong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
-                </div>
-                <div class="mini-list dash-compact-list">${sapHetHtml}</div>
-            </div>
+            ${renderDashboardQuickActionsCard()}
 
-            <div class="data-card dash-side-card dash-room-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-door-open" style="color:var(--primary);"></i> Danh sách phòng</span>
-                    <button class="btn-link-sm" onclick="showSection('phong')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
-                </div>
-                <div class="mini-list dash-scroll-list">${roomsHtml}</div>
-            </div>
+            ${renderDashboardFinanceCard(data.taiChinhThang || data.TaiChinhThang)}
         </div>
     `;
+    animateDashboardMetrics(document.getElementById('overviewSection'));
 }
 
 
@@ -745,7 +1169,6 @@ function renderNguoiDungOverview(data) {
     const phongList = data?.danhSachPhongDangThue || (data?.phongDangThue ? [data.phongDangThue] : []);
     const hopDongList = data?.danhSachHopDongHienTai || (data?.hopDongHienTai ? [data.hopDongHienTai] : []);
     const hoaDonChuaTT = data?.hoaDonChuaThanhToan || [];
-    const dichVuList = data?.dichVuDangDung || [];
     const thongBaoList = data?.thongBaoChuaDoc || [];
     const baoCaoList = data?.baoCaoGanDay || [];
     const soHoaDonChuaTT = data?.soHoaDonChuaTT ?? hoaDonChuaTT.length;
@@ -859,21 +1282,6 @@ function renderNguoiDungOverview(data) {
           }).join('')
         : '<div class="empty-state-sm"><i class="fas fa-check-circle" style="color:var(--success);"></i> Không có hóa đơn nợ</div>';
 
-    // ── Dịch vụ đang dùng ─────────────────────────────────────────────────
-    const dichVuHtml = dichVuList.length
-        ? dichVuList.map(dv => `
-            <div class="mini-list-item">
-                <div class="mini-list-left">
-                    <i class="fas fa-cog" style="color:#06b6d4;"></i>
-                    <div>
-                        <div class="mini-list-title">${dv.tenDichVu || '---'}</div>
-                        <div class="mini-list-sub">${dv.tenPhong || ''}</div>
-                    </div>
-                </div>
-                <span class="badge badge-teal">${fmtCurrency(dv.tienDichVu)}</span>
-            </div>`).join('')
-        : '<div class="empty-state-sm">Chưa đăng ký dịch vụ nào</div>';
-
     // ── Thông báo ──────────────────────────────────────────────────────────
     const thongBaoHtml = thongBaoList.length
         ? thongBaoList.map(tb => `
@@ -932,48 +1340,43 @@ function renderNguoiDungOverview(data) {
                 </div>
             </div>
 
-            <div class="data-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-home" style="color:var(--primary);"></i> Phòng đang thuê</span>
-                    <button class="btn-link-sm" onclick="showSection('phongdangthue')">Chi tiết <i class="fas fa-arrow-right"></i></button>
+            <div class="dash-user-four-row">
+                <div class="data-card dash-user-card dash-user-room-card">
+                    <div class="dash-card-header">
+                        <span><i class="fas fa-home" style="color:var(--primary);"></i> Phòng đang thuê</span>
+                        <button class="btn-link-sm" onclick="showSection('phongdangthue')">Chi tiết <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    ${phongHtml}
                 </div>
-                ${phongHtml}
-            </div>
 
-            <div class="data-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-file-invoice-dollar" style="color:#f59e0b;"></i> Hóa đơn chưa thanh toán</span>
-                    <button class="btn-link-sm" onclick="showSection('hoadon')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                <div class="data-card dash-user-card">
+                    <div class="dash-card-header">
+                        <span><i class="fas fa-file-invoice-dollar" style="color:#f59e0b;"></i> Hóa đơn chưa thanh toán</span>
+                        <button class="btn-link-sm" onclick="showSection('hoadon')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <div class="mini-list">${hoaDonHtml}</div>
                 </div>
-                <div class="mini-list">${hoaDonHtml}</div>
-            </div>
 
-            <div class="data-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-cog" style="color:#06b6d4;"></i> Dịch vụ đang dùng</span>
-                    <button class="btn-link-sm" onclick="showSection('dangkydichvu')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                <div class="data-card dash-user-card">
+                    <div class="dash-card-header">
+                        <span><i class="fas fa-bell" style="color:#8b5cf6;"></i> Thông báo chưa đọc</span>
+                        <button class="btn-link-sm" onclick="showSection('thongbao')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <div class="mini-list">${thongBaoHtml}</div>
                 </div>
-                <div class="mini-list">${dichVuHtml}</div>
-            </div>
 
-            <div class="data-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-bell" style="color:#8b5cf6;"></i> Thông báo chưa đọc</span>
-                    <button class="btn-link-sm" onclick="showSection('thongbao')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                <div class="data-card dash-user-card">
+                    <div class="dash-card-header">
+                        <span><i class="fas fa-tools" style="color:#f59e0b;"></i> Sự cố gần đây</span>
+                        <button class="btn-link-sm" onclick="showSection('baocaosuco')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <div class="mini-list">${baoCaoHtml}</div>
                 </div>
-                <div class="mini-list">${thongBaoHtml}</div>
-            </div>
-
-            <div class="data-card">
-                <div class="dash-card-header">
-                    <span><i class="fas fa-tools" style="color:#f59e0b;"></i> Sự cố gần đây</span>
-                    <button class="btn-link-sm" onclick="showSection('baocaosuco')">Xem tất cả <i class="fas fa-arrow-right"></i></button>
-                </div>
-                <div class="mini-list">${baoCaoHtml}</div>
             </div>
 
         </div>
     `;
+    animateDashboardMetrics(document.getElementById('overviewSection'));
 }
 
 
@@ -1309,6 +1712,36 @@ function openHouseGallery(maNhaTro) {
 }
 window.openHouseGallery = openHouseGallery;
 
+function isHoaDonDaThanhToanHoacMotPhan(item) {
+    const trangThai = String(item?.trangThai || '').toLowerCase();
+    const trangThaiText = String(item?.trangThaiThanhToan || '').toLowerCase();
+    return trangThai === 'dathanhtoan'
+        || trangThai === 'thanhtoanmotphan'
+        || trangThaiText.includes('đã thanh toán')
+        || trangThaiText.includes('thanh toán một phần');
+}
+window.isHoaDonDaThanhToanHoacMotPhan = isHoaDonDaThanhToanHoacMotPhan;
+
+async function openHoaDonBienLaiGallery(maHoaDon) {
+    try {
+        const history = normalizeArrayResponse(await apiFetch(`/api/ThanhToan/HoaDon/${maHoaDon}`));
+        const bienLaiDaXacNhan = history
+            .filter(t => t?.trangThaiXacNhan === 'DaXacNhan' && t?.hinhAnhBienLai)
+            .sort((a, b) => new Date(b.ngayXacNhan || b.ngayThanhToan || 0) - new Date(a.ngayXacNhan || a.ngayThanhToan || 0));
+
+        const images = bienLaiDaXacNhan.map(t => t.hinhAnhBienLai);
+        if (!images.length) {
+            showToast('Hóa đơn này chưa có ảnh biên lai đã xác nhận.', 'info');
+            return;
+        }
+
+        openImageGallery(images, `Ảnh biên lai hóa đơn #${maHoaDon}`, `${bienLaiDaXacNhan.length} biên lai đã xác nhận`);
+    } catch (err) {
+        showToast(err.message || 'Không tải được ảnh biên lai', 'error');
+    }
+}
+window.openHoaDonBienLaiGallery = openHoaDonBienLaiGallery;
+
 function openImageGallery(images, title, subtitle) {
     const list = normalizeArrayResponse(images).filter(Boolean);
     const modal = document.getElementById('universalModal');
@@ -1459,6 +1892,10 @@ function getGenericFilterDefs(cfg, data) {
     }).filter(filter => filter.options.length > 0);
 }
 
+function isGenericAdvancedSearchDisabled(cfg, section) {
+    return cfg?.disableAdvancedSearch === true || section === 'nhatro';
+}
+
 function getGenericItemNhaTroId(item) {
     if (item?.maNhaTro != null) return item.maNhaTro;
     if (item?.maPhong != null) {
@@ -1572,6 +2009,7 @@ function filterSortGenericData(cfg, data, section) {
     const state = getGenericState(section);
     let rows = normalizeArrayResponse(data);
     const caps = getGenericCapabilities(cfg, rows, section);
+    const disableAdvanced = isGenericAdvancedSearchDisabled(cfg, section);
     const keyword = state.keyword.trim().toLowerCase();
 
     if (keyword) {
@@ -1580,49 +2018,51 @@ function filterSortGenericData(cfg, data, section) {
         );
     }
 
-    for (const filter of getGenericFilterDefs(cfg, rows)) {
-        const selected = state.filters?.[filter.id];
-        if (!selected) continue;
-        rows = rows.filter(item => {
-            const raw = filter.getValue ? filter.getValue(item) : item?.[filter.key || filter.id];
-            return String(raw ?? '') === String(selected);
-        });
-    }
+    if (!disableAdvanced) {
+        for (const filter of getGenericFilterDefs(cfg, rows)) {
+            const selected = state.filters?.[filter.id];
+            if (!selected) continue;
+            rows = rows.filter(item => {
+                const raw = filter.getValue ? filter.getValue(item) : item?.[filter.key || filter.id];
+                return String(raw ?? '') === String(selected);
+            });
+        }
 
-    if (!cfg.filters?.length && caps.statusKey && state.filterStatus) {
-        rows = rows.filter(item => String(item?.[caps.statusKey] ?? '') === String(state.filterStatus));
-    }
+        if (!cfg.filters?.length && caps.statusKey && state.filterStatus) {
+            rows = rows.filter(item => String(item?.[caps.statusKey] ?? '') === String(state.filterStatus));
+        }
 
-    if (caps.hasNhaTro && state.filterNhaTro) {
-        rows = rows.filter(item => String(getGenericItemNhaTroId(item) ?? '') === String(state.filterNhaTro));
-    }
+        if (caps.hasNhaTro && state.filterNhaTro) {
+            rows = rows.filter(item => String(getGenericItemNhaTroId(item) ?? '') === String(state.filterNhaTro));
+        }
 
-    if (caps.hasPhong && state.filterPhong) {
-        rows = rows.filter(item => String(item?.maPhong ?? '') === String(state.filterPhong));
-    }
+        if (caps.hasPhong && state.filterPhong) {
+            rows = rows.filter(item => String(item?.maPhong ?? '') === String(state.filterPhong));
+        }
 
-    if (caps.dateKey && state.filterDateFrom) {
-        const from = new Date(state.filterDateFrom + 'T00:00:00').getTime();
-        rows = rows.filter(item => {
-            const ms = Date.parse(item?.[caps.dateKey]);
-            return !Number.isNaN(ms) && ms >= from;
-        });
-    }
+        if (caps.dateKey && state.filterDateFrom) {
+            const from = new Date(state.filterDateFrom + 'T00:00:00').getTime();
+            rows = rows.filter(item => {
+                const ms = Date.parse(item?.[caps.dateKey]);
+                return !Number.isNaN(ms) && ms >= from;
+            });
+        }
 
-    if (caps.dateKey && state.filterDateTo) {
-        const to = new Date(state.filterDateTo + 'T23:59:59').getTime();
-        rows = rows.filter(item => {
-            const ms = Date.parse(item?.[caps.dateKey]);
-            return !Number.isNaN(ms) && ms <= to;
-        });
-    }
+        if (caps.dateKey && state.filterDateTo) {
+            const to = new Date(state.filterDateTo + 'T23:59:59').getTime();
+            rows = rows.filter(item => {
+                const ms = Date.parse(item?.[caps.dateKey]);
+                return !Number.isNaN(ms) && ms <= to;
+            });
+        }
 
-    if (caps.moneyKey && state.filterMoneyFrom) {
-        rows = rows.filter(item => (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0) >= Number(state.filterMoneyFrom));
-    }
+        if (caps.moneyKey && state.filterMoneyFrom) {
+            rows = rows.filter(item => (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0) >= Number(state.filterMoneyFrom));
+        }
 
-    if (caps.moneyKey && state.filterMoneyTo) {
-        rows = rows.filter(item => (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0) <= Number(state.filterMoneyTo));
+        if (caps.moneyKey && state.filterMoneyTo) {
+            rows = rows.filter(item => (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0) <= Number(state.filterMoneyTo));
+        }
     }
 
     if (state.sortKey) {
@@ -1645,20 +2085,29 @@ function filterSortGenericData(cfg, data, section) {
 function renderGenericToolbar(cfg, data, section, filteredCount) {
     const slot = document.getElementById('genericToolbarSlot');
     if (!slot) return;
+    // ── Nếu input đang được focus → KHÔNG rebuild innerHTML, chỉ sync state ──
+    const activeEl = document.activeElement;
+    const inputBelongsHere = slot.contains(activeEl) && activeEl.tagName === 'INPUT' && activeEl.type === 'text';
+    if (inputBelongsHere) {
+        // Chỉ update những phần không phải input (chips, summary, v.v.)
+        // Bỏ qua rebuild để tránh mất focus
+        return;
+    }
     const state = getGenericState(section);
     const rows = normalizeArrayResponse(data);
     const total = rows.length;
     const caps = getGenericCapabilities(cfg, rows, section);
-    const customFilters = getGenericFilterDefs(cfg, rows);
+    const disableAdvanced = isGenericAdvancedSearchDisabled(cfg, section);
+    const customFilters = disableAdvanced ? [] : getGenericFilterDefs(cfg, rows);
     const nhaTroList = normalizeArrayResponse(window.lookups?.nhatro || []);
     const phongList = normalizeArrayResponse(window.lookups?.phong || []);
     const visiblePhong = state.filterNhaTro
         ? phongList.filter(p => String(p.maNhaTro) === String(state.filterNhaTro))
         : phongList;
-    const moneyTotal = caps.moneyKey
+    const moneyTotal = !disableAdvanced && caps.moneyKey
         ? filterSortGenericData(cfg, rows, section).reduce((sum, item) => sum + (getGenericNumberValue(item?.[caps.moneyKey]) ?? 0), 0)
         : null;
-    const chips = getGenericFilterChips(cfg, rows, section);
+    const chips = disableAdvanced ? [] : getGenericFilterChips(cfg, rows, section);
     const createButton = userCanCreateSection(section) ? `
                 <button class="module-btn module-btn-primary" onclick="openModal()">
                     <i class="fas fa-plus"></i> Thêm mới
@@ -1674,7 +2123,7 @@ function renderGenericToolbar(cfg, data, section, filteredCount) {
                 </select>
             </div>`).join('');
 
-    const statusFilter = !customFilters.length && caps.statusOptions.length ? `
+    const statusFilter = !disableAdvanced && !customFilters.length && caps.statusOptions.length ? `
             <div style="min-width:180px;">
                 <select class="form-control" onchange="window.GenericTable.onStatus('${section}', this.value)">
                     <option value="">Tất cả trạng thái/loại</option>
@@ -1684,7 +2133,7 @@ function renderGenericToolbar(cfg, data, section, filteredCount) {
                 </select>
             </div>` : '';
 
-    const nhaTroFilter = caps.hasNhaTro && nhaTroList.length > 1 ? `
+    const nhaTroFilter = !disableAdvanced && caps.hasNhaTro && nhaTroList.length > 1 ? `
             <div style="min-width:170px;">
                 <select class="form-control" onchange="window.GenericTable.onNhaTro('${section}', this.value)">
                     <option value="">Tất cả nhà trọ</option>
@@ -1694,7 +2143,7 @@ function renderGenericToolbar(cfg, data, section, filteredCount) {
                 </select>
             </div>` : '';
 
-    const phongFilter = caps.hasPhong ? `
+    const phongFilter = !disableAdvanced && caps.hasPhong ? `
             <div style="min-width:160px;">
                 <select class="form-control" onchange="window.GenericTable.onPhong('${section}', this.value)">
                     <option value="">Tất cả phòng</option>
@@ -1704,7 +2153,7 @@ function renderGenericToolbar(cfg, data, section, filteredCount) {
                 </select>
             </div>` : '';
 
-    const dateFilter = caps.dateKey ? `
+    const dateFilter = !disableAdvanced && caps.dateKey ? `
             <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
                 <span style="font-size:.85rem;color:var(--text-light);white-space:nowrap;">Ngày:</span>
                 <input type="date" class="form-control" style="width:150px;" value="${escapeHtmlDashboard(state.filterDateFrom)}"
@@ -1714,7 +2163,7 @@ function renderGenericToolbar(cfg, data, section, filteredCount) {
                     onchange="window.GenericTable.onDateTo('${section}', this.value)">
             </div>` : '';
 
-    const moneyFilter = caps.moneyKey ? `
+    const moneyFilter = !disableAdvanced && caps.moneyKey ? `
             <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
                 <span style="font-size:.85rem;color:var(--text-light);white-space:nowrap;">Tiền:</span>
                 <input type="number" class="form-control" style="width:120px;" min="0" placeholder="Từ"
@@ -1725,7 +2174,7 @@ function renderGenericToolbar(cfg, data, section, filteredCount) {
                     value="${escapeHtmlDashboard(state.filterMoneyTo)}"
                     onchange="window.GenericTable.onMoneyTo('${section}', this.value)">
             </div>` : '';
-    const advancedFilterHtml = [customFilterHtml, nhaTroFilter, phongFilter, dateFilter, moneyFilter].filter(Boolean).join('');
+    const advancedFilterHtml = disableAdvanced ? '' : [customFilterHtml, nhaTroFilter, phongFilter, dateFilter, moneyFilter].filter(Boolean).join('');
     const hasAdvanced = Boolean(advancedFilterHtml);
 
     slot.innerHTML = `
@@ -1840,7 +2289,10 @@ window.GenericTable = {
         const state = getGenericState(section);
         state.keyword = value || '';
         state.page = 1;
-        renderTable(modules[section], currentData, section);
+        clearTimeout(state._kwTimer);
+        state._kwTimer = setTimeout(() => {
+            renderTable(modules[section], currentData, section);
+        }, 300);
     },
     onStatus(section, value) {
         const state = getGenericState(section);
@@ -2131,6 +2583,12 @@ function renderTable(cfg, data, section) {
                 actionHtml = `
                     <button class="btn-action btn-edit" onclick="openYeuCauThueDuyetModal(${item.maYeuCau})"><i class="fas fa-check"></i> Duyệt</button>
                     <button class="btn-action btn-delete" onclick="rejectYeuCauThue(${item.maYeuCau})"><i class="fas fa-times"></i> Từ chối</button>`;
+            } else if (item.loaiYeuCau === 'Thue' && CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'ChoNguoiThueXacNhan') {
+                actionHtml = `
+                    <button class="btn-action btn-edit" onclick="openYeuCauThueXacNhanModal(${item.maYeuCau})"><i class="fas fa-file-signature"></i> Xem & xác nhận</button>
+                    <button class="btn-action btn-delete" onclick="rejectHopDongYeuCauThue(${item.maYeuCau})"><i class="fas fa-times"></i> Từ chối</button>`;
+            } else if (item.loaiYeuCau === 'Thue' && item.maHopDong) {
+                actionHtml = `<button class="btn-action" style="background:#6366f1;" onclick="HopDongPrint.openModal(${item.maHopDong})"><i class="fas fa-print"></i> In HĐ</button>`;
             } else if (CURRENT_ROLE === 'NguoiDung' && item.trangThai === 'ChoDuyet') {
                 actionHtml = `<button class="btn-action btn-delete" onclick="deleteItem('yeucauthue',${item.maYeuCau})"><i class="fas fa-trash"></i> Hủy</button>`;
             }
@@ -2147,12 +2605,13 @@ function renderTable(cfg, data, section) {
             }
         } else if (section === 'hoadon') {
             // trangThai = 'Huy' khi hóa đơn bị hủy (field từ HoaDonDto).
-            // trangThaiThanhToan = 'Đã hủy' là fallback nếu server chưa build lại.
+            // Hỗ trợ dữ liệu cũ còn trả trạng thái thanh toán là "Đã hủy".
             const isHuy = item.trangThai === 'Huy' || item.trangThaiThanhToan === 'Đã hủy';
             if (isHuy) {
                 actionHtml = `<span class="badge badge-red">Đã hủy</span>`;
             } else {
-                actionHtml = `<button class="btn-action btn-edit" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In</button>
+                actionHtml = `${isHoaDonDaThanhToanHoacMotPhan(item) ? `<button class="btn-action" style="background:#0891b2;" onclick="openHoaDonBienLaiGallery(${item.maHoaDon})"><i class="fas fa-receipt"></i> Xem ảnh biên lai</button>` : ''}
+                    <button class="btn-action btn-edit" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In</button>
                     <button class="btn-action btn-edit" onclick="openHoaDonThanhToanModal(${item.maHoaDon})"><i class="fas fa-qrcode"></i> Thông tin TT</button>`;
                 if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
                     actionHtml += `
@@ -2199,7 +2658,7 @@ function renderTable(cfg, data, section) {
             }
         } else if (canWrite) {
             const imageAction = section === 'nhatro'
-                ? `<button class="btn-action" style="background:#0891b2;" onclick="openHouseGallery(${item.maNhaTro})"><i class="fas fa-images"></i> Xem ảnh</button>`
+                ? `<button class="btn-action btn-view-image" onclick="openHouseGallery(${item.maNhaTro})"><i class="fas fa-images"></i> Xem ảnh</button>`
                 : '';
             actionHtml = `
                 ${imageAction}
@@ -2261,7 +2720,7 @@ function mergeNguoiThueDisplayRows(data) {
         group._nguoiThueItems.push(item);
         group.danhSachMaNguoiThue.push(item.maNguoiThue);
 
-        ['hoTen', 'cccd', 'sdt', 'email', 'ngaySinh', 'gioiTinh', 'quocTich', 'diaChi', 'noiCongTac', 'anhCccdMatTruoc', 'anhCccdMatSau'].forEach(k => {
+        ['maNguoiDung', 'hoTen', 'cccd', 'sdt', 'email', 'ngaySinh', 'gioiTinh', 'quocTich', 'diaChi', 'noiCongTac', 'anhCccdMatTruoc', 'anhCccdMatSau'].forEach(k => {
             if ((group[k] === null || group[k] === undefined || group[k] === '') && item[k]) group[k] = item[k];
         });
     });
@@ -2299,6 +2758,9 @@ function mergeNguoiThueDisplayRows(data) {
     nguoiThueGroupMap = {};
     rows.forEach(row => {
         nguoiThueGroupMap[row.maNguoiThue] = row;
+        (row.danhSachMaNguoiThue || []).forEach(maNguoiThue => {
+            nguoiThueGroupMap[maNguoiThue] = row;
+        });
     });
     window.nguoiThueGroupMap = nguoiThueGroupMap;
 
@@ -2380,6 +2842,11 @@ function filterSortDienNuocData(tab, cfg, data) {
 function renderDienNuocToolbar(tab, cfg, data, filtered) {
     const slot = document.getElementById('dienNuocToolbar');
     if (!slot) return;
+    // Không rebuild nếu input đang focus
+    const activeEl = document.activeElement;
+    if (slot.contains(activeEl) && activeEl.tagName === 'INPUT' && activeEl.type === 'text') {
+        return;
+    }
     const state = getDienNuocState(tab);
     const metric = getDienNuocMetricKeys(tab);
     const phongOptions = normalizeArrayResponse(lookups.phongDienNuoc || []);
@@ -2540,7 +3007,15 @@ function renderDienNuocTable(tab, cfg, data) {
 }
 
 window.DienNuocTable = {
-    onKeyword(tab, value) { const s = getDienNuocState(tab); s.keyword = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
+    onKeyword(tab, value) {
+        const s = getDienNuocState(tab);
+        s.keyword = value || '';
+        s.page = 1;
+        clearTimeout(s._kwTimer);
+        s._kwTimer = setTimeout(() => {
+            renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData);
+        }, 300);
+    },
     onPhong(tab, value) { const s = getDienNuocState(tab); s.filterPhong = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
     onDateFrom(tab, value) { const s = getDienNuocState(tab); s.dateFrom = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
     onDateTo(tab, value) { const s = getDienNuocState(tab); s.dateTo = value || ''; s.page = 1; renderDienNuocTable(tab, tab === 'dien' ? dienModule : nuocModule, currentData); },
@@ -2678,6 +3153,7 @@ function openDienNuocModal(id = null) {
         }
     );
 }
+window.openDienNuocModal = openDienNuocModal;
 
 function editDienNuoc(tab, id) { currentSubSection = tab; openDienNuocModal(id); }
 
@@ -2711,6 +3187,90 @@ function resetModalFooter() {
 // ==========================================
 // GENERIC MODAL BUILDER
 // ==========================================
+function normalizeLookupTextKey(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+
+function getRoomTypeOptionsByHouse(houseId, selectedId = '') {
+    if (!houseId) return [];
+    const selected = String(selectedId || '');
+    const byName = new Map();
+
+    normalizeArrayResponse(lookups.loaiphong)
+        .filter(l => Number(l.maNhaTro) === Number(houseId))
+        .forEach(l => {
+            const key = normalizeLookupTextKey(l.tenLoaiPhong || l.TenLoaiPhong || l.maLoaiPhong);
+            const current = byName.get(key);
+            if (!current || String(l.maLoaiPhong) === selected) byName.set(key, l);
+        });
+
+    return Array.from(byName.values());
+}
+
+function getRoomServicesByHouse(houseId) {
+    if (!houseId) return [];
+    return normalizeArrayResponse(lookups.dichvu)
+        .filter(dv => dv.loaiDichVu === 'TienIch' || dv.loaiDichVu === 'TienNghi')
+        .filter(dv => Number(dv.maNhaTro) === Number(houseId));
+}
+
+function renderRoomServiceCheckboxes(services, selectedIds, fieldId) {
+    if (!services.length) {
+        return '<span style="color:var(--text-light);">Chọn nhà trọ để hiện tiện ích/tiện nghi tương ứng.</span>';
+    }
+
+    return services.map(dv => {
+        const typeLabel = dv.loaiDichVu === 'TienIch' ? 'Tiện ích' : 'Tiện nghi';
+        return `<label class="service-checkbox-item">
+            <input type="checkbox" name="f_${fieldId}" value="${dv.maDichVu}" ${selectedIds.has(Number(dv.maDichVu)) ? 'checked' : ''}>
+            <span><strong>${escapeHtmlDashboard(dv.tenDichVu)}</strong><br><small style="color:var(--text-light);">${typeLabel}</small></span>
+        </label>`;
+    }).join('');
+}
+
+function setupPhongModalDependencies(item) {
+    if (currentSection !== 'phong') return;
+
+    const houseSelect = document.getElementById('f_maNhaTro');
+    const roomTypeSelect = document.getElementById('f_maLoaiPhong');
+    const serviceGrid = document.getElementById('f_dichVuGanPhong_grid');
+    if (!houseSelect) return;
+
+    const originalTypeId = String(item?.maLoaiPhong || '');
+    const originalServiceIds = new Set(parseJsonArraySafe(item?.dichVuGanPhong).map(Number));
+
+    const refreshDependentFields = () => {
+        const houseId = Number(houseSelect.value || 0);
+
+        if (roomTypeSelect) {
+            const currentValue = roomTypeSelect.value || originalTypeId;
+            const options = getRoomTypeOptionsByHouse(houseId, currentValue);
+            roomTypeSelect.innerHTML = [
+                `<option value="">${houseId ? '-- Chọn Loại phòng --' : '-- Chọn Nhà trọ trước --'}</option>`,
+                ...options.map(o => `<option value="${o.maLoaiPhong}" ${String(o.maLoaiPhong) === String(currentValue) ? 'selected' : ''}>${escapeHtmlDashboard(o.tenLoaiPhong)}</option>`)
+            ].join('');
+            roomTypeSelect.disabled = !houseId || options.length === 0;
+        }
+
+        if (serviceGrid) {
+            const selectedIds = new Set(
+                Array.from(document.querySelectorAll('input[name="f_dichVuGanPhong"]:checked')).map(x => Number(x.value))
+            );
+            if (!selectedIds.size && houseId === Number(item?.maNhaTro || 0)) {
+                originalServiceIds.forEach(id => selectedIds.add(id));
+            }
+            serviceGrid.innerHTML = renderRoomServiceCheckboxes(getRoomServicesByHouse(houseId), selectedIds, 'dichVuGanPhong');
+        }
+    };
+
+    houseSelect.addEventListener('change', refreshDependentFields);
+    refreshDependentFields();
+}
+
 function buildModal(title, fields, item, onSubmit) {
     resetModalFooter();
     document.getElementById('modalTitle').textContent = title;
@@ -2721,14 +3281,20 @@ function buildModal(title, fields, item, onSubmit) {
         const displayVal = val != null ? val : (f.defaultVal ?? '');
 
         if (f.type === 'lookup') {
-            const opts = lookups[f.lookup] || [];
+            const selectedHouseId = Number(item.maNhaTro || 0);
+            const opts = currentSection === 'phong' && f.id === 'maLoaiPhong'
+                ? getRoomTypeOptionsByHouse(selectedHouseId, val)
+                : lookups[f.lookup] || [];
+            const placeholder = currentSection === 'phong' && f.id === 'maLoaiPhong' && !selectedHouseId
+                ? '-- Chọn Nhà trọ trước --'
+                : `-- Chọn ${f.label} --`;
             return `<div class="form-group">
                 <label for="f_${f.id}">${f.label}${f.required ? ' <span style="color:var(--error)">*</span>' : ''}</label>
-                <select id="f_${f.id}" class="form-control" ${f.required ? 'required' : ''}>
-                    <option value="">-- Chọn ${f.label} --</option>
+                <select id="f_${f.id}" class="form-control" ${f.required ? 'required' : ''} ${currentSection === 'phong' && f.id === 'maLoaiPhong' && !selectedHouseId ? 'disabled' : ''}>
+                    <option value="">${placeholder}</option>
                     ${opts.length === 0
                         ? `<option value="" disabled>Chưa có dữ liệu ${f.label.toLowerCase()}</option>`
-                        : opts.map(o => `<option value="${o[f.valField]}" ${val == o[f.valField] ? 'selected' : ''}>${o[f.txtField]}</option>`).join('')}
+                        : opts.map(o => `<option value="${o[f.valField]}" ${val == o[f.valField] ? 'selected' : ''}>${escapeHtmlDashboard(o[f.txtField])}</option>`).join('')}
                 </select>
             </div>`;
         }
@@ -2755,13 +3321,17 @@ function buildModal(title, fields, item, onSubmit) {
         if (f.type === 'serviceCheckboxes') {
             const selectedIds = new Set(parseJsonArraySafe(displayVal).map(Number));
             const currentHouseId = Number(item.maNhaTro || 0);
-            const services = normalizeArrayResponse(lookups.dichvu)
-                .filter(dv => dv.loaiDichVu === 'TienIch' || dv.loaiDichVu === 'TienNghi')
-                .filter(dv => !currentHouseId || Number(dv.maNhaTro) === currentHouseId);
+            const services = currentSection === 'phong'
+                ? getRoomServicesByHouse(currentHouseId)
+                : normalizeArrayResponse(lookups.dichvu)
+                    .filter(dv => dv.loaiDichVu === 'TienIch' || dv.loaiDichVu === 'TienNghi')
+                    .filter(dv => !currentHouseId || Number(dv.maNhaTro) === currentHouseId);
             return `<div class="form-group" style="grid-column:1/-1;">
                 <label>${f.label}</label>
-                <div class="service-checkbox-grid">
-                    ${services.length ? services.map(dv => {
+                <div class="service-checkbox-grid" id="f_${f.id}_grid">
+                    ${currentSection === 'phong'
+                        ? renderRoomServiceCheckboxes(services, selectedIds, f.id)
+                        : services.length ? services.map(dv => {
                         const typeLabel = dv.loaiDichVu === 'TienIch' ? 'Tiện ích' : 'Tiện nghi';
                         const house = lookups.nhatro.find(n => Number(n.maNhaTro) === Number(dv.maNhaTro));
                         return `<label class="service-checkbox-item">
@@ -2799,14 +3369,9 @@ function buildModal(title, fields, item, onSubmit) {
         </div>`;
     }).join('');
 
-    const updateNgayKetThucThue = () => {
-        const start = document.getElementById('f_ngayBatDau')?.value;
-        const months = document.getElementById('f_soThangThue')?.value;
-        const endInput = document.getElementById('f_ngayKetThuc');
-        if (start && months && endInput) endInput.value = tinhNgayKetThucTheoSoThang(start, months);
-    };
-    document.getElementById('f_ngayBatDau')?.addEventListener('change', updateNgayKetThucThue);
-    document.getElementById('f_soThangThue')?.addEventListener('input', updateNgayKetThucThue);
+    setupPhongModalDependencies(item);
+
+    bindRentalEndDateAutoFill();
 
     document.getElementById('modalForm').onsubmit = async (e) => {
         e.preventDefault();
@@ -2984,6 +3549,24 @@ function tinhNgayKetThucTheoSoThang(ngayBatDauValue, soThangValue) {
     return d.toISOString().substring(0, 10);
 }
 
+function bindRentalEndDateAutoFill() {
+    const startInput = document.getElementById('f_ngayBatDau');
+    const monthsInput = document.getElementById('f_soThangThue');
+    const endInput = document.getElementById('f_ngayKetThuc');
+
+    if (!startInput || !monthsInput || !endInput) return;
+
+    // Tự tính ngày kết thúc khi chủ trọ đổi ngày bắt đầu hoặc số tháng thuê.
+    const syncEndDate = () => {
+        if (startInput.value && monthsInput.value) {
+            endInput.value = tinhNgayKetThucTheoSoThang(startInput.value, monthsInput.value);
+        }
+    };
+
+    startInput.addEventListener('change', syncEndDate);
+    monthsInput.addEventListener('input', syncEndDate);
+}
+
 // ==========================================
 // YÊU CẦU THUÊ CUSTOM MODAL
 // ==========================================
@@ -3063,7 +3646,7 @@ async function openYeuCauThueDuyetModal(maYeuCau) {
 
     document.getElementById('modalTitle').textContent = 'Duyệt yêu cầu và lập hợp đồng';
     document.getElementById('modalFields').innerHTML = `
-        <div style="grid-column:1/-1;background:#f8fafc;border-radius:.75rem;padding:1rem;margin-bottom:.5rem;">
+        <div class="yc-contract-summary" style="grid-column:1/-1;margin-bottom:.5rem;">
             <strong>${yc.nguoiDung?.hoTen || 'Người dùng'}</strong> muốn thuê <strong>${yc.phong?.tenPhong || 'phòng'}</strong><br>
             <small>${yc.phong?.nhaTro?.tenNhaTro || ''}</small><br>
             <small>Thời hạn người dùng đề xuất: <strong>${soThangMacDinh} tháng</strong>${yc.ngayBatDauMongMuon ? `, bắt đầu khoảng ${window.AppFormat.date(yc.ngayBatDauMongMuon)}` : ''}</small>
@@ -3094,14 +3677,7 @@ async function openYeuCauThueDuyetModal(maYeuCau) {
             <textarea id="f_ghiChuChuTro" class="form-control"></textarea>
         </div>`;
 
-    const updateNgayKetThucDuyet = () => {
-        const start = document.getElementById('f_ngayBatDau')?.value;
-        const months = document.getElementById('f_soThangThue')?.value;
-        const endInput = document.getElementById('f_ngayKetThuc');
-        if (start && months && endInput) endInput.value = tinhNgayKetThucTheoSoThang(start, months);
-    };
-    document.getElementById('f_ngayBatDau')?.addEventListener('change', updateNgayKetThucDuyet);
-    document.getElementById('f_soThangThue')?.addEventListener('input', updateNgayKetThucDuyet);
+    bindRentalEndDateAutoFill();
 
     document.getElementById('modalForm').onsubmit = async (e) => {
         e.preventDefault();
@@ -3149,6 +3725,74 @@ async function rejectYeuCauThue(maYeuCau) {
         refreshData();
     } catch (e) {
         showToast(e.message || 'Lỗi từ chối yêu cầu thuê', 'error');
+    }
+}
+
+async function openYeuCauThueXacNhanModal(maYeuCau) {
+    let yc = currentData.find(x => x.maYeuCau == maYeuCau && x.loaiYeuCau === 'Thue');
+    try {
+        yc = await apiFetch(`/api/YeuCauThue/${maYeuCau}`) || yc;
+    } catch { }
+
+    if (!yc?.hopDong && !yc?.maHopDong) {
+        showToast('Không tìm thấy hợp đồng chờ xác nhận', 'error');
+        return;
+    }
+
+    const hd = yc.hopDong || {};
+    resetModalFooter();
+    document.getElementById('modalTitle').textContent = 'Xác nhận hợp đồng thuê';
+    document.getElementById('modalFields').innerHTML = `
+        <div class="yc-contract-summary" style="grid-column:1/-1;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;">
+                <div><small style="color:var(--text-light);">Phòng</small><br><strong>${escapeHtmlDashboard(yc.phong?.tenPhong || '---')}</strong></div>
+                <div><small style="color:var(--text-light);">Nhà trọ</small><br><strong>${escapeHtmlDashboard(yc.phong?.nhaTro?.tenNhaTro || '---')}</strong></div>
+                <div><small style="color:var(--text-light);">Ngày bắt đầu</small><br><strong>${window.AppFormat.date(hd.ngayBatDau)}</strong></div>
+                <div><small style="color:var(--text-light);">Ngày kết thúc</small><br><strong>${window.AppFormat.date(hd.ngayKetThuc)}</strong></div>
+                <div><small style="color:var(--text-light);">Tiền cọc</small><br><strong>${fmtCurrency(hd.tienCoc)}</strong></div>
+            </div>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+            <label>Điều khoản / nội dung hợp đồng</label>
+            <textarea class="form-control" rows="8" readonly>${escapeHtmlDashboard(hd.noiDung || '')}</textarea>
+        </div>
+        <div class="form-group yc-contract-warning" style="grid-column:1/-1;">
+            Vui lòng đọc kỹ điều khoản. Chỉ khi bạn xác nhận, hợp đồng mới chuyển sang trạng thái đang hiệu lực.
+        </div>`;
+
+    const footer = document.querySelector('#universalModal .modal-footer');
+    if (footer) {
+        footer.innerHTML = `
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Đóng</button>
+            <button type="button" class="btn btn-delete" onclick="rejectHopDongYeuCauThue(${maYeuCau})"><i class="fas fa-times"></i> Từ chối</button>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Xác nhận hợp đồng</button>`;
+    }
+
+    document.getElementById('modalForm').onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await apiFetch(`/api/YeuCauThue/${maYeuCau}/xac-nhan-hop-dong`, 'POST', {});
+            showToast('Đã xác nhận hợp đồng!');
+            closeModal();
+            await loadLookups();
+            refreshData();
+        } catch (err) {
+            showToast(err.message || 'Lỗi xác nhận hợp đồng', 'error');
+        }
+    };
+
+    document.getElementById('universalModal').style.display = 'flex';
+}
+
+async function rejectHopDongYeuCauThue(maYeuCau) {
+    const ghiChu = prompt('Lý do từ chối điều khoản hợp đồng:') || '';
+    try {
+        await apiFetch(`/api/YeuCauThue/${maYeuCau}/tu-choi-hop-dong`, 'POST', { ghiChuNguoiDung: ghiChu });
+        showToast('Đã từ chối hợp đồng');
+        closeModal();
+        refreshData();
+    } catch (e) {
+        showToast(e.message || 'Lỗi từ chối hợp đồng', 'error');
     }
 }
 
@@ -3366,14 +4010,7 @@ async function openHopDongModal(id = null) {
             <textarea id="f_noiDung" class="form-control">${item?.noiDung || ''}</textarea>
         </div>`;
 
-    const updateNgayKetThucHopDong = () => {
-        const start = document.getElementById('f_ngayBatDau')?.value;
-        const months = document.getElementById('f_soThangThue')?.value;
-        const endInput = document.getElementById('f_ngayKetThuc');
-        if (start && months && endInput) endInput.value = tinhNgayKetThucTheoSoThang(start, months);
-    };
-    document.getElementById('f_ngayBatDau')?.addEventListener('change', updateNgayKetThucHopDong);
-    document.getElementById('f_soThangThue')?.addEventListener('input', updateNgayKetThucHopDong);
+    bindRentalEndDateAutoFill();
 
     document.getElementById('modalForm').onsubmit = async (e) => {
         e.preventDefault();
@@ -4012,14 +4649,21 @@ async function viewNguoiThueDetail(id) {
     try {
         const nt = await apiFetch(`/api/NguoiThue/${id}`);
         const group = window.nguoiThueGroupMap?.[id];
-        const phong = lookups.phong.find(p => Number(p.maPhong) === Number(nt.maPhong));
+        const detail = { ...nt };
+        if (group) {
+            ['maNguoiDung', 'hoTen', 'cccd', 'sdt', 'email', 'ngaySinh', 'gioiTinh', 'quocTich', 'diaChi', 'noiCongTac', 'anhCccdMatTruoc', 'anhCccdMatSau'].forEach(k => {
+                if ((detail[k] === null || detail[k] === undefined || detail[k] === '') && group[k]) detail[k] = group[k];
+            });
+        }
+
+        const phong = lookups.phong.find(p => Number(p.maPhong) === Number(detail.maPhong));
         const nhaTro = phong ? lookups.nhatro.find(n => Number(n.maNhaTro) === Number(phong.maNhaTro)) : null;
         const rooms = group?.danhSachPhong?.length ? group.danhSachPhong : [{
-            maNguoiThue: nt.maNguoiThue,
-            maPhong: nt.maPhong,
-            tenPhong: phong?.tenPhong || ('Phòng #' + nt.maPhong),
+            maNguoiThue: detail.maNguoiThue,
+            maPhong: detail.maPhong,
+            tenPhong: phong?.tenPhong || ('Phòng #' + detail.maPhong),
             tenNhaTro: nhaTro?.tenNhaTro || '',
-            label: `${phong?.tenPhong || ('Phòng #' + nt.maPhong)}${nhaTro?.tenNhaTro ? ' - ' + nhaTro.tenNhaTro : ''}`
+            label: `${phong?.tenPhong || ('Phòng #' + detail.maPhong)}${nhaTro?.tenNhaTro ? ' - ' + nhaTro.tenNhaTro : ''}`
         }];
 
         document.getElementById('modalTitle').textContent = 'Thông tin chi tiết khách thuê';
@@ -4028,15 +4672,15 @@ async function viewNguoiThueDetail(id) {
                 <div>
                     <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-user"></i> Thông tin cá nhân</h3>
                     <div class="info-grid">
-                        <div class="info-item"><label>Họ tên</label><span>${safeText(nt.hoTen)}</span></div>
-                        <div class="info-item"><label>CCCD/CMND</label><span>${safeText(nt.cccd)}</span></div>
-                        <div class="info-item"><label>Số điện thoại</label><span>${safeText(nt.sdt)}</span></div>
-                        <div class="info-item"><label>Email</label><span>${safeText(nt.email)}</span></div>
-                        <div class="info-item"><label>Ngày sinh</label><span>${fmtDate(nt.ngaySinh)}</span></div>
-                        <div class="info-item"><label>Giới tính</label><span>${safeText(nt.gioiTinh)}</span></div>
-                        <div class="info-item"><label>Quốc tịch</label><span>${safeText(nt.quocTich || 'Việt Nam')}</span></div>
-                        <div class="info-item"><label>Nơi công tác</label><span>${safeText(nt.noiCongTac)}</span></div>
-                        <div class="info-item" style="grid-column:1/-1;"><label>Địa chỉ</label><span>${safeText(nt.diaChi)}</span></div>
+                        <div class="info-item"><label>Họ tên</label><span>${safeText(detail.hoTen)}</span></div>
+                        <div class="info-item"><label>CCCD/CMND</label><span>${safeText(detail.cccd)}</span></div>
+                        <div class="info-item"><label>Số điện thoại</label><span>${safeText(detail.sdt)}</span></div>
+                        <div class="info-item"><label>Email</label><span>${safeText(detail.email)}</span></div>
+                        <div class="info-item"><label>Ngày sinh</label><span>${fmtDate(detail.ngaySinh)}</span></div>
+                        <div class="info-item"><label>Giới tính</label><span>${safeText(detail.gioiTinh)}</span></div>
+                        <div class="info-item"><label>Quốc tịch</label><span>${safeText(detail.quocTich || 'Việt Nam')}</span></div>
+                        <div class="info-item"><label>Nơi công tác</label><span>${safeText(detail.noiCongTac)}</span></div>
+                        <div class="info-item" style="grid-column:1/-1;"><label>Địa chỉ</label><span>${safeText(detail.diaChi)}</span></div>
                     </div>
                 </div>
 
@@ -4044,7 +4688,7 @@ async function viewNguoiThueDetail(id) {
                     <h3 style="font-size:1rem;font-weight:800;margin-bottom:.75rem;color:var(--text);"><i class="fas fa-home"></i> Thông tin thuê phòng</h3>
                     <div class="info-grid">
                         <div class="info-item"><label>Số phòng thuê</label><span>${rooms.length}</span></div>
-                        <div class="info-item"><label>Mã tài khoản liên kết</label><span>${safeText(nt.maNguoiDung)}</span></div>
+                        <div class="info-item"><label>Mã tài khoản liên kết</label><span>${safeText(detail.maNguoiDung)}</span></div>
                         <div class="info-item" style="grid-column:1/-1;">
                             <label>Danh sách phòng</label>
                             <span>${rooms.map(r => `• ${safeText(r.label)} <small style="color:var(--text-light);">(Hồ sơ #${safeText(r.maNguoiThue)})</small>`).join('<br>')}</span>
@@ -4057,11 +4701,11 @@ async function viewNguoiThueDetail(id) {
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;">
                         <div>
                             <label style="display:block;font-weight:700;margin-bottom:.5rem;">Mặt trước</label>
-                            ${imageBox(nt.anhCccdMatTruoc, 'CCCD mặt trước')}
+                            ${imageBox(detail.anhCccdMatTruoc, 'CCCD mặt trước')}
                         </div>
                         <div>
                             <label style="display:block;font-weight:700;margin-bottom:.5rem;">Mặt sau</label>
-                            ${imageBox(nt.anhCccdMatSau, 'CCCD mặt sau')}
+                            ${imageBox(detail.anhCccdMatSau, 'CCCD mặt sau')}
                         </div>
                     </div>
                 </div>

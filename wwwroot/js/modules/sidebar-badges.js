@@ -180,6 +180,12 @@
 
     function isPendingRentalRequest(item) {
         const st = statusOf(item).toLowerCase();
+        const role = getCurrentRole();
+        if (role === 'NguoiDung') {
+            return st === 'chonguoithuexacnhan' ||
+                st.includes('chờ người thuê xác nhận') ||
+                st.includes('cho nguoi thue xac nhan');
+        }
         return st === 'choduyet' || st.includes('chờ duyệt') || st.includes('cho duyet');
     }
 

@@ -99,6 +99,16 @@ namespace DoAnSE104.Services
 
                 try
                 {
+                    if (phong == null)
+                    {
+                        // Bỏ qua dữ liệu hợp đồng lỗi để không tạo hóa đơn thiếu phòng.
+                        item.TrangThai = "Loi";
+                        item.GhiChu = "Hợp đồng không có thông tin phòng.";
+                        result.SoHoaDonBoQua++;
+                        result.ChiTiet.Add(item);
+                        continue;
+                    }
+
                     var daCoHoaDon = await _context.HoaDon
                         .Where(hd => hd.MaPhong == hopDong.MaPhong
                             && hd.KyHoaDon == ky
@@ -146,6 +156,7 @@ namespace DoAnSE104.Services
                         .Include(dk => dk.DichVu)
                         .Where(dk => dk.MaPhong == hopDong.MaPhong
                             && dk.TrangThai == "DangSuDung"
+                            && dk.DichVu != null
                             && dk.DichVu.MaNhaTro == phong.MaNhaTro
                             && dk.DichVu.LoaiDichVu == "TinhPhi")
                         .ToListAsync();

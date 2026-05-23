@@ -119,12 +119,15 @@ namespace DoAnSE104.Services
 
         public async Task<NguoiDungResponseDto> DangNhap(DangNhapDto dangNhapDto)
         {
-            // Validate vai trò được chọn
-            if (!_vaiTroHopLe.Contains(dangNhapDto.VaiTro))
+            // Nếu client gửi vai trò thì kiểm tra giá trị hợp lệ.
+            if (!string.IsNullOrWhiteSpace(dangNhapDto.VaiTro) && !_vaiTroHopLe.Contains(dangNhapDto.VaiTro))
                 throw new Exception($"Vai trò không hợp lệ. Chỉ chấp nhận: {string.Join(", ", _vaiTroHopLe)}");
 
+            var loginIdentifier = dangNhapDto.TenDangNhap.Trim().ToLower();
             var nguoiDung = await _context.Users
-                .FirstOrDefaultAsync(u => u.TenDangNhap == dangNhapDto.TenDangNhap);
+                .FirstOrDefaultAsync(u =>
+                    u.TenDangNhap.ToLower() == loginIdentifier ||
+                    u.Email.ToLower() == loginIdentifier);
 
             if (nguoiDung == null || !BCrypt.Net.BCrypt.Verify(dangNhapDto.MatKhau, nguoiDung.MatKhau))
                 throw new Exception("Tên đăng nhập hoặc mật khẩu không đúng");
@@ -132,8 +135,8 @@ namespace DoAnSE104.Services
             if (!nguoiDung.TrangThai)
                 throw new Exception("Tài khoản đã bị khóa");
 
-            // Kiểm tra vai trò có khớp không
-            if (nguoiDung.VaiTro != dangNhapDto.VaiTro)
+            // Nếu có chọn vai trò, tài khoản phải khớp vai trò đó.
+            if (!string.IsNullOrWhiteSpace(dangNhapDto.VaiTro) && nguoiDung.VaiTro != dangNhapDto.VaiTro)
                 throw new Exception($"Tài khoản này không có vai trò '{dangNhapDto.VaiTro}'");
 
             var token = TaoJwtToken(nguoiDung);

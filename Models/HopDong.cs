@@ -27,13 +27,13 @@ namespace DoAnSE104.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal TienCoc { get; set; }
 
-        [MaxLength(255)]
+        [MaxLength(1000)]
         public string? NoiDung { get; set; }
 
         /// <summary>
-        /// Trạng thái hợp đồng: DangHieuLuc | KetThuc | Huy
+        /// Trạng thái hợp đồng: ChoXacNhan | DangHieuLuc | KetThuc | Huy
         /// </summary>
-        [MaxLength(20)]
+        [MaxLength(30)]
         public string TrangThai { get; set; } = "DangHieuLuc";
       
     }

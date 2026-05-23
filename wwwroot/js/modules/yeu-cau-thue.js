@@ -14,7 +14,13 @@ window.AppModules.yeucauthue = {
             { label: 'Số tháng thuê', key: 'soThangMuonThue', render: v => v ? `${v} tháng` : '---' },
             { label: 'Gia hạn đến', key: 'ngayKetThucMoi', render: (v, row) => row.loaiYeuCau === 'GiaHan' ? window.AppFormat.date(v || row.ngayKetThucMoiDeXuat) : '---' },
             { label: 'Trạng thái', key: 'trangThaiText', render: (v, row) => {
-                const cls = row.trangThai === 'ChoDuyet' ? 'badge-warning' : (row.trangThai === 'DaLapHopDong' || row.trangThai === 'DaChapNhan') ? 'badge-success' : row.trangThai === 'TuChoi' ? 'badge-danger' : 'badge-info';
+                const cls = row.trangThai === 'ChoDuyet'
+                    ? 'badge-warning'
+                    : (row.trangThai === 'DaLapHopDong' || row.trangThai === 'DaChapNhan')
+                        ? 'badge-success'
+                        : (row.trangThai === 'TuChoi' || row.trangThai === 'NguoiThueTuChoi')
+                            ? 'badge-danger'
+                            : 'badge-info';
                 return `<span class="badge ${cls}">${v || row.trangThai || '---'}</span>`;
             }},
             { label: 'Ghi chú', key: 'ghiChuNguoiDung' }

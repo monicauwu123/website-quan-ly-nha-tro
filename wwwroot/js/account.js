@@ -2,6 +2,8 @@
 // ACCOUNT.JS — Tài khoản của tôi
 // ==========================================
 
+let currentProfileData = null;
+
 // ─── Hook vào showSection của dashboard.js ───────────────────────────────────
 const _origShowSection = showSection;
 showSection = function(section, el) {
@@ -144,6 +146,7 @@ async function loadProfile() {
     try {
         const res  = await apiFetch('/api/Account/thong-tin');
         const data = res.duLieu || res;
+        currentProfileData = data;
 
         const initial = (data.hoTen || data.tenDangNhap || 'A').charAt(0).toUpperCase();
         document.getElementById('profileAvatarBig').textContent = initial;
@@ -185,7 +188,7 @@ async function loadProfile() {
 
         rows.push(
             { icon: 'fa-calendar',    label: 'Ngày tạo',         value: formatDateDisplay(data.ngayTao) },
-            { icon: 'fa-circle',      label: 'Trạng thái',       value: data.trangThai ? '✅ Đang hoạt động' : '🔒 Bị khóa' }
+            { icon: 'fa-circle',      label: 'Trạng thái',       value: data.trangThai ? 'Đang hoạt động' : 'Bị khóa' }
         );
 
         body.innerHTML = `
@@ -217,37 +220,6 @@ async function loadProfile() {
         const tenantCard = document.getElementById('tenantProfileCard');
         if (tenantCard) tenantCard.style.display = data.vaiTro === 'NguoiDung' ? '' : 'none';
 
-        document.getElementById('editHoTen').value = data.hoTen || '';
-        document.getElementById('editEmail').value  = data.email || '';
-        document.getElementById('editPhone').value  = data.soDienThoai || '';
-
-        const extraEls = document.querySelectorAll('.account-user-extra');
-        extraEls.forEach(el => el.style.display = data.vaiTro === 'NguoiDung' ? '' : 'none');
-
-        const paymentEls = document.querySelectorAll('.account-owner-payment');
-        paymentEls.forEach(el => el.style.display = (data.vaiTro === 'ChuTro' || data.vaiTro === 'Admin') ? '' : 'none');
-
-        if (document.getElementById('editTenNganHang')) {
-            document.getElementById('editTenNganHang').value = data.tenNganHang || '';
-            document.getElementById('editMaNganHang').value = data.maNganHang || '';
-            document.getElementById('editSoTaiKhoan').value = data.soTaiKhoan || '';
-            document.getElementById('editTenChuTaiKhoan').value = data.tenChuTaiKhoan || '';
-            document.getElementById('editNoiDungChuyenKhoanMacDinh').value = data.noiDungChuyenKhoanMacDinh || '';
-        }
-
-        if (document.getElementById('editCCCD')) {
-            document.getElementById('editCCCD').value = data.cccd || '';
-            document.getElementById('editNgaySinh').value = formatDateInput(data.ngaySinh);
-            document.getElementById('editGioiTinh').value = data.gioiTinh || '';
-            document.getElementById('editQuocTich').value = data.quocTich || 'Việt Nam';
-            document.getElementById('editDiaChi').value = data.diaChi || '';
-            document.getElementById('editNoiCongTac').value = data.noiCongTac || '';
-            document.getElementById('editAnhCccdMatTruoc').value = data.anhCccdMatTruoc || '';
-            document.getElementById('editAnhCccdMatSau').value = data.anhCccdMatSau || '';
-            document.getElementById('editAnhCccdMatTruocPreview').innerHTML = renderCccdPreview(data.anhCccdMatTruoc, 'CCCD mặt trước');
-            document.getElementById('editAnhCccdMatSauPreview').innerHTML = renderCccdPreview(data.anhCccdMatSau, 'CCCD mặt sau');
-        }
-
         const readUsername = document.getElementById('readUsername');
         const readVaiTro = document.getElementById('readVaiTro');
         const readTrangThai = document.getElementById('readTrangThai');
@@ -266,8 +238,120 @@ async function loadProfile() {
     }
 }
 
-// ─── Form: Cập nhật thông tin ─────────────────────────────────────────────────
-document.getElementById('profileEditForm').addEventListener('submit', async (e) => {
+// ─── Modal: Cập nhật thông tin ────────────────────────────────────────────────
+function setAccountModalFooter(submitHtml, submitClass = 'btn-primary') {
+    const footer = document.querySelector('#universalModal .modal-footer');
+    if (!footer) return;
+    footer.innerHTML = `
+        <button type="button" class="btn btn-secondary" style="width:auto;" onclick="closeModal()">Hủy</button>
+        <button type="submit" class="btn ${submitClass}" style="width:auto;">
+            ${submitHtml}
+        </button>`;
+}
+
+async function openProfileEditModal() {
+    if (!currentProfileData) {
+        await loadProfile();
+    }
+    const data = currentProfileData || {};
+    const modal = document.getElementById('universalModal');
+    const title = document.getElementById('modalTitle');
+    const body = document.getElementById('modalFields');
+    const form = document.getElementById('modalForm');
+    if (!modal || !title || !body || !form) return;
+
+    resetModalFooter();
+    title.textContent = 'Cập nhật thông tin';
+    body.innerHTML = `
+        <div class="account-form-grid" style="grid-column:1/-1;">
+            <div class="form-group">
+                <label>Họ tên</label>
+                <input type="text" id="editHoTen" class="form-control" value="${escapeHtml(data.hoTen || '')}" placeholder="Nguyễn Văn A" required maxlength="50">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="editEmail" class="form-control" value="${escapeHtml(data.email || '')}" placeholder="email@example.com" required>
+            </div>
+            <div class="form-group">
+                <label>Số điện thoại</label>
+                <input type="text" id="editPhone" class="form-control" value="${escapeHtml(data.soDienThoai || '')}" placeholder="0912345678" maxlength="15">
+            </div>
+
+            ${(CURRENT_ROLE === 'ChuTro' || CURRENT_ROLE === 'Admin') ? `
+                <div class="account-mini-divider">Thông tin nhận thanh toán</div>
+                <div class="form-group">
+                    <label>Tên ngân hàng</label>
+                    <input type="text" id="editTenNganHang" class="form-control" value="${escapeHtml(data.tenNganHang || '')}" placeholder="VD: Vietcombank" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label>Mã ngân hàng VietQR</label>
+                    <input type="text" id="editMaNganHang" class="form-control" value="${escapeHtml(data.maNganHang || '')}" placeholder="VD: VCB, BIDV, MB, TCB..." maxlength="50">
+                    <small class="account-help-text">Dùng mã ngân hàng VietQR để tạo mã QR thanh toán.</small>
+                </div>
+                <div class="form-group">
+                    <label>Số tài khoản</label>
+                    <input type="text" id="editSoTaiKhoan" class="form-control" value="${escapeHtml(data.soTaiKhoan || '')}" placeholder="Nhập số tài khoản nhận tiền" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>Tên chủ tài khoản</label>
+                    <input type="text" id="editTenChuTaiKhoan" class="form-control" value="${escapeHtml(data.tenChuTaiKhoan || '')}" placeholder="Tên trên tài khoản ngân hàng" maxlength="100">
+                </div>
+                <div class="form-group account-span-2">
+                    <label>Nội dung chuyển khoản mặc định</label>
+                    <input type="text" id="editNoiDungChuyenKhoanMacDinh" class="form-control" value="${escapeHtml(data.noiDungChuyenKhoanMacDinh || '')}" placeholder="VD: Thanh toán hóa đơn {MaHoaDon} phòng {TenPhong}" maxlength="255">
+                    <small class="account-help-text">Có thể dùng: {MaHoaDon}, {KyHoaDon}, {TenPhong}</small>
+                </div>` : ''}
+
+            ${CURRENT_ROLE === 'NguoiDung' ? `
+                <div class="account-mini-divider">Thông tin định danh</div>
+                <div class="form-group">
+                    <label>CCCD/CMND</label>
+                    <input type="text" id="editCCCD" class="form-control" value="${escapeHtml(data.cccd || '')}" placeholder="Nhập số CCCD/CMND" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Ngày sinh</label>
+                    <input type="date" id="editNgaySinh" class="form-control" value="${escapeHtml(formatDateInput(data.ngaySinh))}">
+                </div>
+                <div class="form-group">
+                    <label>Giới tính</label>
+                    <select id="editGioiTinh" class="form-control">
+                        <option value="">-- Chọn --</option>
+                        <option value="Nam" ${data.gioiTinh === 'Nam' ? 'selected' : ''}>Nam</option>
+                        <option value="Nữ" ${data.gioiTinh === 'Nữ' ? 'selected' : ''}>Nữ</option>
+                        <option value="Khác" ${data.gioiTinh === 'Khác' ? 'selected' : ''}>Khác</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quốc tịch</label>
+                    <input type="text" id="editQuocTich" class="form-control" value="${escapeHtml(data.quocTich || 'Việt Nam')}" placeholder="Việt Nam" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>Nơi công tác</label>
+                    <input type="text" id="editNoiCongTac" class="form-control" value="${escapeHtml(data.noiCongTac || '')}" maxlength="100">
+                </div>
+                <div class="form-group account-span-2">
+                    <label>Địa chỉ</label>
+                    <input type="text" id="editDiaChi" class="form-control" value="${escapeHtml(data.diaChi || '')}" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label>Ảnh CCCD mặt trước</label>
+                    <input type="file" id="editAnhCccdMatTruocFile" class="form-control" accept="image/*">
+                    <input type="hidden" id="editAnhCccdMatTruoc" value="${escapeHtml(data.anhCccdMatTruoc || '')}">
+                    <div id="editAnhCccdMatTruocPreview" class="account-image-preview">${renderCccdPreview(data.anhCccdMatTruoc, 'CCCD mặt trước')}</div>
+                </div>
+                <div class="form-group">
+                    <label>Ảnh CCCD mặt sau</label>
+                    <input type="file" id="editAnhCccdMatSauFile" class="form-control" accept="image/*">
+                    <input type="hidden" id="editAnhCccdMatSau" value="${escapeHtml(data.anhCccdMatSau || '')}">
+                    <div id="editAnhCccdMatSauPreview" class="account-image-preview">${renderCccdPreview(data.anhCccdMatSau, 'CCCD mặt sau')}</div>
+                </div>` : ''}
+        </div>`;
+    setAccountModalFooter('<i class="fas fa-save"></i> Lưu thay đổi');
+    form.onsubmit = submitProfileEdit;
+    modal.style.display = 'flex';
+}
+
+async function submitProfileEdit(e) {
     e.preventDefault();
     const btn  = e.target.querySelector('button[type=submit]');
     const orig = btn.innerHTML;
@@ -309,17 +393,55 @@ document.getElementById('profileEditForm').addEventListener('submit', async (e) 
 
         await apiFetch('/api/Account/cap-nhat', 'PUT', payload);
         showToast('Cập nhật thông tin thành công!', 'success');
-        loadProfile();
+        closeModal();
+        await loadProfile();
     } catch (err) {
         showToast(err.message || 'Lỗi cập nhật thông tin', 'error');
     } finally {
         btn.innerHTML = orig;
         btn.disabled  = false;
     }
-});
+}
 
-// ─── Form: Đổi mật khẩu ──────────────────────────────────────────────────────
-document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+// ─── Modal: Đổi mật khẩu ─────────────────────────────────────────────────────
+function openChangePasswordModal() {
+    const modal = document.getElementById('universalModal');
+    const title = document.getElementById('modalTitle');
+    const body = document.getElementById('modalFields');
+    const form = document.getElementById('modalForm');
+    if (!modal || !title || !body || !form) return;
+
+    resetModalFooter();
+    title.textContent = 'Đổi mật khẩu';
+    body.innerHTML = `
+        <div class="account-form-grid" style="grid-column:1/-1;">
+            <div class="form-group">
+                <label>Mật khẩu cũ</label>
+                <div style="position:relative;">
+                    <input type="password" id="oldPassword" class="form-control" placeholder="••••••••" required style="padding-right:2.5rem;">
+                    <button type="button" onclick="togglePasswordField('oldPassword', this)" class="account-eye-btn"><i class="fas fa-eye"></i></button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Mật khẩu mới</label>
+                <div style="position:relative;">
+                    <input type="password" id="newPassword" class="form-control" placeholder="Tối thiểu 6 ký tự" required minlength="6" style="padding-right:2.5rem;" oninput="checkStrength(this.value)">
+                    <button type="button" onclick="togglePasswordField('newPassword', this)" class="account-eye-btn"><i class="fas fa-eye"></i></button>
+                </div>
+                <div class="strength-bar"><div id="strengthFill" class="bar-fill" style="width:0%;"></div></div>
+                <div id="strengthLabel" class="account-help-text"></div>
+            </div>
+            <div class="form-group">
+                <label>Nhập lại mật khẩu mới</label>
+                <input type="password" id="confirmPassword" class="form-control" placeholder="Nhập lại..." required>
+            </div>
+        </div>`;
+    setAccountModalFooter('<i class="fas fa-shield-alt"></i> Đổi mật khẩu', 'btn-warning');
+    form.onsubmit = submitChangePassword;
+    modal.style.display = 'flex';
+}
+
+async function submitChangePassword(e) {
     e.preventDefault();
 
     const matKhauCu      = document.getElementById('oldPassword').value;
@@ -347,13 +469,14 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
         const fill = document.getElementById('strengthFill');
         if (fill) { fill.style.width = '0%'; fill.style.background = '#e5e7eb'; }
         document.getElementById('strengthLabel').textContent = '';
+        closeModal();
     } catch (err) {
         showToast(err.message || 'Lỗi đổi mật khẩu', 'error');
     } finally {
         btn.innerHTML = orig;
         btn.disabled  = false;
     }
-});
+}
 
 // ─── Danh sách phòng đang thuê trong mục Tài khoản của tôi ──────────────────
 async function loadTenantProfiles() {

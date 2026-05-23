@@ -70,15 +70,14 @@ namespace DoAnSE104.Models.Dtos
 
     public class DangNhapDto
     {
-        [Required(ErrorMessage = "Tên đăng nhập không được để trống")]
+        [Required(ErrorMessage = "Tên đăng nhập hoặc email không được để trống")]
         public string TenDangNhap { get; set; }
 
         [Required(ErrorMessage = "Mật khẩu không được để trống")]
         public string MatKhau { get; set; }
 
-        /// <summary>Admin | ChuTro | NguoiDung — dùng để xác nhận role khi login</summary>
-        [Required(ErrorMessage = "Vui lòng chọn vai trò")]
-        public string VaiTro { get; set; }
+        /// <summary>Vai trò khi đăng nhập.</summary>
+        public string? VaiTro { get; set; }
     }
 
     public class NguoiDungResponseDto

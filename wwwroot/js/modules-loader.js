@@ -1,10 +1,10 @@
 ﻿// ==========================================
-// MODULES LOADER - bản tối ưu
+// MODULES LOADER
 // Chỉ load HTML cần gắn lên trang + load JS module song song.
 // ==========================================
 
 (function () {
-    const VERSION = '10.5';
+    const VERSION = '13.0';
 
     const mountedHtmlModules = [
         { name: 'sidebar', path: `modules/sidebar.html?v=${VERSION}`, mount: 'sidebarMount' },

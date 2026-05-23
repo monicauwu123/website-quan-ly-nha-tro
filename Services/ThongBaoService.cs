@@ -5,8 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace DoAnSE104.Services
 {
     /// <summary>
-    /// Service tự động tạo thông báo cho các sự kiện hệ thống.
-    /// Inject IThongBaoService vào các Controller/Service khác để gọi.
+    /// Tạo thông báo cho các sự kiện hệ thống.
     /// </summary>
     public interface IThongBaoService
     {

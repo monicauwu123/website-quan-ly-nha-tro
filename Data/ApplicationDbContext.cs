@@ -35,8 +35,7 @@ namespace DoAnSE104.Data
         public DbSet<EmailLog> EmailLog { get; set; }
 
         /// <summary>
-        /// Project hiện dùng EnsureCreated(), nên database cũ sẽ không tự nhận cột mới như migration.
-        /// Hàm này bổ sung các cột mở rộng theo cách idempotent để người khác tải project chạy trực tiếp.
+        /// Bổ sung các cột còn thiếu khi chạy trực tiếp bằng EnsureCreated().
         /// </summary>
         public void EnsureCustomSchema()
         {
@@ -124,6 +123,8 @@ WHERE LoaiDichVu IS NULL OR LTRIM(RTRIM(LoaiDichVu)) = '';
 IF OBJECT_ID('HopDong', 'U') IS NOT NULL
 BEGIN
     IF COL_LENGTH('HopDong', 'TrangThai') IS NULL ALTER TABLE HopDong ADD TrangThai NVARCHAR(20) NOT NULL CONSTRAINT DF_HopDong_TrangThai DEFAULT 'DangHieuLuc';
+    IF COL_LENGTH('HopDong', 'TrangThai') IS NOT NULL ALTER TABLE HopDong ALTER COLUMN TrangThai NVARCHAR(30) NOT NULL;
+    IF COL_LENGTH('HopDong', 'NoiDung') IS NOT NULL ALTER TABLE HopDong ALTER COLUMN NoiDung NVARCHAR(1000) NULL;
 END
 
 IF OBJECT_ID('HoaDon', 'U') IS NOT NULL

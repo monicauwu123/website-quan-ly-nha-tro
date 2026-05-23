@@ -9,6 +9,7 @@ window.AppModules.nhatro = {
         title: 'Nhà Trọ',
         endpoint: '/api/NhaTro',
         pk: 'maNhaTro',
+        disableAdvancedSearch: true,
         headers: [
             { label: 'Ảnh', key: '_image', render: (v, item) => renderNhaTroImage(item) },
             { label: 'Tên nhà trọ', key: 'tenNhaTro' },

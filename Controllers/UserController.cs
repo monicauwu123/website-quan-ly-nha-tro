@@ -20,6 +20,13 @@ namespace DoAnSE104.Controllers
             _context = context;
         }
 
+        private int? GetCurrentUserId()
+        {
+            // Đọc user id từ JWT, tránh int.Parse khi token thiếu claim.
+            var rawUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(rawUserId, out var userId) ? userId : null;
+        }
+
         // GET: api/User
         [HttpGet]
         [Authorize(Roles = "Admin")]
@@ -132,7 +139,12 @@ namespace DoAnSE104.Controllers
         [HttpGet("profile")]
         public async Task<ActionResult<User>> GetCurrentUser()
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return Unauthorized(new { thongBao = "Token không hợp lệ" });
+            }
+
             var user = await _context.Users.FindAsync(userId);
 
             if (user == null)
@@ -147,7 +159,12 @@ namespace DoAnSE104.Controllers
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile(UserProfileDto profileDto)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return Unauthorized(new { thongBao = "Token không hợp lệ" });
+            }
+
             var user = await _context.Users.FindAsync(userId);
 
             if (user == null)
@@ -175,7 +192,7 @@ namespace DoAnSE104.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!UserExists(userId))
+                if (!UserExists(userId.Value))
                 {
                     return NotFound(new { thongBao = "Không tìm thấy người dùng" });
                 }

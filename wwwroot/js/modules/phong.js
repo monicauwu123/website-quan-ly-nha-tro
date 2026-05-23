@@ -84,6 +84,11 @@ window.PhongTable = (function () {
     // ── Helpers ───────────────────────────────────────────────────────
     const lk = () => window.lookups || {};
     const esc = v => window.AppFormat.escapeHtml(String(v ?? ''));
+    const normalizeTypeKey = v => String(v ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
 
     function nhaTroName(v) {
         return lk().nhatro?.find(n => n.maNhaTro === v)?.tenNhaTro || `#${v}`;
@@ -146,7 +151,7 @@ window.PhongTable = (function () {
             // Filter nhà trọ
             if (f.nhaTro   && String(r.maNhaTro)    !== f.nhaTro)   return false;
             // Filter loại phòng
-            if (f.loaiPhong && String(r.maLoaiPhong) !== f.loaiPhong) return false;
+            if (f.loaiPhong && normalizeTypeKey(loaiPhongName(r.maLoaiPhong)) !== f.loaiPhong) return false;
             // Filter trạng thái
             if (f.trangThai && String(r.maTrangThai) !== f.trangThai) return false;
             // Khoảng giá
@@ -219,7 +224,7 @@ window.PhongTable = (function () {
             const rowCls = trangThaiRowClass(r.maTrangThai);
 
             const actionHtml = canWrite
-                ? `<button class="btn-action" style="background:#0891b2;" onclick="openRoomGallery(${r.maPhong})"><i class="fas fa-images"></i> Xem ảnh</button>
+                ? `<button class="btn-action btn-view-image" onclick="openRoomGallery(${r.maPhong})"><i class="fas fa-images"></i> Xem ảnh</button>
                    <button class="btn-action btn-edit" onclick="editItem('phong',${r.maPhong})"><i class="fas fa-edit"></i> Sửa</button>
                    <button class="btn-action btn-delete" onclick="deleteItem('phong',${r.maPhong})"><i class="fas fa-trash"></i></button>`
                 : `<button class="btn-action btn-edit" onclick="openYeuCauThueModal(null,${r.maPhong})"><i class="fas fa-paper-plane"></i> Thuê</button>`;
@@ -306,8 +311,16 @@ window.PhongTable = (function () {
     function buildHtml() {
         const nhaTroOpts = (lk().nhatro || []).map(n =>
             `<option value="${n.maNhaTro}">${esc(n.tenNhaTro)}</option>`).join('');
-        const loaiOpts = (lk().loaiphong || []).map(l =>
-            `<option value="${l.maLoaiPhong}">${esc(l.tenLoaiPhong)}</option>`).join('');
+        const typeMap = new Map();
+        (lk().loaiphong || []).forEach(l => {
+            const name = String(l.tenLoaiPhong || '').trim();
+            const key = normalizeTypeKey(name);
+            if (key && !typeMap.has(key)) typeMap.set(key, name);
+        });
+        const loaiOpts = Array.from(typeMap.entries())
+            .sort((a, b) => a[1].localeCompare(b[1], 'vi'))
+            .map(([key, name]) => `<option value="${esc(key)}">${esc(name)}</option>`)
+            .join('');
         const ttOpts = (lk().trangthai || []).map(t =>
             `<option value="${t.maTrangThai}">${esc(t.tenTrangThai)}</option>`).join('');
 

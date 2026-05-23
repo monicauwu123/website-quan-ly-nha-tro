@@ -19,6 +19,7 @@ window.AppModules = window.AppModules || {};
 
     const LOAI_NGUOI_NHAN = {
         TatCa: 'Tất cả người thuê',
+        NhaTro: 'Một nhà trọ',
         Phong: 'Một phòng',
         NguoiDung: 'Một người dùng'
     };
@@ -75,6 +76,12 @@ window.AppModules = window.AppModules || {};
     function isAdminOrChuTro() {
         const role = getRole();
         return role === 'Admin' || role === 'ChuTro';
+    }
+
+    function getThongBaoContentSlot() {
+        return document.getElementById('thongBaoContainer')
+            || document.querySelector('[data-module="thong-bao"] [data-slot="content"]')
+            || document.querySelector('[data-module="thongbao"] [data-slot="content"]');
     }
 
     function thoiGianTuongDoi(dateStr) {
@@ -146,6 +153,7 @@ window.AppModules = window.AppModules || {};
             let metaHtml = '';
             if (isAdminOrChuTro()) {
                 const nguoiNhanText = tb.loaiNguoiNhan === 'TatCa' ? 'Tất cả người thuê'
+                    : tb.loaiNguoiNhan === 'NhaTro' ? 'Nhà trọ'
                     : tb.loaiNguoiNhan === 'Phong' ? `Phòng: ${tb.tenPhong || '#' + tb.phongId}`
                     : `Người dùng: ${tb.tenNguoiNhan || '#' + tb.nguoiNhanId}`;
                 metaHtml = `<span class="badge badge-info" style="font-size:.7rem;">${nguoiNhanText}</span>`;
@@ -290,8 +298,7 @@ window.AppModules = window.AppModules || {};
             const res = await apiFetch('/api/ThongBao/doc-tat-ca', 'PUT');
             showToast(res?.thongBao || 'Đã đánh dấu tất cả đã đọc', 'success');
             // Reload section
-            const contentSlot = document.getElementById('thongBaoContainer')
-                || document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
+            const contentSlot = getThongBaoContentSlot();
             if (contentSlot) await loadThongBaoSection(contentSlot);
             await capNhatBadge();
             if (typeof window.refreshSidebarBadges === 'function') await window.refreshSidebarBadges();
@@ -320,8 +327,13 @@ window.AppModules = window.AppModules || {};
         if (!isAdminOrChuTro()) return;
         if (!_initData) await loadInitData();
 
+        const nhaTros = _initData?.nhaTros ?? [];
         const phongs = _initData?.phongs ?? [];
         const nguoiDungs = _initData?.nguoiDungs ?? [];
+
+        const nhaTroOptions = nhaTros.map(n =>
+            `<option value="${n.maNhaTro}">${window.AppFormat.escapeHtml(n.tenNhaTro || 'Nhà trọ #' + n.maNhaTro)}${n.diaChi ? ' - ' + window.AppFormat.escapeHtml(n.diaChi) : ''}</option>`
+        ).join('');
 
         const phongOptions = phongs.map(p =>
             `<option value="${p.maPhong}">${window.AppFormat.escapeHtml(p.tenPhong)} (${window.AppFormat.escapeHtml(p.tenNhaTro || '')})</option>`
@@ -355,8 +367,17 @@ window.AppModules = window.AppModules || {};
                 <label>Gửi đến <span style="color:var(--error)">*</span></label>
                 <select id="tbLoaiNguoiNhan" class="form-control" onchange="window.AppThongBao._onLoaiNguoiNhanChange()" required>
                     <option value="TatCa">Tất cả người thuê</option>
+                    <option value="NhaTro">Một nhà trọ cụ thể</option>
                     <option value="Phong">Một phòng cụ thể</option>
                     <option value="NguoiDung">Một người dùng cụ thể</option>
+                </select>
+            </div>
+
+            <div id="tbNhaTroGroup" class="form-group" style="display:none;">
+                <label>Chọn nhà trọ <span style="color:var(--error)">*</span></label>
+                <select id="tbNhaTroId" class="form-control">
+                    <option value="">-- Chọn nhà trọ --</option>
+                    ${nhaTroOptions}
                 </select>
             </div>
 
@@ -382,7 +403,7 @@ window.AppModules = window.AppModules || {};
             </div>
 
             <div class="form-group" style="grid-column:1/-1;background:#f8fffe;border:1px solid #d1fae5;border-radius:.75rem;padding:.85rem;color:var(--text-light);">
-                <strong>Lưu ý:</strong> Chủ trọ/Admin có thể gửi thông báo cho tất cả người thuê, một phòng cụ thể hoặc một người dùng cụ thể.
+                <strong>Lưu ý:</strong> Chủ trọ/Admin có thể gửi thông báo cho tất cả người thuê, một nhà trọ, một phòng cụ thể hoặc một người dùng cụ thể.
             </div>`;
 
         if (modalFooter) {
@@ -405,8 +426,10 @@ window.AppModules = window.AppModules || {};
 
     function _onLoaiNguoiNhanChange() {
         const val = document.getElementById('tbLoaiNguoiNhan')?.value;
+        const nhaTroGroup = document.getElementById('tbNhaTroGroup');
         const phongGroup = document.getElementById('tbPhongGroup');
         const nguoiDungGroup = document.getElementById('tbNguoiDungGroup');
+        if (nhaTroGroup) nhaTroGroup.style.display = val === 'NhaTro' ? 'block' : 'none';
         if (phongGroup) phongGroup.style.display = val === 'Phong' ? 'block' : 'none';
         if (nguoiDungGroup) nguoiDungGroup.style.display = val === 'NguoiDung' ? 'block' : 'none';
     }
@@ -415,11 +438,13 @@ window.AppModules = window.AppModules || {};
         const tieuDe = document.getElementById('tbTieuDe')?.value?.trim();
         const noiDung = document.getElementById('tbNoiDung')?.value?.trim();
         const loaiNguoiNhan = document.getElementById('tbLoaiNguoiNhan')?.value;
+        const nhaTroId = document.getElementById('tbNhaTroId')?.value;
         const phongId = document.getElementById('tbPhongId')?.value;
         const nguoiNhanId = document.getElementById('tbNguoiNhanId')?.value;
 
         if (!tieuDe) { showToast('Vui lòng nhập tiêu đề.', 'error'); return; }
         if (!noiDung) { showToast('Vui lòng nhập nội dung.', 'error'); return; }
+        if (loaiNguoiNhan === 'NhaTro' && !nhaTroId) { showToast('Vui lòng chọn nhà trọ.', 'error'); return; }
         if (loaiNguoiNhan === 'Phong' && !phongId) { showToast('Vui lòng chọn phòng.', 'error'); return; }
         if (loaiNguoiNhan === 'NguoiDung' && !nguoiNhanId) { showToast('Vui lòng chọn người dùng.', 'error'); return; }
 
@@ -428,6 +453,7 @@ window.AppModules = window.AppModules || {};
             noiDung,
             loaiThongBao: 'ThuCong',
             loaiNguoiNhan,
+            nhaTroId: loaiNguoiNhan === 'NhaTro' ? parseInt(nhaTroId) : null,
             phongId: loaiNguoiNhan === 'Phong' ? parseInt(phongId) : null,
             nguoiNhanId: loaiNguoiNhan === 'NguoiDung' ? parseInt(nguoiNhanId) : null
         };
@@ -441,8 +467,7 @@ window.AppModules = window.AppModules || {};
             if (typeof closeModal === 'function') closeModal();
 
             // Reload section nếu đang ở mục thông báo
-            const contentSlot = document.getElementById('thongBaoContainer')
-                || document.querySelector('[data-module="thong-bao"] [data-slot="content"]');
+            const contentSlot = getThongBaoContentSlot();
             if (contentSlot) await loadThongBaoSection(contentSlot);
             if (typeof window.refreshSidebarBadges === 'function') await window.refreshSidebarBadges();
         } catch (e) {
@@ -459,7 +484,7 @@ window.AppModules = window.AppModules || {};
         pk: 'thongBaoId',
         customModal: true,
 
-        // headers chỉ dùng fallback nếu generic loader gọi; thực tế ta override render
+        // Chỉ dùng khi bảng mặc định được gọi.
         headers: [
             { label: 'Tiêu đề', key: 'tieuDe' },
             { label: 'Nội dung', key: 'noiDung' },

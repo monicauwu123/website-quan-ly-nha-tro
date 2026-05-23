@@ -3,7 +3,7 @@ namespace DoAnSE104.Helpers
     public class ApiResponse<T>
     {
         public bool ThanhCong { get; set; }
-        public string ThongBao { get; set; }
+        public string ThongBao { get; set; } = string.Empty;
         public T? DuLieu { get; set; }
 
         public static ApiResponse<T> Ok(T data, string thongBao = "Thành công")

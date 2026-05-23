@@ -15,12 +15,13 @@ namespace DoAnSE104.Models.Dtos
         [MaxLength(50)]
         public string LoaiThongBao { get; set; } = "ThuCong";
 
-        /// <summary>TatCa | Phong | NguoiDung</summary>
+        /// <summary>TatCa | NhaTro | Phong | NguoiDung</summary>
         [Required]
         [MaxLength(20)]
         public string LoaiNguoiNhan { get; set; } = "TatCa";
 
         public int? NguoiNhanId { get; set; }
+        public int? NhaTroId { get; set; }
         public int? PhongId { get; set; }
     }
 

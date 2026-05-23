@@ -76,6 +76,7 @@
                 <select class="form-control" onchange="window._HopDongSearch.onTrangThai(this.value)">
                     <option value="">Tất cả trạng thái</option>
                     <option value="DangHieuLuc"  ${HD.filterTrangThai==='DangHieuLuc'  ?'selected':''}>Đang hiệu lực</option>
+                    <option value="ChoXacNhan"   ${HD.filterTrangThai==='ChoXacNhan'   ?'selected':''}>Chờ người thuê xác nhận</option>
                     <option value="SapHetHan"    ${HD.filterTrangThai==='SapHetHan'    ?'selected':''}>Sắp hết hạn</option>
                     <option value="KetThuc"      ${HD.filterTrangThai==='KetThuc'      ?'selected':''}>Đã kết thúc</option>
                     <option value="Huy"          ${HD.filterTrangThai==='Huy'          ?'selected':''}>Đã hủy</option>
@@ -140,7 +141,14 @@
     }
 
     // ── Handlers ────────────────────────────────────────────────────────────────
-    function onKeyword(v)         { HD.keyword = v.trim(); HD.page = 1; _applyAndRender(); }
+    // ✅ Mới
+    let _kwTimer;
+    function onKeyword(v) {
+        HD.keyword = v.trim();
+        HD.page = 1;
+        clearTimeout(_kwTimer);
+        _kwTimer = setTimeout(_applyAndRender, 300);
+    }
     function onTrangThai(v)       { HD.filterTrangThai = v; HD.filterSapHetHan = ''; HD.page = 1; _applyAndRender(); }
     function onSapHetHan(v)       { HD.filterSapHetHan = v; HD.filterTrangThai = ''; HD.page = 1; _applyAndRender(); }
     function onNhaTro(v)          { HD.filterNhaTro = v; HD.filterPhong = ''; HD.page = 1; _rebuildPhong(); _applyAndRender(); }
@@ -278,9 +286,10 @@
         _renderPaging();
     }
 
-    // ── Status helpers ────────────────────────────────────────────────────────
+    // ── Hiển thị trạng thái ───────────────────────────────────────────────────
     const STATUS_MAP = {
         'DangHieuLuc': { cls: 'badge-success', label: 'Đang hiệu lực' },
+        'ChoXacNhan':  { cls: 'badge-info',    label: 'Chờ người thuê xác nhận' },
         'KetThuc':     { cls: 'badge-secondary', label: 'Đã kết thúc' },
         'Huy':         { cls: 'badge-red',      label: 'Đã hủy' },
     };

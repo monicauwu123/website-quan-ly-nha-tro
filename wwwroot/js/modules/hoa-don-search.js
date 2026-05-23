@@ -291,7 +291,13 @@
     }
 
     // ── Handlers ──────────────────────────────────────────────────────────────
-    function onKeyword(v)       { HDN.keyword = v.trim(); HDN.page = 1; _applyAndRender(); }
+    let _kwTimer;
+    function onKeyword(v) {
+        HDN.keyword = v.trim();
+        HDN.page = 1;
+        clearTimeout(_kwTimer);
+        _kwTimer = setTimeout(_applyAndRender, 300);
+    }
     function onTrangThai(v)     { HDN.filterTrangThai = v; HDN.page = 1; _buildToolbar(); _applyAndRender(); }
     function onKyHoaDon(v)      { HDN.filterKyHoaDon = v; HDN.page = 1; _buildToolbar(); _applyAndRender(); }
     function onNhaTro(v)        { HDN.filterNhaTro = v; HDN.filterPhong = ''; HDN.page = 1; _rebuildPhong(); _buildToolbar(); _applyAndRender(); }
@@ -414,7 +420,7 @@
         _renderPaging();
     }
 
-    // ── Status helpers ─────────────────────────────────────────────────────────
+    // ── Hiển thị trạng thái ───────────────────────────────────────────────────
     const STATUS_CFG = {
         ChuaThanhToan:    { cls: 'hdn-badge-warn',    icon: 'fa-clock',                  label: 'Chưa thanh toán',  rowCls: 'hdn-row-warn' },
         DaThanhToan:      { cls: 'hdn-badge-ok',      icon: 'fa-check-circle',            label: 'Đã thanh toán',    rowCls: 'hdn-row-ok' },
@@ -510,6 +516,9 @@
 
                 // Nút thao tác dạng dropdown ⋮
                 const menuItems = [];
+                if (tt === 'DaThanhToan' || tt === 'ThanhToanMotPhan') {
+                    menuItems.push(`<button class="btn-action" style="background:#0891b2;" onclick="openHoaDonBienLaiGallery(${item.maHoaDon})"><i class="fas fa-receipt"></i> Xem ảnh biên lai</button>`);
+                }
                 menuItems.push(`<button class="btn-action" style="background:#6366f1;" onclick="HoaDonPrint.openModal(${item.maHoaDon})"><i class="fas fa-print"></i> In hóa đơn</button>`);
 
                 if (conLai > 0 && tt !== 'Huy' && tt !== 'DaThanhToan') {

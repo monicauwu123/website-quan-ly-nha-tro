@@ -264,31 +264,6 @@ namespace DoAnSE104.Controllers
             // Kiểm tra dữ liệu liên quan
             var result = await _deleteValidationService.DeleteDichVuAsync(id);
             return this.ToActionResult(result);
-
-            var coDangKy    = await _context.DangKyDichVu.AnyAsync(dk => dk.MaDichVu == id);
-            var coLichSuGia = await _context.LichSuGiaDichVu.AnyAsync(l => l.MaDichVu == id);
-
-            if (!coDangKy && !coLichSuGia)
-            {
-                // Chưa phát sinh dữ liệu → Xóa cứng
-                _context.DichVu.Remove(dichVu);
-                await _context.SaveChangesAsync();
-                return Ok(ApiResponse<object>.Ok(null!, "Đã xóa dịch vụ thành công"));
-            }
-            else
-            {
-                // Đã có dữ liệu → Chuyển trạng thái NgungSuDung
-                dichVu.TrangThai = "NgungSuDung";
-                await _context.SaveChangesAsync();
-
-                var lyDo = new List<string>();
-                if (coDangKy)    lyDo.Add("đăng ký dịch vụ của khách");
-                if (coLichSuGia) lyDo.Add("lịch sử giá");
-
-                return Ok(ApiResponse<object>.Ok(null!,
-                    $"Dịch vụ đã có {string.Join(", ", lyDo)} liên quan. " +
-                    "Đã chuyển sang trạng thái \"Ngưng sử dụng\"."));
-            }
         }
 
         // POST: api/DichVu/5/CapNhatGia

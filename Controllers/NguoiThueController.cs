@@ -67,6 +67,25 @@ namespace DoAnSE104.Controllers
                 .Distinct()
                 .ToList();
 
+            var hoSoChuaLienKet = danhSach
+                .Where(nt => !nt.MaNguoiDung.HasValue)
+                .Select(nt => nt.MaNguoiThue)
+                .Distinct()
+                .ToList();
+
+            var userIdTheoHoSo = new Dictionary<int, int>();
+            if (hoSoChuaLienKet.Any())
+            {
+                userIdTheoHoSo = await _context.YeuCauThue
+                    .Where(y => y.MaNguoiThue.HasValue && hoSoChuaLienKet.Contains(y.MaNguoiThue.Value))
+                    .GroupBy(y => y.MaNguoiThue!.Value)
+                    .Select(g => new { MaNguoiThue = g.Key, MaNguoiDung = g.OrderByDescending(y => y.NgayXuLy ?? y.NgayGui).Select(y => y.MaNguoiDung).FirstOrDefault() })
+                    .ToDictionaryAsync(x => x.MaNguoiThue, x => x.MaNguoiDung);
+
+                userIds.AddRange(userIdTheoHoSo.Values);
+                userIds = userIds.Distinct().ToList();
+            }
+
             if (!userIds.Any()) return;
 
             var users = await _context.Users
@@ -75,9 +94,39 @@ namespace DoAnSE104.Controllers
 
             foreach (var nt in danhSach)
             {
-                if (nt.MaNguoiDung.HasValue && users.TryGetValue(nt.MaNguoiDung.Value, out var user))
+                var maNguoiDung = nt.MaNguoiDung;
+                if (!maNguoiDung.HasValue && userIdTheoHoSo.TryGetValue(nt.MaNguoiThue, out var maNguoiDungTuYeuCau))
+                {
+                    maNguoiDung = maNguoiDungTuYeuCau;
+                    nt.MaNguoiDung = maNguoiDungTuYeuCau;
+                }
+
+                if (maNguoiDung.HasValue && users.TryGetValue(maNguoiDung.Value, out var user))
                     DongBoThongTinHienThiTuTaiKhoan(nt, user);
             }
+        }
+
+        private async Task<User?> TimTaiKhoanLienKet(NguoiThue nguoiThue)
+        {
+            if (nguoiThue.MaNguoiDung.HasValue)
+                return await _context.Users.FindAsync(nguoiThue.MaNguoiDung.Value);
+
+            var maNguoiDungTuYeuCau = await _context.YeuCauThue
+                .Where(y => y.MaNguoiThue == nguoiThue.MaNguoiThue)
+                .OrderByDescending(y => y.NgayXuLy ?? y.NgayGui)
+                .Select(y => (int?)y.MaNguoiDung)
+                .FirstOrDefaultAsync();
+
+            if (maNguoiDungTuYeuCau.HasValue)
+            {
+                nguoiThue.MaNguoiDung = maNguoiDungTuYeuCau.Value;
+                return await _context.Users.FindAsync(maNguoiDungTuYeuCau.Value);
+            }
+
+            return await _context.Users.FirstOrDefaultAsync(u =>
+                (!string.IsNullOrWhiteSpace(nguoiThue.Email) && u.Email == nguoiThue.Email) ||
+                (!string.IsNullOrWhiteSpace(nguoiThue.SDT) && u.SoDienThoai == nguoiThue.SDT) ||
+                (!string.IsNullOrWhiteSpace(nguoiThue.CCCD) && u.CCCD == nguoiThue.CCCD));
         }
 
         private async Task<string?> ValidateNguoiThue(NguoiThue nguoiThue)
@@ -197,11 +246,8 @@ namespace DoAnSE104.Controllers
                         return Forbid();
                 }
 
-                if (nguoiThue.MaNguoiDung.HasValue)
-                {
-                    var linkedUser = await _context.Users.FindAsync(nguoiThue.MaNguoiDung.Value);
-                    DongBoThongTinHienThiTuTaiKhoan(nguoiThue, linkedUser);
-                }
+                var linkedUser = await TimTaiKhoanLienKet(nguoiThue);
+                DongBoThongTinHienThiTuTaiKhoan(nguoiThue, linkedUser);
 
                 return Ok(ApiResponse<NguoiThue>.Ok(nguoiThue));
             }
