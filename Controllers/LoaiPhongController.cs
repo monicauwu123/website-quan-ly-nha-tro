@@ -191,24 +191,6 @@ namespace DoAnSE104.Controllers
             var result = await _deleteValidationService.DeleteLoaiPhongAsync(id);
             return this.ToActionResult(result);
 
-            var coPhong = await _context.Phong.AnyAsync(p => p.MaLoaiPhong == id);
-
-            if (!coPhong)
-            {
-                // Chưa phát sinh dữ liệu thì xóa hẳn.
-                _context.LoaiPhong.Remove(loaiPhong);
-                await _context.SaveChangesAsync();
-                return Ok(ApiResponse<object>.Ok(null!, "Đã xóa loại phòng thành công"));
-            }
-            else
-            {
-                // Đã có phòng sử dụng thì chuyển sang trạng thái ngừng sử dụng.
-                loaiPhong.TrangThai = "NgungSuDung";
-                await _context.SaveChangesAsync();
-                return Ok(ApiResponse<object>.Ok(null!,
-                    "Loại phòng đang được sử dụng bởi một hoặc nhiều phòng. " +
-                    "Đã chuyển sang trạng thái \"Ngưng sử dụng\"."));
-            }
         }
     }
 }

@@ -283,12 +283,6 @@ namespace DoAnSE104.Controllers
 
             var result = await _deleteValidationService.DeleteDangKyDichVuAsync(id);
             return this.ToActionResult(result);
-
-            dangKy.TrangThai = TrangThaiDaHuy;
-            dangKy.NgayHuy = DateTime.Now;
-            await _context.SaveChangesAsync();
-
-            return Ok(ApiResponse<object>.Ok(null, "Đã hủy đăng ký dịch vụ"));
         }
     }
 }

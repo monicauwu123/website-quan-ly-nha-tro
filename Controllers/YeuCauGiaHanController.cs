@@ -265,17 +265,6 @@ namespace DoAnSE104.Controllers
             var result = await _deleteValidationService.DeleteYeuCauGiaHanAsync(id);
             return this.ToActionResult(result);
 
-            if (yeuCau.TrangThai == ChoDuyet)
-            {
-                _context.YeuCauGiaHan.Remove(yeuCau);
-                await _context.SaveChangesAsync();
-                return Ok(ApiResponse<object>.Ok(null!, "Đã hủy yêu cầu gia hạn"));
-            }
-
-            // Yêu cầu đã được xử lý được giữ lại để bảo toàn lịch sử.
-            return BadRequest(ApiResponse<object>.Loi(
-                $"Yêu cầu gia hạn đã được xử lý (trạng thái: {yeuCau.TrangThai}). " +
-                "Không thể xóa để giữ lịch sử dữ liệu. Chỉ hủy được khi yêu cầu đang chờ duyệt."));
         }
     }
 }

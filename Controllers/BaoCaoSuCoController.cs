@@ -370,10 +370,6 @@ namespace DoAnSE104.Controllers
                     // Báo cáo đã được xử lý được giữ lại để bảo toàn lịch sử.
                     var result = await _deleteValidationService.DeleteBaoCaoSuCoAsync(id);
                     return this.ToActionResult(result);
-
-                    return BadRequest(ApiResponse<object>.Loi(
-                        $"Báo cáo đang ở trạng thái \"{TrangThaiText(baoCao.TrangThai)}\", " +
-                        "không thể hủy để giữ lịch sử xử lý. Chỉ hủy được khi chủ trọ chưa tiếp nhận."));
                 }
 
                 if (role == VaiTroConst.ChuTro)
@@ -390,11 +386,6 @@ namespace DoAnSE104.Controllers
                 // Admin: Xóa cứng
                 var adminResult = await _deleteValidationService.DeleteBaoCaoSuCoAsync(id);
                 return this.ToActionResult(adminResult);
-
-                _context.BaoCaoSuCo.Remove(baoCao);
-                await _context.SaveChangesAsync();
-
-                return Ok(ApiResponse<object>.Ok(null!, "Đã xóa báo cáo sự cố thành công"));
             }
             catch (Exception ex)
             {

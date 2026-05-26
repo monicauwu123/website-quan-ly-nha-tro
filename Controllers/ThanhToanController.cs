@@ -331,16 +331,6 @@ namespace DoAnSE104.Controllers
             var result = await _deleteValidationService.DeleteThanhToanAsync(id);
             return this.ToActionResult(result);
 
-            if (GetCurrentRole() == VaiTroConst.ChuTro)
-                return BadRequest(ApiResponse<object>.Loi(
-                    "Chủ trọ không thể xóa thanh toán đã ghi nhận. " +
-                    "Chỉ Admin mới có quyền xóa thanh toán nhập nhầm. " +
-                    "Nếu cần điều chỉnh, vui lòng liên hệ quản trị viên."));
-
-            _context.ThanhToan.Remove(thanhToan);
-            await _context.SaveChangesAsync();
-
-            return Ok(ApiResponse<object>.Ok(null!, "Đã xóa thanh toán thành công (chỉ dùng khi nhập nhầm)"));
         }
 
         // ════════════════════════════════════════════════════════════════════

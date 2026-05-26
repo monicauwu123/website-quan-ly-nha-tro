@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -544,23 +544,6 @@ namespace DoAnSE104.Controllers
                 var result = await _deleteValidationService.DeleteYeuCauThueAsync(id);
                 return this.ToActionResult(result);
 
-                // Yêu cầu đã lập hợp đồng được giữ lại để bảo toàn lịch sử.
-                if (yeuCau.TrangThai == DaLapHopDong)
-                    return BadRequest(ApiResponse<object>.Loi(
-                        "Yêu cầu đã được lập hợp đồng. Không thể xóa để giữ lịch sử dữ liệu."));
-
-                // Yêu cầu đang chờ duyệt chưa phát sinh dữ liệu nên có thể xóa hẳn.
-                if (yeuCau.TrangThai == ChoDuyet)
-                {
-                    _context.YeuCauThue.Remove(yeuCau);
-                    await _context.SaveChangesAsync();
-                    return Ok(ApiResponse<object>.Ok(null!, "Đã hủy yêu cầu thuê thành công"));
-                }
-
-                // Yêu cầu đã được xử lý được giữ lại để bảo toàn lịch sử.
-                return Ok(ApiResponse<object>.Ok(null!,
-                    $"Yêu cầu thuê có trạng thái \"{yeuCau.TrangThai}\" đã được giữ lại để lưu lịch sử. " +
-                    "Chỉ có thể hủy yêu cầu đang chờ duyệt."));
             }
             catch (Exception ex)
             {

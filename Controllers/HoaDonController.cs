@@ -728,29 +728,6 @@ namespace DoAnSE104.Controllers
                 var result = await _deleteValidationService.DeleteHoaDonAsync(id);
                 return this.ToActionResult(result);
 
-                var coThanhToan = await _context.ThanhToan.AnyAsync(tt => tt.MaHoaDon == id);
-
-                if (!coThanhToan)
-                {
-                    // Hóa đơn chưa thanh toán được xóa kèm chi tiết.
-                    var chiTietList = await _context.ChiTietHoaDon
-                        .Where(ct => ct.MaHoaDon == id).ToListAsync();
-                    if (chiTietList.Count > 0)
-                        _context.ChiTietHoaDon.RemoveRange(chiTietList);
-
-                    _context.HoaDon.Remove(hoaDon);
-                    await _context.SaveChangesAsync();
-                    return Ok(ApiResponse<object>.Ok(null!, "Đã xóa hóa đơn thành công"));
-                }
-                else
-                {
-                    // Hóa đơn đã thanh toán chỉ được chuyển sang trạng thái hủy.
-                    hoaDon.TrangThai = "Huy";
-                    await _context.SaveChangesAsync();
-                    return Ok(ApiResponse<object>.Ok(null!,
-                        "Hóa đơn đã có thanh toán liên quan. " +
-                        "Đã chuyển sang trạng thái \"Hủy\"."));
-                }
             }
             catch (DbUpdateException ex)
             {

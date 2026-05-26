@@ -409,41 +409,6 @@ namespace DoAnSE104.Controllers
                 var result = await _deleteValidationService.DeletePhongAsync(id);
                 return this.ToActionResult(result);
 
-                var coHopDong   = await _context.HopDong.AnyAsync(h => h.MaPhong == id);
-                var coHoaDon    = await _context.HoaDon.AnyAsync(hd => hd.MaPhong == id);
-                var coNguoiThue = await _context.NguoiThue.AnyAsync(nt => nt.MaPhong == id);
-                var coBaoCao    = await _context.BaoCaoSuCo.AnyAsync(b => b.MaPhong == id);
-                var coYeuCau    = await _context.YeuCauThue.AnyAsync(y => y.MaPhong == id);
-
-                if (!coHopDong && !coHoaDon && !coNguoiThue && !coBaoCao && !coYeuCau)
-                {
-                    // Chưa phát sinh dữ liệu thì xóa hẳn.
-                    _context.Phong.Remove(phong);
-                    await _context.SaveChangesAsync();
-                    return Ok(ApiResponse<object>.Ok(null!, "Đã xóa phòng thành công"));
-                }
-                else
-                {
-                    // Đã có dữ liệu liên quan thì chuyển sang trạng thái ngừng hoạt động.
-                    var trangThaiNgung = await _context.TrangThai
-                        .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("Ngưng") || t.TenTrangThai.Contains("ngung"));
-
-                    if (trangThaiNgung != null)
-                        phong.MaTrangThai = trangThaiNgung.MaTrangThai;
-
-                    await _context.SaveChangesAsync();
-
-                    var lyDo = new List<string>();
-                    if (coHopDong)   lyDo.Add("hợp đồng");
-                    if (coHoaDon)    lyDo.Add("hóa đơn");
-                    if (coNguoiThue) lyDo.Add("khách thuê");
-                    if (coBaoCao)    lyDo.Add("báo cáo sự cố");
-                    if (coYeuCau)    lyDo.Add("yêu cầu thuê");
-
-                    return Ok(ApiResponse<object>.Ok(null!,
-                        $"Phòng đã có {string.Join(", ", lyDo)}. " +
-                        "Đã chuyển sang trạng thái \"Ngưng hoạt động\"."));
-                }
             }
             catch (Exception ex)
             {

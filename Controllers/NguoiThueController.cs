@@ -505,34 +505,6 @@ namespace DoAnSE104.Controllers
                 var result = await _deleteValidationService.DeleteNguoiThueAsync(id);
                 return this.ToActionResult(result);
 
-                var coHopDong    = await _context.HopDong.AnyAsync(h => h.MaNguoiThue == id);
-                var coHoaDon     = await _context.HoaDon.AnyAsync(hd => hd.MaNguoiThue == id);
-                var coThanhToan  = await _context.ThanhToan.AnyAsync(tt => tt.MaNguoiThue == id);
-                var coYeuCauThue = await _context.YeuCauThue.AnyAsync(y => y.MaNguoiThue == id);
-
-                if (!coHopDong && !coHoaDon && !coThanhToan && !coYeuCauThue)
-                {
-                    // Chưa phát sinh dữ liệu thì xóa hẳn.
-                    _context.NguoiThue.Remove(nguoiThue);
-                    await _context.SaveChangesAsync();
-                    return Ok(ApiResponse<object>.Ok(null!, "Đã xóa khách thuê thành công"));
-                }
-                else
-                {
-                    // Đã có dữ liệu liên quan thì chuyển sang trạng thái không hoạt động.
-                    nguoiThue.TrangThai = "KhongHoatDong";
-                    await _context.SaveChangesAsync();
-
-                    var lyDo = new List<string>();
-                    if (coHopDong)    lyDo.Add("hợp đồng");
-                    if (coHoaDon)     lyDo.Add("hóa đơn");
-                    if (coThanhToan)  lyDo.Add("thanh toán");
-                    if (coYeuCauThue) lyDo.Add("yêu cầu thuê");
-
-                    return Ok(ApiResponse<object>.Ok(null!,
-                        $"Khách thuê đã có {string.Join(", ", lyDo)} liên quan. " +
-                        "Đã chuyển sang trạng thái \"Không còn hoạt động\"."));
-                }
             }
             catch (Exception ex)
             {

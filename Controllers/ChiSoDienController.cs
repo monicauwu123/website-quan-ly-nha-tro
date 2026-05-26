@@ -221,11 +221,6 @@ namespace DoAnSE104.Controllers
 
             var result = await _deleteValidationService.DeleteChiSoDienAsync(id);
             return this.ToActionResult(result);
-
-            _context.ChiSoDien.Remove(chiSoDien);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
         }
     }
 }

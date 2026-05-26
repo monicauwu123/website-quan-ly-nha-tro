@@ -217,33 +217,6 @@ namespace DoAnSE104.Controllers
                 var result = await _deleteValidationService.DeleteNhaTroAsync(id);
                 return this.ToActionResult(result);
 
-                // Kiểm tra các dữ liệu đang gắn với nhà trọ.
-                var coPhong      = await _context.Phong.AnyAsync(p => p.MaNhaTro == id);
-                var coLoaiPhong  = await _context.LoaiPhong.AnyAsync(lp => lp.MaNhaTro == id);
-                var coDichVu     = await _context.DichVu.AnyAsync(dv => dv.MaNhaTro == id);
-
-                if (!coPhong && !coLoaiPhong && !coDichVu)
-                {
-                    // Chưa phát sinh dữ liệu thì xóa hẳn.
-                    _context.NhaTro.Remove(nhaTro);
-                    await _context.SaveChangesAsync();
-                    return Ok(ApiResponse<object>.Ok(null!, "Đã xóa nhà trọ thành công"));
-                }
-                else
-                {
-                    // Đã có dữ liệu liên quan thì chuyển sang trạng thái ngừng hoạt động.
-                    nhaTro.TrangThai = "NgungHoatDong";
-                    await _context.SaveChangesAsync();
-
-                    var lyDo = new List<string>();
-                    if (coPhong)     lyDo.Add("phòng");
-                    if (coLoaiPhong) lyDo.Add("loại phòng");
-                    if (coDichVu)    lyDo.Add("dịch vụ");
-
-                    return Ok(ApiResponse<object>.Ok(null!,
-                        $"Nhà trọ đã có {string.Join(", ", lyDo)} liên quan. " +
-                        "Đã chuyển sang trạng thái \"Ngưng hoạt động\"."));
-                }
             }
             catch (Exception ex)
             {

@@ -223,11 +223,6 @@ namespace DoAnSE104.Controllers
 
             var result = await _deleteValidationService.DeleteChiSoNuocAsync(id);
             return this.ToActionResult(result);
-
-            _context.ChiSoNuoc.Remove(chiSoNuoc);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
         }
     }
 }
