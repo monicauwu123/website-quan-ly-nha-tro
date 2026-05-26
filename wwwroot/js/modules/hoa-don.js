@@ -1,4 +1,4 @@
-﻿// Module cấu hình: hoadon
+// Cấu hình module hóa đơn.
 window.AppModules = window.AppModules || {};
 window.AppModules.hoadon = {
     title: 'Hóa Đơn',

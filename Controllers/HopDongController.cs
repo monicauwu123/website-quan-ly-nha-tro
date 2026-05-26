@@ -80,7 +80,6 @@ namespace DoAnSE104.Controllers
             return "Đang còn hiệu lực";
         }
 
-        // GET: api/HopDong
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetHopDong()
         {
@@ -126,7 +125,6 @@ namespace DoAnSE104.Controllers
             return Ok(result);
         }
 
-        // GET: api/HopDong/5
         [HttpGet("{id}")]
         public async Task<ActionResult<object>> GetHopDong(int id)
         {
@@ -152,7 +150,6 @@ namespace DoAnSE104.Controllers
             });
         }
 
-        // GET: api/HopDong/NguoiThue/5
         [HttpGet("NguoiThue/{nguoiThueId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetHopDongByNguoiThue(int nguoiThueId)
         {
@@ -178,7 +175,6 @@ namespace DoAnSE104.Controllers
             return Ok(result);
         }
 
-        // GET: api/HopDong/Phong/5
         [HttpGet("Phong/{phongId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetHopDongByPhong(int phongId)
         {
@@ -204,7 +200,6 @@ namespace DoAnSE104.Controllers
             return Ok(result);
         }
 
-        // GET: api/HopDong/NguoiThue/KhongCoHopDong
         [HttpGet("NguoiThue/KhongCoHopDong")]
         public async Task<ActionResult<IEnumerable<NguoiThue>>> GetNguoiThueChuaCoHopDong()
         {
@@ -221,7 +216,6 @@ namespace DoAnSE104.Controllers
             return Ok(nguoiThue);
         }
 
-        // GET: api/HopDong/Phong/KhongCoHopDong
         [HttpGet("Phong/KhongCoHopDong")]
         public async Task<ActionResult<IEnumerable<Phong>>> GetPhongChuaCoHopDong()
         {
@@ -238,7 +232,6 @@ namespace DoAnSE104.Controllers
             return Ok(phong);
         }
 
-        // POST: api/HopDong
         [HttpPost]
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<ActionResult<HopDong>> PostHopDong(CreateHopDongDto dto)
@@ -316,7 +309,6 @@ namespace DoAnSE104.Controllers
             return CreatedAtAction(nameof(GetHopDong), new { id = hopDong.MaHopDong }, ApiResponse<HopDong>.Ok(hopDong, "Tạo hợp đồng thành công"));
         }
 
-        // PUT: api/HopDong/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> PutHopDong(int id, HopDongUpdateDto hopDongDto)
@@ -352,7 +344,7 @@ namespace DoAnSE104.Controllers
             if (loiValidation != null)
                 return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
-            // Map các thuộc tính từ DTO sang entity
+            // Ghi các trường được phép sửa từ DTO vào hợp đồng.
             hopDong.MaPhong = hopDongDto.MaPhong;
             hopDong.MaNguoiThue = hopDongDto.MaNguoiThue;
             hopDong.NgayBatDau = hopDongDto.NgayBatDau;
@@ -380,7 +372,6 @@ namespace DoAnSE104.Controllers
         }
 
 
-        // DELETE: api/HopDong/5
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> DeleteHopDong(int id)
@@ -391,7 +382,7 @@ namespace DoAnSE104.Controllers
             if (hopDong == null || hopDong.TrangThai == "Huy")
                 return NotFound(ApiResponse<object>.Loi("Không tìm thấy hợp đồng"));
 
-            // Kiểm tra quyền: ChuTro chỉ được xử lý hợp đồng của phòng mình
+            // Chủ trọ chỉ được xử lý hợp đồng thuộc phòng của mình.
             var role = GetCurrentRole();
             if (role == VaiTroConst.ChuTro)
             {
@@ -400,7 +391,7 @@ namespace DoAnSE104.Controllers
                     return Forbid();
             }
 
-            // Kiểm tra hóa đơn liên quan
+            // Hợp đồng đang hiệu lực phải được kết thúc hoặc hủy trước.
             if (hopDong.TrangThai == "DangHieuLuc")
                 return BadRequest(new { message = "Không thể xóa hợp đồng đang hiệu lực. Vui lòng kết thúc hoặc hủy hợp đồng trước." });
 
@@ -448,7 +439,6 @@ namespace DoAnSE104.Controllers
             return this.ToActionResult(result);
         }
 
-        // GET: api/HopDong/TaoMoi
         [HttpGet("TaoMoi")]
         public async Task<ActionResult> GetNguoiThueVaPhongConTrong()
         {
@@ -484,7 +474,6 @@ namespace DoAnSE104.Controllers
             return Ok(new { NguoiThue = nguoiThue, Phong = phong });
         }
 
-        // GET: api/HopDong/ExportPdf/5
         [HttpGet("ExportPdf/{id}")]
         public async Task<ActionResult<object>> ExportPdfHopDong(int id)
         {
@@ -501,7 +490,7 @@ namespace DoAnSE104.Controllers
             if (hd == null)
                 return NotFound(ApiResponse<object>.Loi("Không tìm thấy hợp đồng"));
 
-            // Kiểm tra quyền
+            // Chỉ cho xuất hợp đồng thuộc phạm vi của tài khoản hiện tại.
             if (role == VaiTroConst.ChuTro)
             {
                 if (hd.Phong?.NhaTro?.MaChuTro != userId)
@@ -545,9 +534,8 @@ namespace DoAnSE104.Controllers
             return Ok(result);
         }
 
-        // GET: api/HopDong/ThongTinChuTro
-        // Trả về danh sách thông tin chủ trọ theo từng hợp đồng đang hiệu lực.
-        // Hỗ trợ người dùng thuê nhiều phòng ở nhiều nhà trọ khác nhau.
+        // Trả về thông tin chủ trọ theo từng hợp đồng đang hiệu lực.
+        // Dùng cho tài khoản thuê nhiều phòng ở nhiều nhà trọ.
         // Chỉ NguoiDung gọi được; ChuTro/Admin nhận 403.
         [HttpGet("ThongTinChuTro")]
         [Authorize(Roles = "NguoiDung")]

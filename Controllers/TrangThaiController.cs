@@ -20,7 +20,6 @@ namespace DoAnSE104.Controllers
         // GET
         // ================================
 
-        // GET: api/TrangThai
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TrangThai>>> GetAll()
         {
@@ -33,7 +32,6 @@ namespace DoAnSE104.Controllers
             return Ok(list);
         }
 
-        // GET: api/TrangThai/5
         [HttpGet("{id}")]
         public async Task<ActionResult<TrangThai>> GetById(int id)
         {
@@ -51,7 +49,6 @@ namespace DoAnSE104.Controllers
         // POST
         // ================================
 
-        // POST: api/TrangThai
         [HttpPost]
         public async Task<ActionResult<TrangThai>> Create(TrangThai trangThai)
         {
@@ -65,7 +62,6 @@ namespace DoAnSE104.Controllers
         // PUT
         // ================================
 
-        // PUT: api/TrangThai/5
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, TrangThai trangThai)
         {
@@ -99,7 +95,6 @@ namespace DoAnSE104.Controllers
         // DELETE
         // ================================
 
-        // DELETE: api/TrangThai/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -116,7 +111,7 @@ namespace DoAnSE104.Controllers
         }
 
         // ================================
-        // HELPER
+        // Dùng chung cho các API phía trên.
         // ================================
 
 
@@ -140,4 +135,3 @@ namespace DoAnSE104.Controllers
             _context.TrangThai.Any(e => e.MaTrangThai == id);
     }
 }
-

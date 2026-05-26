@@ -74,7 +74,7 @@
 .alert-count { font-size: 1.6rem; font-weight: 800; line-height: 1; }
 .alert-label { font-size: .78rem; font-weight: 500; margin-top: .15rem; opacity: .85; }
 
-/* Urgent = có dữ liệu → màu đậm */
+/* Màu nổi bật cho trạng thái có dữ liệu cần chú ý */
 .alert-urgent.alert-orange { background: linear-gradient(135deg,#fff7ed,#ffedd5); color: #92400e; }
 .alert-urgent.alert-orange .alert-icon-wrap { background: #fed7aa; color: #c2410c; }
 .alert-urgent.alert-blue   { background: linear-gradient(135deg,#eff6ff,#dbeafe); color: #1e40af; }
@@ -84,7 +84,7 @@
 .alert-urgent.alert-purple { background: linear-gradient(135deg,#f5f3ff,#ede9fe); color: #5b21b6; }
 .alert-urgent.alert-purple .alert-icon-wrap { background: #ddd6fe; color: #7c3aed; }
 
-/* OK = 0 → màu nhạt xám */
+/* Màu trung tính cho trạng thái không có dữ liệu cần chú ý */
 .alert-ok { background: var(--surface); color: var(--text-light); }
 .alert-ok .alert-icon-wrap { background: #f1f5f9; color: #94a3b8; }
 .alert-ok .alert-count { color: var(--text); }

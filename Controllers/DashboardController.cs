@@ -509,7 +509,7 @@ namespace DoAnSE104.Controllers
                 })
                 .ToListAsync();
 
-            // ── Hóa đơn tháng này (backward compat) ─────────────────────────
+            // ── Hóa đơn tháng này, giữ thêm dữ liệu cũ cho giao diện hiện tại ─
             var hoaDonList = await _context.HoaDon
                 .Include(h => h.Phong)
                 .Where(h => maNguoiThueList.Contains(h.MaNguoiThue)
@@ -593,11 +593,11 @@ namespace DoAnSE104.Controllers
             return new
             {
                 TaiKhoan = taiKhoan,
-                // Backward compat
+                // Dữ liệu đơn lẻ cho các màn hình cũ
                 PhongDangThue = phongDangThueList.FirstOrDefault(),
                 HopDongHienTai = hopDongHienTaiList.FirstOrDefault(),
                 HoaDonThangNay = hoaDonThangNayList.FirstOrDefault(),
-                // Multi-room
+                // Danh sách đầy đủ khi một tài khoản thuê nhiều phòng
                 DanhSachPhongDangThue = phongDangThueList,
                 DanhSachHopDongHienTai = hopDongHienTaiList,
                 DanhSachHoaDonThangNay = hoaDonThangNayList,
@@ -609,7 +609,7 @@ namespace DoAnSE104.Controllers
                 TrangThaiThanhToan = hoaDonThangNayList.Count == 0
                     ? "Chưa có hóa đơn tháng này"
                     : (conLai <= 0 ? "Đã trả" : "Chưa trả"),
-                // Mới
+                // Dữ liệu bổ sung cho dashboard mới
                 HoaDonChuaThanhToan = hoaDonChuaThanhToanList,
                 SoHoaDonChuaTT = hoaDonChuaThanhToanList.Count,
                 DichVuDangDung = dichVuDangDung,

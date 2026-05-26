@@ -1,5 +1,5 @@
 ﻿// ==========================================
-// MODULES LOADER
+// Nạp các module giao diện.
 // Chỉ load HTML cần gắn lên trang + load JS module song song.
 // ==========================================
 

@@ -22,7 +22,7 @@
             <p style="color: var(--text-light); font-size: 0.9rem;">Chào mừng bạn trở lại — hãy đăng nhập để tiếp tục.</p>
         </div>
 
-        <!-- Login Form -->
+        <!-- Form đăng nhập -->
         <div id="loginView">
             <form id="loginForm" autocomplete="off">
                 <div class="form-group">
@@ -79,7 +79,7 @@
             </div>
         </div>
 
-        <!-- Forgot Password: Step 1 — Nhập email -->
+        <!-- Quên mật khẩu: nhập email -->
         <div id="forgotView" style="display:none;">
             <div style="margin-bottom:1.5rem; text-align:center;">
                 <div style="width:52px;height:52px;background:var(--primary-light);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto .75rem;font-size:1.4rem;color:var(--primary);">
@@ -111,7 +111,7 @@
             </div>
         </div>
 
-        <!-- Forgot Password: Step 2 — Nhập OTP + mật khẩu mới -->
+        <!-- Quên mật khẩu: nhập OTP và mật khẩu mới -->
         <div id="resetView" style="display:none;">
             <div style="margin-bottom:1.5rem;text-align:center;">
                 <div style="width:52px;height:52px;background:#fef3c7;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto .75rem;font-size:1.4rem;color:#92400e;">
@@ -197,7 +197,7 @@
         });
     })();
 
-    // ─── Toggle password visibility ───────────────────────────────────────────
+    // ─── Ẩn/hiện mật khẩu ───────────────────────────────────────────────────
     window.addEventListener('pageshow', () => {
         setTimeout(() => {
             document.getElementById('username').value = '';

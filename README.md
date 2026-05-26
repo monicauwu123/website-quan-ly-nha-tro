@@ -146,7 +146,7 @@ Neu can cau hinh rieng cho may local, khong sua truc tiep `appsettings.json`. Ha
 copy appsettings.Local.example.json appsettings.Local.json
 ```
 
-Sau do sua `ConnectionStrings:DefaultConnection` trong `appsettings.Local.json` theo SQL Server tren may dang chay. File `appsettings.Local.json` da duoc dua vao `.gitignore`, nen thay doi server name cua tung may se khong bi commit len GitHub.
+Sau do sua `ConnectionStrings:DefaultConnection` trong `appsettings.Local.json` theo SQL Server tren may dang chay. Neu can upload anh hoac gui email, dien them `CloudinarySettings` va `EmailSettings` trong file local nay. File `appsettings.Local.json` da duoc dua vao `.gitignore`, nen thong tin rieng cua tung may se khong bi commit len GitHub.
 
 ### Provider
 

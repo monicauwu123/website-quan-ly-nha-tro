@@ -93,7 +93,6 @@ namespace DoAnSE104.Controllers
             return Ok(tongTien);
         }
 
-        // GET: api/DichVu?maNhaTro=1&loaiDichVu=TinhPhi
         [HttpGet]
         public async Task<ActionResult<IEnumerable<DichVu>>> GetDichVu([FromQuery] int? maNhaTro = null, [FromQuery] string? loaiDichVu = null)
         {
@@ -130,7 +129,6 @@ namespace DoAnSE104.Controllers
             return await GetDichVu((int?)maNhaTro, null);
         }
 
-        // GET: api/DichVu/5
         [HttpGet("{id}")]
         public async Task<ActionResult<DichVu>> GetDichVu(int id)
         {
@@ -145,7 +143,6 @@ namespace DoAnSE104.Controllers
             return Ok(dichVu);
         }
 
-        // GET: api/DichVu/5/GiaHienTai
         [HttpGet("{id}/GiaHienTai")]
         public async Task<ActionResult<decimal>> GetGiaHienTai(int id)
         {
@@ -164,7 +161,6 @@ namespace DoAnSE104.Controllers
             return Ok(giaHienTai ?? (decimal)dichVu.Tiendichvu);
         }
 
-        // POST: api/DichVu
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<ActionResult<DichVu>> PostDichVu(DichVu dichVu)
@@ -191,7 +187,6 @@ namespace DoAnSE104.Controllers
             return CreatedAtAction(nameof(GetDichVu), new { id = dichVu.MaDichVu }, dichVu);
         }
 
-        // PUT: api/DichVu/5
         [HttpPut("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PutDichVu(int id, DichVu dichVu)
@@ -239,10 +234,7 @@ namespace DoAnSE104.Controllers
             return NoContent();
         }
 
-        // DELETE: api/DichVu/5
-        // Logic:
-        //   Chưa có đăng ký dịch vụ / chi tiết hóa đơn → Xóa cứng
-        //   Đã có → Chuyển TrangThai = NgungSuDung
+        // Chưa phát sinh dữ liệu thì xóa hẳn, đã phát sinh thì ngừng sử dụng.
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeleteDichVu(int id)
@@ -261,12 +253,11 @@ namespace DoAnSE104.Controllers
                 if (!ok) return Forbid();
             }
 
-            // Kiểm tra dữ liệu liên quan
+            // Để service quyết định xóa hẳn hay chuyển trạng thái.
             var result = await _deleteValidationService.DeleteDichVuAsync(id);
             return this.ToActionResult(result);
         }
 
-        // POST: api/DichVu/5/CapNhatGia
         [HttpPost("{id}/CapNhatGia")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<ActionResult<LichSuGiaDichVu>> CapNhatGiaDichVu(int id, [FromBody] decimal giaMoi)
@@ -301,7 +292,6 @@ namespace DoAnSE104.Controllers
             return CreatedAtAction(nameof(GetGiaHienTai), new { id }, lichSuGia);
         }
 
-        // GET: api/DichVu/5/LichSuGia
         [HttpGet("{id}/LichSuGia")]
         public async Task<ActionResult<IEnumerable<LichSuGiaDichVu>>> GetLichSuGia(int id)
         {

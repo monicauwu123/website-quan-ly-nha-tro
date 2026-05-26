@@ -121,7 +121,6 @@ namespace DoAnSE104.Controllers
             };
         }
 
-        // GET: api/YeuCauThue
         [HttpGet]
         public async Task<IActionResult> GetYeuCauThue()
         {
@@ -153,7 +152,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/YeuCauThue/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetYeuCauThue(int id)
         {
@@ -180,7 +178,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/YeuCauThue
         [HttpPost]
         [Authorize(Roles = VaiTroConst.NguoiDung)]
         public async Task<IActionResult> PostYeuCauThue([FromBody] TaoYeuCauThueDto dto)
@@ -237,7 +234,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/YeuCauThue/5/chap-nhan
         [HttpPost("{id}/chap-nhan")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> ChapNhanYeuCauThue(int id, [FromBody] ChapNhanYeuCauThueDto dto)
@@ -400,7 +396,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/YeuCauThue/5/xac-nhan-hop-dong
         [HttpPost("{id}/xac-nhan-hop-dong")]
         [Authorize(Roles = VaiTroConst.NguoiDung)]
         public async Task<IActionResult> XacNhanHopDong(int id)
@@ -450,7 +445,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/YeuCauThue/5/tu-choi-hop-dong
         [HttpPost("{id}/tu-choi-hop-dong")]
         [Authorize(Roles = VaiTroConst.NguoiDung)]
         public async Task<IActionResult> TuChoiHopDong(int id, [FromBody] TuChoiHopDongYeuCauThueDto dto)
@@ -489,7 +483,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/YeuCauThue/5/tu-choi
         [HttpPost("{id}/tu-choi")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> TuChoiYeuCauThue(int id, [FromBody] TuChoiYeuCauThueDto dto)
@@ -527,7 +520,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // DELETE: api/YeuCauThue/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteYeuCauThue(int id)
         {
@@ -552,12 +544,12 @@ namespace DoAnSE104.Controllers
                 var result = await _deleteValidationService.DeleteYeuCauThueAsync(id);
                 return this.ToActionResult(result);
 
-                // Đã lập hợp đồng → giữ lịch sử, không thao tác
+                // Yêu cầu đã lập hợp đồng được giữ lại để bảo toàn lịch sử.
                 if (yeuCau.TrangThai == DaLapHopDong)
                     return BadRequest(ApiResponse<object>.Loi(
                         "Yêu cầu đã được lập hợp đồng. Không thể xóa để giữ lịch sử dữ liệu."));
 
-                // Đang chờ duyệt → Xóa cứng (hủy bỏ yêu cầu chưa xử lý)
+                // Yêu cầu đang chờ duyệt chưa phát sinh dữ liệu nên có thể xóa hẳn.
                 if (yeuCau.TrangThai == ChoDuyet)
                 {
                     _context.YeuCauThue.Remove(yeuCau);
@@ -565,7 +557,7 @@ namespace DoAnSE104.Controllers
                     return Ok(ApiResponse<object>.Ok(null!, "Đã hủy yêu cầu thuê thành công"));
                 }
 
-                // Đã từ chối / đã chấp nhận nhưng chưa lập hợp đồng → giữ lịch sử
+                // Yêu cầu đã được xử lý được giữ lại để bảo toàn lịch sử.
                 return Ok(ApiResponse<object>.Ok(null!,
                     $"Yêu cầu thuê có trạng thái \"{yeuCau.TrangThai}\" đã được giữ lại để lưu lịch sử. " +
                     "Chỉ có thể hủy yêu cầu đang chờ duyệt."));

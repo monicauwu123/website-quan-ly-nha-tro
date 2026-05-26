@@ -204,7 +204,7 @@ namespace DoAnSE104.Controllers
             yeuCau.GhiChuChuTro = dto.GhiChuChuTro;
             yeuCau.NgayXuLy = DateTime.Now;
 
-            // Đảm bảo phòng ở trạng thái "Đã thuê" sau khi gia hạn thành công.
+            // Gia hạn thành công thì phòng vẫn ở trạng thái đang thuê.
             var phong = await _context.Phong.FindAsync(yeuCau.HopDong.MaPhong);
             if (phong != null)
             {
@@ -261,7 +261,7 @@ namespace DoAnSE104.Controllers
             if (yeuCau.MaNguoiDung != userId)
                 return Forbid();
 
-            // Chỉ hủy được khi đang chờ duyệt → Xóa cứng
+            // Chỉ yêu cầu đang chờ duyệt mới được xóa hẳn.
             var result = await _deleteValidationService.DeleteYeuCauGiaHanAsync(id);
             return this.ToActionResult(result);
 
@@ -272,7 +272,7 @@ namespace DoAnSE104.Controllers
                 return Ok(ApiResponse<object>.Ok(null!, "Đã hủy yêu cầu gia hạn"));
             }
 
-            // Đã được xử lý (chấp nhận/từ chối) → Giữ lịch sử, không xóa
+            // Yêu cầu đã được xử lý được giữ lại để bảo toàn lịch sử.
             return BadRequest(ApiResponse<object>.Loi(
                 $"Yêu cầu gia hạn đã được xử lý (trạng thái: {yeuCau.TrangThai}). " +
                 "Không thể xóa để giữ lịch sử dữ liệu. Chỉ hủy được khi yêu cầu đang chờ duyệt."));

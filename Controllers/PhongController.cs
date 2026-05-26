@@ -106,7 +106,6 @@ namespace DoAnSE104.Controllers
             return null;
         }
 
-        // GET: api/Phong
         [HttpGet]
         public async Task<IActionResult> GetPhong()
         {
@@ -140,7 +139,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/Phong/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPhong(int id)
         {
@@ -173,7 +171,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/Phong/NhaTro/5
         [HttpGet("NhaTro/{nhaTroId}")]
         public async Task<IActionResult> GetPhongByNhaTro(int nhaTroId)
         {
@@ -212,7 +209,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/Phong/TrangThai/5
         [HttpGet("TrangThai/{trangThaiId}")]
         public async Task<IActionResult> GetPhongByTrangThai(int trangThaiId)
         {
@@ -247,7 +243,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/Phong
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PostPhong([FromBody] Phong phong)
@@ -297,8 +292,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/Phong/UploadImage
-        // POST: api/Phong/upload-image
         [HttpPost("UploadImage")]
         [HttpPost("upload-image")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
@@ -348,7 +341,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // PUT: api/Phong/5
         [HttpPut("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PutPhong(int id, [FromBody] Phong phong)
@@ -391,10 +383,7 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // DELETE: api/Phong/5
-        // Logic:
-        //   Chưa có dữ liệu liên quan → Xóa cứng
-        //   Đã có hợp đồng / hóa đơn / khách thuê → Chuyển trạng thái NgungHoatDong
+        // Chưa phát sinh dữ liệu thì xóa hẳn, đã có lịch sử thì chuyển sang ngừng hoạt động.
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeletePhong(int id)
@@ -416,7 +405,7 @@ namespace DoAnSE104.Controllers
                     if (!maPhongList.Contains(id)) return Forbid();
                 }
 
-                // Kiểm tra dữ liệu liên quan
+                // Để service quyết định xóa hẳn hay chuyển trạng thái.
                 var result = await _deleteValidationService.DeletePhongAsync(id);
                 return this.ToActionResult(result);
 
@@ -428,14 +417,14 @@ namespace DoAnSE104.Controllers
 
                 if (!coHopDong && !coHoaDon && !coNguoiThue && !coBaoCao && !coYeuCau)
                 {
-                    // Chưa phát sinh dữ liệu → Xóa cứng
+                    // Chưa phát sinh dữ liệu thì xóa hẳn.
                     _context.Phong.Remove(phong);
                     await _context.SaveChangesAsync();
                     return Ok(ApiResponse<object>.Ok(null!, "Đã xóa phòng thành công"));
                 }
                 else
                 {
-                    // Đã có dữ liệu liên quan → Tìm trạng thái "Ngưng hoạt động" trong bảng TrangThai
+                    // Đã có dữ liệu liên quan thì chuyển sang trạng thái ngừng hoạt động.
                     var trangThaiNgung = await _context.TrangThai
                         .FirstOrDefaultAsync(t => t.TenTrangThai.Contains("Ngưng") || t.TenTrangThai.Contains("ngung"));
 

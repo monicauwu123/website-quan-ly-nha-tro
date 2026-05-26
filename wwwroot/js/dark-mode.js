@@ -1,8 +1,6 @@
 // =====================================================================
-// DARK MODE TOGGLE
-// File: wwwroot/js/dark-mode.js
-// Load TRƯỚC dashboard.js trong modules-loader.js:
-//   thêm `js/dark-mode.js?v=6.5` vào mảng appScripts (hoặc businessScripts)
+// Bật tắt chế độ tối.
+// Đồng bộ trạng thái dark mode trước khi dashboard render.
 // =====================================================================
 
 (function () {
@@ -75,7 +73,7 @@
     // modules-loader.js dispatch 'app:ready' sau khi render xong
     window.addEventListener('app:ready', init);
 
-    // Đề phòng topbar được inject muộn hơn → dùng MutationObserver
+    // Theo dõi topbar được inject muộn để gắn nút chuyển theme.
     const _obs = new MutationObserver(() => {
         if (document.querySelector('.top-bar') && !document.getElementById('darkModeToggle')) {
             init();
@@ -83,6 +81,6 @@
     });
     _obs.observe(document.body, { childList: true, subtree: true });
 
-    // Expose ra global để có thể gọi từ nơi khác nếu cần
+    // Cho các module khác gọi đổi theme khi cần.
     window.DarkMode = { toggle, isDark: () => document.body.classList.contains(CLASS) };
 })();

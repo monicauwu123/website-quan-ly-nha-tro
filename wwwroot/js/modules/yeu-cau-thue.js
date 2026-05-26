@@ -1,4 +1,4 @@
-﻿// Module cấu hình: yeucauthue
+// Cấu hình module yêu cầu thuê.
 window.AppModules = window.AppModules || {};
 window.AppModules.yeucauthue = {
         title: 'Yêu cầu thuê / gia hạn',

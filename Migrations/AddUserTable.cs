@@ -10,12 +10,12 @@ namespace DoAnSE104.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Database hiện tại của đồ án đã có sẵn các bảng gốc như DichVu, LoaiPhong, Phong, Users...
-            // Migration này trước đó tạo lại các bảng gốc nên gây lỗi:
+            // Database của đồ án đã có sẵn các bảng gốc như DichVu, LoaiPhong, Phong, Users...
+            // Bản migration cũ từng tạo lại các bảng này nên gây lỗi:
             // "There is already an object named 'DichVu' in the database."
             //
-            // Để sửa dứt điểm cho database hiện tại, migration này được để no-op.
-            // EF vẫn sẽ đánh dấu migration là đã chạy, sau đó các migration bổ sung phía sau sẽ tiếp tục chạy.
+            // Giữ migration này ở dạng no-op để database hiện tại chạy tiếp được.
+            // EF vẫn đánh dấu là đã chạy, các migration phía sau tiếp tục xử lý phần còn thiếu.
         }
 
         /// <inheritdoc />

@@ -1,6 +1,6 @@
 ﻿// ==========================================
-// MODULE: Người Thuê – Search / Filter / Sort / Paging
-// File: js/modules/nguoi-thue-search.js
+// Tìm kiếm, lọc, sắp xếp và phân trang người thuê.
+// Tìm kiếm, lọc, sắp xếp và phân trang người thuê.
 // ==========================================
 (function () {
     'use strict';
@@ -31,7 +31,7 @@
         _applyAndRender();
     }
 
-    // ── Build thanh toolbar ────────────────────────────────────────────────────
+    // ── Dựng thanh công cụ ───────────────────────────────────────────────────
     function _buildToolbar() {
         const slot = document.getElementById('ntToolbarSlot');
         if (!slot) return;
@@ -163,7 +163,7 @@
         _applyAndRender();
     }
 
-    // ── Rebuild phòng dropdown khi đổi nhà trọ ───────────────────────────────
+    // ── Cập nhật danh sách phòng khi đổi nhà trọ ─────────────────────────────
     function _rebuildPhongOptions() {
         const sel = document.getElementById('ntFilterPhong');
         if (!sel) return;

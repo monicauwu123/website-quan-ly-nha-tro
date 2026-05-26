@@ -115,7 +115,6 @@ namespace DoAnSE104.Controllers
                 .AnyAsync(p => p.MaPhong == maPhong && p.NhaTro.MaChuTro == maChuTro);
         }
 
-        // GET: api/BaoCaoSuCo
         [HttpGet]
         public async Task<IActionResult> GetBaoCaoSuCo()
         {
@@ -143,7 +142,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/BaoCaoSuCo/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetBaoCaoSuCo(int id)
         {
@@ -170,7 +168,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/BaoCaoSuCo/TaoMoi
         [HttpGet("TaoMoi")]
         [Authorize(Roles = VaiTroConst.NguoiDung)]
         public async Task<IActionResult> GetTaoMoi()
@@ -219,7 +216,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/BaoCaoSuCo
         [HttpPost]
         [Authorize(Roles = VaiTroConst.NguoiDung)]
         public async Task<IActionResult> PostBaoCaoSuCo([FromBody] TaoBaoCaoSuCoDto dto)
@@ -268,7 +264,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // PUT: api/BaoCaoSuCo/5
         [HttpPut("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro},{VaiTroConst.NguoiDung}")]
         public async Task<IActionResult> PutBaoCaoSuCo(int id, [FromBody] CapNhatBaoCaoSuCoDto dto)
@@ -343,7 +338,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // DELETE: api/BaoCaoSuCo/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBaoCaoSuCo(int id)
         {
@@ -373,7 +367,7 @@ namespace DoAnSE104.Controllers
                         return Ok(ApiResponse<object>.Ok(null!, "Đã hủy báo cáo sự cố"));
                     }
 
-                    // Đang xử lý / đã xử lý → giữ lịch sử
+                    // Báo cáo đã được xử lý được giữ lại để bảo toàn lịch sử.
                     var result = await _deleteValidationService.DeleteBaoCaoSuCoAsync(id);
                     return this.ToActionResult(result);
 

@@ -1,4 +1,4 @@
-﻿// Module cấu hình: user
+// Cấu hình module người dùng.
 window.AppModules = window.AppModules || {};
 window.AppModules.user = {
         title: 'Người Dùng',

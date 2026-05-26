@@ -1,6 +1,6 @@
 // ==========================================
-// MODULE: Hóa Đơn – Search / Filter / Sort / Paging
-// File: js/modules/hoa-don-search.js
+// Tìm kiếm, lọc, sắp xếp và phân trang hóa đơn.
+// Tìm kiếm, lọc, sắp xếp và phân trang hóa đơn.
 // ==========================================
 (function () {
     'use strict';
@@ -68,7 +68,7 @@
                (kyNam === now.getFullYear() && kyThang < now.getMonth() + 1);
     }
 
-    // ── Build toolbar ─────────────────────────────────────────────────────────
+    // ── Dựng thanh công cụ ───────────────────────────────────────────────────
     function _buildToolbar() {
         const slot = document.getElementById('hdnToolbarSlot');
         if (!slot) return;
@@ -93,7 +93,7 @@
             return `<option value="${k}" ${HDN.filterKyHoaDon===k?'selected':''}>Tháng ${parseInt(mo)}/${yr}</option>`;
         }).join('');
 
-        // Build active filter chips
+        // Hiển thị các bộ lọc đang dùng.
         const chips = _buildChips();
 
         const canWrite = window.CURRENT_ROLE === 'Admin' || window.CURRENT_ROLE === 'ChuTro';
@@ -215,7 +215,7 @@
         .hdn-select{padding:.48rem .7rem;border:1.5px solid var(--border-color,#e2e8f0);border-radius:8px;font-size:.875rem;background:#fff;color:var(--text-primary,#1e293b);cursor:pointer;transition:border-color .15s;}
         .hdn-select:focus{outline:none;border-color:var(--primary,#3b82f6);}
 
-        /* ── Action buttons ── */
+        /* Nút thao tác trên thanh công cụ */
         .hdn-toolbar-actions{display:flex;align-items:center;gap:.4rem;margin-left:auto;flex-wrap:wrap;}
         .hdn-btn-icon{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .75rem;border:1.5px solid var(--border-color,#e2e8f0);border-radius:8px;background:#fff;color:var(--text-primary,#1e293b);font-size:.85rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;}
         .hdn-btn-icon:hover{border-color:var(--primary,#3b82f6);color:var(--primary,#3b82f6);background:#f0f7ff;}
@@ -514,7 +514,7 @@
                         <div style="height:100%;width:${pct}%;background:${pct===100?'#16a34a':'#3b82f6'};border-radius:99px;transition:width .3s;"></div>
                     </div>`;
 
-                // Nút thao tác dạng dropdown ⋮
+                // Các thao tác trên từng dòng hóa đơn.
                 const menuItems = [];
                 if (tt === 'DaThanhToan' || tt === 'ThanhToanMotPhan') {
                     menuItems.push(`<button class="btn-action" style="background:#0891b2;" onclick="openHoaDonBienLaiGallery(${item.maHoaDon})"><i class="fas fa-receipt"></i> Xem ảnh biên lai</button>`);
@@ -566,7 +566,7 @@
             }).join('') + '</tbody>';
         }
 
-        // Banner quá hạn
+        // Cảnh báo hóa đơn quá hạn.
         const soQuaHan = HDN.filtered.filter(r => r._tt === 'QuaHan').length;
         const quaHanBanner = soQuaHan > 0 && !HDN.filterTrangThai ? `
             <div class="hdn-overdue-banner">
@@ -576,7 +576,7 @@
                     onclick="window._HoaDonSearch.onTrangThai('QuaHan')">Xem</button>
             </div>` : '';
 
-        // ── Summary cards (to và rõ) ──
+        // ── Thẻ tổng hợp ────────────────────────────────────────────────────
         const summaryHtml = total > 0 ? `
             <div class="hdn-summary-cards">
                 <div class="hdn-sum-card hdn-sum-total">
@@ -619,7 +619,7 @@
                 </div>
             </div>` : '';
 
-        // Legend
+        // Chú thích màu trạng thái.
         const legendHtml = `
             <div class="hdn-legend">
                 <span class="hdn-legend-dot hdn-legend-warn"></span><span>Chưa TT</span>
@@ -639,7 +639,7 @@
             </div>
 
             <style>
-            /* ── Row colors ── */
+            /* Màu từng trạng thái hóa đơn */
             .hdn-overdue-banner{background:var(--hdn-overdue-bg,#fee2e2);border:1px solid var(--hdn-overdue-border,#fca5a5);border-radius:8px;padding:.6rem 1rem;margin-bottom:.75rem;font-size:.875rem;display:flex;gap:.5rem;align-items:center;color:var(--hdn-overdue-text,#7f1d1d);}
             .hdn-overdue-banner i{color:var(--hdn-overdue-icon,#dc2626);}
             .hdn-overdue-action{width:auto!important;min-width:64px;flex:0 0 auto;margin-left:auto;padding:.2rem .65rem!important;font-size:.8rem!important;}
@@ -655,7 +655,7 @@
             .hdn-row-overdue {background:rgba(239,68,68,.06);}
             .hdn-row-cancel  {background:rgba(100,116,139,.05);opacity:.8;}
 
-            /* ── Badge ── */
+            /* Nhãn trạng thái */
             .hdn-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .65rem;border-radius:20px;font-size:.78rem;font-weight:700;white-space:nowrap;}
             .hdn-badge-ok      {background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;}
             .hdn-badge-warn    {background:#fef9c3;color:#a16207;border:1px solid #fde68a;}
@@ -670,7 +670,7 @@
             @keyframes hdn-pulse{0%,100%{opacity:1}50%{opacity:.6}}
             .hdn-badge-pulse{animation:hdn-pulse 1.8s ease-in-out infinite;}
 
-            /* ── Summary cards ── */
+            /* Thẻ tổng hợp */
             .hdn-summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-bottom:1rem;}
             .hdn-sum-card{display:flex;align-items:center;gap:.85rem;padding:.9rem 1.1rem;background:#fff;border:1.5px solid var(--border-color,#e2e8f0);border-radius:12px;box-shadow:0 1px 4px rgba(15,23,42,.06);}
             .hdn-sum-progress{grid-column:span 2;}
@@ -685,7 +685,7 @@
             .hdn-sum-amount{font-size:.82rem;color:var(--text-light,#64748b);margin-top:.1rem;}
             .hdn-sum-pct{font-size:.78rem;color:var(--text-light,#64748b);margin-top:.1rem;}
 
-            /* ── Legend ── */
+            /* Chú thích trạng thái */
             .hdn-legend{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .8rem;font-size:.78rem;color:var(--text-light);margin-bottom:.5rem;}
             .hdn-legend-dot{width:.55rem;height:.55rem;border-radius:50%;display:inline-block;}
             .hdn-legend-warn   {background:#f59e0b;}
@@ -694,7 +694,7 @@
             .hdn-legend-overdue{background:#ef4444;}
             .hdn-legend-cancel {background:#94a3b8;}
 
-            /* ── Action menu ── */
+            /* Menu thao tác */
             .hdn-action-wrap{position:relative;display:inline-block;}
             .hdn-action-btn{width:2rem;height:2rem;border-radius:8px;border:1.5px solid var(--border-color,#e2e8f0);background:#fff;color:var(--text-light);cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .15s;}
             .hdn-action-btn:hover{border-color:var(--primary,#3b82f6);color:var(--primary,#3b82f6);background:#eff6ff;}
@@ -719,7 +719,7 @@
             .hdn-menu-divider{height:1px;background:var(--border-color,#e2e8f0);margin:.3rem 0;}
             </style>`;
 
-        // Đóng menu khi click ra ngoài
+        // Đóng menu khi bấm ra ngoài.
         setTimeout(() => {
             document.addEventListener('click', _closeAllMenus, { once: false, capture: true });
         }, 0);
@@ -731,7 +731,7 @@
         }
     }
 
-    // Toggle dropdown menu
+    // Bật/tắt menu thao tác của một hóa đơn.
     window.hdnToggleMenu = function(e, id) {
         e.stopPropagation();
         const menu = document.getElementById(`hdnMenu_${id}`);

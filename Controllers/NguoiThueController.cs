@@ -143,7 +143,6 @@ namespace DoAnSE104.Controllers
             return null;
         }
 
-        // GET: api/NguoiThue
         [HttpGet]
         public async Task<IActionResult> GetNguoiThue()
         {
@@ -182,7 +181,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/NguoiThue/cua-toi
         [HttpGet("cua-toi")]
         [Authorize(Roles = VaiTroConst.NguoiDung)]
         public async Task<IActionResult> GetNguoiThueCuaToi()
@@ -224,7 +222,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/NguoiThue/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetNguoiThue(int id)
         {
@@ -257,7 +254,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/NguoiThue/Search
         [HttpGet("Search")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> SearchNguoiThue(string? keyword)
@@ -300,7 +296,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/NguoiThue/upload-cccd-image
         [HttpPost("upload-cccd-image")]
         [Consumes("multipart/form-data")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro},{VaiTroConst.NguoiDung}")]
@@ -349,7 +344,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/NguoiThue
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PostNguoiThue([FromBody] NguoiThue nguoiThue)
@@ -388,7 +382,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // PUT: api/NguoiThue/cua-toi/5
         [HttpPut("cua-toi/{id}")]
         [Authorize(Roles = VaiTroConst.NguoiDung)]
         public async Task<IActionResult> CapNhatNguoiThueCuaToi(int id, [FromBody] NguoiThueSelfUpdateDto dto)
@@ -458,7 +451,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // PUT: api/NguoiThue/5
         [HttpPut("{id}")]
         [Authorize(Roles = VaiTroConst.Admin)]
         public async Task<IActionResult> PutNguoiThue(int id, [FromBody] NguoiThue nguoiThue)
@@ -493,7 +485,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // DELETE: api/NguoiThue/5
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeleteNguoiThue(int id)
@@ -510,7 +501,7 @@ namespace DoAnSE104.Controllers
                 if (role == VaiTroConst.ChuTro && !await PhongThuocChuTro(nguoiThue.MaPhong, userId))
                     return Forbid();
 
-                // Kiểm tra dữ liệu liên quan
+                // Để service quyết định xóa hẳn hay chuyển trạng thái.
                 var result = await _deleteValidationService.DeleteNguoiThueAsync(id);
                 return this.ToActionResult(result);
 
@@ -521,14 +512,14 @@ namespace DoAnSE104.Controllers
 
                 if (!coHopDong && !coHoaDon && !coThanhToan && !coYeuCauThue)
                 {
-                    // Chưa phát sinh dữ liệu → Xóa cứng
+                    // Chưa phát sinh dữ liệu thì xóa hẳn.
                     _context.NguoiThue.Remove(nguoiThue);
                     await _context.SaveChangesAsync();
                     return Ok(ApiResponse<object>.Ok(null!, "Đã xóa khách thuê thành công"));
                 }
                 else
                 {
-                    // Đã có dữ liệu liên quan → Chuyển trạng thái KhongHoatDong
+                    // Đã có dữ liệu liên quan thì chuyển sang trạng thái không hoạt động.
                     nguoiThue.TrangThai = "KhongHoatDong";
                     await _context.SaveChangesAsync();
 

@@ -101,7 +101,7 @@ namespace DoAnSE104.Controllers
                 || (tb.LoaiNguoiNhan == "Phong" && tb.PhongId != null && phongCuaToi.Contains(tb.PhongId.Value));
         }
 
-        // GET: Admin/ChuTro xem thông báo đã gửi; NguoiDung xem thông báo nhận được
+        // Admin/ChuTro xem thông báo đã gửi; NguoiDung xem thông báo nhận được.
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -165,7 +165,7 @@ namespace DoAnSE104.Controllers
             return Ok(new { thanhCong = true, duLieu = result });
         }
 
-        // GET: đếm thông báo chưa đọc của người nhận. Admin/ChuTro không cần badge đã đọc.
+        // Đếm thông báo chưa đọc của người nhận.
         [HttpGet("chua-doc")]
         public async Task<IActionResult> GetChuaDoc()
         {
@@ -189,7 +189,7 @@ namespace DoAnSE104.Controllers
             return Ok(new { thanhCong = true, duLieu = count });
         }
 
-        // POST: Tạo thông báo (Admin/ChuTro)
+        // Admin và chủ trọ có thể tạo thông báo.
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> Create([FromBody] ThongBaoCreateDto dto)
@@ -329,7 +329,7 @@ namespace DoAnSE104.Controllers
             });
         }
 
-        // PUT: Đánh dấu đã đọc 1 thông báo của chính người nhận
+        // Người nhận đánh dấu một thông báo là đã đọc.
         [HttpPut("{id}/da-doc")]
         public async Task<IActionResult> DaDoc(int id)
         {
@@ -364,7 +364,7 @@ namespace DoAnSE104.Controllers
             return Ok(new { thanhCong = true, thongBao = "Đã đánh dấu đọc." });
         }
 
-        // PUT: Đánh dấu tất cả thông báo của tôi là đã đọc
+        // Người nhận đánh dấu tất cả thông báo là đã đọc.
         [HttpPut("doc-tat-ca")]
         public async Task<IActionResult> DocTatCa()
         {
@@ -401,7 +401,7 @@ namespace DoAnSE104.Controllers
             return Ok(new { thanhCong = true, thongBao = $"Đã đánh dấu {chuaDocIds.Count} thông báo là đã đọc." });
         }
 
-        // PUT: Ẩn thông báo
+        // Ẩn thông báo khỏi danh sách hiển thị.
         [HttpPut("{id}/an")]
         public async Task<IActionResult> AnThongBao(int id)
         {
@@ -424,7 +424,7 @@ namespace DoAnSE104.Controllers
             return Ok(new { thanhCong = true, thongBao = "Đã ẩn thông báo." });
         }
 
-        // GET: Danh sách người dùng & phòng để chọn khi tạo (Admin/ChuTro)
+        // Dữ liệu chọn người nhận khi tạo thông báo.
         [HttpGet("init-data")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> GetInitData()

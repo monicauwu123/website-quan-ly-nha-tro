@@ -1,6 +1,6 @@
 ﻿// ==========================================
-// MODULE: Hợp Đồng – Search / Filter / Sort / Paging
-// File: js/modules/hop-dong-search.js
+// Tìm kiếm, lọc, sắp xếp và phân trang hợp đồng.
+// Tìm kiếm, lọc, sắp xếp và phân trang hợp đồng.
 // ==========================================
 (function () {
     'use strict';
@@ -35,7 +35,7 @@
         _applyAndRender();
     }
 
-    // ── Build toolbar ─────────────────────────────────────────────────────────
+    // ── Dựng thanh công cụ ───────────────────────────────────────────────────
     function _buildToolbar() {
         const slot = document.getElementById('hdToolbarSlot');
         if (!slot) return;
@@ -141,7 +141,7 @@
     }
 
     // ── Handlers ────────────────────────────────────────────────────────────────
-    // ✅ Mới
+    // Tìm kiếm có debounce để giảm số lần render.
     let _kwTimer;
     function onKeyword(v) {
         HD.keyword = v.trim();
@@ -186,7 +186,7 @@
             visible.map(p => `<option value="${p.maPhong}">${_esc(p.tenPhong||'Phòng #'+p.maPhong)}</option>`).join('');
     }
 
-    // ── Helper: tính số ngày còn lại đến ngày kết thúc ───────────────────────
+    // ── Tính số ngày còn lại đến ngày kết thúc ───────────────────────────────
     function daysUntil(dateStr) {
         if (!dateStr) return null;
         const d = new Date(dateStr);

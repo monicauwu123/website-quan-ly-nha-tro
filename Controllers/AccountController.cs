@@ -90,11 +90,11 @@ namespace DoAnSE104.Controllers
         {
             try
             {
-                // Lấy base URL từ request
+                // Dùng URL hiện tại để tạo link trong email.
                 var baseUrl = $"{Request.Scheme}://{Request.Host}";
                 await _accountService.QuenMatKhau(dto.Email, baseUrl);
 
-                // Luôn trả thành công để không lộ email có tồn tại không
+                // Không tiết lộ email có tồn tại trong hệ thống hay không.
                 return Ok(ApiResponse<object>.Ok(null!,
                     "Nếu email tồn tại trong hệ thống, chúng tôi đã gửi mã OTP. Vui lòng kiểm tra hộp thư."));
             }

@@ -1,5 +1,5 @@
 ﻿// ==========================================
-// AUTH.JS – Đăng nhập + lưu role vào localStorage
+// Đăng nhập và lưu vai trò vào localStorage.
 // ==========================================
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -25,10 +25,10 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         if (response.ok) {
             const data = await response.json();
 
-            // Hỗ trợ cả ApiResponse wrapper { data: {...} } lẫn flat object
+            // Backend có thể trả dữ liệu trong wrapper hoặc trả trực tiếp object.
             const payload = data.data ?? data;
 
-            // Chuẩn hoá tên field role (backend có thể trả vaiTro hoặc role)
+            // Backend có thể trả tên vai trò bằng vaiTro hoặc role.
             const role = payload.vaiTro ?? payload.role ?? '';
 
             const userInfo = {

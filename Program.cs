@@ -13,9 +13,8 @@ using DoAnSE104.Services;
 using DoAnSE104.Services.Interfaces;
 using DoAnSE104.Helpers;
 
-// Neon/PostgreSQL with Npgsql is strict about DateTime.Kind for timestamptz.
-// The current project uses DateTime.Now/Today widely, so keep legacy timestamp
-// behavior for demo deployment without rewriting every model/controller.
+// Npgsql kiểm tra DateTime.Kind khá chặt với timestamptz.
+// Dự án vẫn dùng DateTime.Now/Today ở nhiều nơi, nên giữ cách xử lý cũ để chạy ổn định.
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);

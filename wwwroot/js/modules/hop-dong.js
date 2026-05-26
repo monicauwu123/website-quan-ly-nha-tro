@@ -1,4 +1,4 @@
-﻿// Module cấu hình: hopdong
+// Cấu hình module hợp đồng.
 window.AppModules = window.AppModules || {};
 window.AppModules.hopdong = {
     title: 'Hợp Đồng',

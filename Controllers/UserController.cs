@@ -22,12 +22,11 @@ namespace DoAnSE104.Controllers
 
         private int? GetCurrentUserId()
         {
-            // Đọc user id từ JWT, tránh int.Parse khi token thiếu claim.
+            // Đọc user id từ JWT, không parse khi token thiếu claim.
             var rawUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return int.TryParse(rawUserId, out var userId) ? userId : null;
         }
 
-        // GET: api/User
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
@@ -35,7 +34,6 @@ namespace DoAnSE104.Controllers
             return await _context.Users.ToListAsync();
         }
 
-        // GET: api/User/5
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<User>> GetUser(int id)
@@ -50,7 +48,6 @@ namespace DoAnSE104.Controllers
             return user;
         }
 
-        // PUT: api/User/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(int id, UserUpdateDto userDto)
@@ -61,13 +58,13 @@ namespace DoAnSE104.Controllers
                 return NotFound(new { thongBao = "Không tìm thấy người dùng" });
             }
 
-            // Kiểm tra nếu là tài khoản admin thì không cho phép thay đổi vai trò
+            // Không cho đổi vai trò của tài khoản admin.
             if (user.VaiTro == "Admin" && userDto.VaiTro != "Admin")
             {
                 return BadRequest(new { thongBao = "Không thể thay đổi vai trò của tài khoản admin" });
             }
 
-            // Kiểm tra tên đăng nhập đã tồn tại chưa (nếu có thay đổi)
+            // Nếu đổi tên đăng nhập thì kiểm tra trùng trước.
             if (user.TenDangNhap != userDto.TenDangNhap)
             {
                 if (await _context.Users.AnyAsync(u => u.TenDangNhap == userDto.TenDangNhap))
@@ -76,7 +73,7 @@ namespace DoAnSE104.Controllers
                 }
             }
 
-            // Kiểm tra email đã tồn tại chưa (nếu có thay đổi)
+            // Nếu đổi email thì kiểm tra trùng trước.
             if (user.Email != userDto.Email)
             {
                 if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
@@ -85,7 +82,7 @@ namespace DoAnSE104.Controllers
                 }
             }
 
-            // Cập nhật thông tin
+            // Ghi các thông tin được phép sửa.
             user.HoTen = userDto.HoTen;
             user.TenDangNhap = userDto.TenDangNhap;
             user.Email = userDto.Email;
@@ -112,7 +109,6 @@ namespace DoAnSE104.Controllers
             return Ok(new { thongBao = "Cập nhật thông tin thành công" });
         }
 
-        // DELETE: api/User/5
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -123,7 +119,7 @@ namespace DoAnSE104.Controllers
                 return NotFound(new { thongBao = "Không tìm thấy người dùng" });
             }
 
-            // Kiểm tra nếu là tài khoản admin thì không cho phép xóa
+            // Không cho xóa tài khoản admin.
             if (user.VaiTro == "Admin")
             {
                 return BadRequest(new { thongBao = "Không thể xóa tài khoản admin" });
@@ -135,7 +131,6 @@ namespace DoAnSE104.Controllers
             return Ok(new { thongBao = "Xóa người dùng thành công" });
         }
 
-        // GET: api/User/profile
         [HttpGet("profile")]
         public async Task<ActionResult<User>> GetCurrentUser()
         {
@@ -155,7 +150,6 @@ namespace DoAnSE104.Controllers
             return user;
         }
 
-        // PUT: api/User/profile
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile(UserProfileDto profileDto)
         {
@@ -172,7 +166,7 @@ namespace DoAnSE104.Controllers
                 return NotFound(new { thongBao = "Không tìm thấy người dùng" });
             }
 
-            // Kiểm tra email đã tồn tại chưa (nếu có thay đổi)
+            // Nếu đổi email thì kiểm tra trùng trước.
             if (user.Email != profileDto.Email)
             {
                 if (await _context.Users.AnyAsync(u => u.Email == profileDto.Email))
@@ -181,7 +175,7 @@ namespace DoAnSE104.Controllers
                 }
             }
 
-            // Cập nhật thông tin
+            // Ghi các thông tin hồ sơ được phép sửa.
             user.HoTen = profileDto.HoTen;
             user.Email = profileDto.Email;
             user.SoDienThoai = profileDto.SoDienThoai;

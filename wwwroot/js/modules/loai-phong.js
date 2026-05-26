@@ -1,4 +1,4 @@
-﻿// Module cấu hình: loaiphong
+// Cấu hình module loại phòng.
 window.AppModules = window.AppModules || {};
 window.AppModules.loaiphong = {
     title: 'Loại Phòng',

@@ -1,9 +1,5 @@
 ﻿// ==========================================
-// SIDEBAR BADGES - chấm đỏ/số lượng cảnh báo nhanh
-// - Yêu cầu thuê chờ duyệt
-// - Báo cáo sự cố chưa xử lý
-// - Thông báo chưa đọc
-// - Biên lai chờ duyệt
+// Badge cảnh báo nhanh trên sidebar.
 // ==========================================
 (function () {
     const POLL_MS = 60000;
@@ -214,7 +210,7 @@
 
     async function countThongBao() {
         // Badge thông báo chỉ dành cho người dùng nhận thông báo.
-        // Chủ trọ/Admin là người gửi/quản lý nên không hiện chấm đỏ "chưa đọc".
+        // Badge chưa đọc chỉ áp dụng cho người nhận thông báo.
         const role = getCurrentRole();
         if (role !== 'NguoiDung') return 0;
         return asCount(await request('/api/ThongBao/chua-doc'));

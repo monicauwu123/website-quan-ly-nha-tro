@@ -40,7 +40,7 @@ namespace DoAnSE104.Models.Dtos
         public string? QrThanhToanUrl { get; set; }
 
         /// <summary>
-        /// True nếu đang có biên lai ChoXacNhan — dùng để ẩn nút "Gửi biên lai" trên FE.
+        /// True nếu hóa đơn đang có biên lai chờ xác nhận.
         /// </summary>
         public bool DaCoBienLaiChoXacNhan { get; set; } = false;
     }

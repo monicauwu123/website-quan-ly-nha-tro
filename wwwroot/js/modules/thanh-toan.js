@@ -1,4 +1,4 @@
-﻿// Module cấu hình: thanhtoan
+// Cấu hình module thanh toán.
 window.AppModules = window.AppModules || {};
 const _ttLookups = () => window.lookups || { hoadon: [], nguoithue: [] };
 window.AppModules.thanhtoan = {

@@ -116,21 +116,21 @@ namespace DoAnSE104.Services
             await _context.SaveChangesAsync();
         }
 
-        // ─── Quên mật khẩu — sinh OTP 6 số, gửi email ───────────────────────
+        // ─── Quên mật khẩu ──────────────────────────────────────────────────
 
         public async Task QuenMatKhau(string email, string baseUrl)
         {
             var normalizedEmail = (email ?? string.Empty).Trim().ToLower();
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
 
-            // Không tiết lộ email có tồn tại hay không (bảo mật)
+            // Kiểm tra tài khoản theo email.
             if (user == null)
                 throw new Exception("Email không tồn tại trong hệ thống. Vui lòng kiểm tra lại.");
 
             if (!user.TrangThai)
                 throw new Exception("Tài khoản đã bị khóa, không thể đặt lại mật khẩu");
 
-            // Sinh OTP 6 số
+            // OTP có hiệu lực trong 15 phút.
             var otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
 
             user.PasswordResetToken = BCrypt.Net.BCrypt.HashPassword(otp);
@@ -138,7 +138,7 @@ namespace DoAnSE104.Services
 
             await _context.SaveChangesAsync();
 
-            // URL có email & raw otp để client tự điền vào form reset
+            // Tạo link đặt lại mật khẩu.
             var resetUrl = $"{baseUrl}/reset-mat-khau?email={Uri.EscapeDataString(user.Email)}&token={otp}";
 
             await _emailService.GuiEmailResetMatKhau(
@@ -169,7 +169,7 @@ namespace DoAnSE104.Services
             if (!BCrypt.Net.BCrypt.Verify(dto.Token, user.PasswordResetToken))
                 throw new Exception("Mã OTP không hợp lệ");
 
-            // Đặt mật khẩu mới
+            // Lưu mật khẩu mới.
             user.MatKhau = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
             user.PasswordResetToken = null;
             user.PasswordResetTokenExpiry = null;
@@ -177,7 +177,7 @@ namespace DoAnSE104.Services
             await _context.SaveChangesAsync();
         }
 
-        // ─── Helpers ─────────────────────────────────────────────────────────
+        // ─── Hàm dùng chung ─────────────────────────────────────────────────
 
         private static ThongTinTaiKhoanDto MapToThongTinDto(User u) => new()
         {

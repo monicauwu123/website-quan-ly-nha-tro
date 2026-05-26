@@ -57,7 +57,6 @@ namespace DoAnSE104.Controllers
             return await _context.NhaTro.AnyAsync(n => n.MaNhaTro == maNhaTro.Value && n.MaChuTro == userId);
         }
 
-        // GET: api/LoaiPhong?maNhaTro=1
         [HttpGet]
         public async Task<ActionResult<IEnumerable<LoaiPhong>>> GetLoaiPhong([FromQuery] int? maNhaTro = null)
         {
@@ -87,7 +86,6 @@ namespace DoAnSE104.Controllers
             return await GetLoaiPhong((int?)maNhaTro);
         }
 
-        // GET: api/LoaiPhong/5
         [HttpGet("{id}")]
         public async Task<ActionResult<LoaiPhong>> GetLoaiPhong(int id)
         {
@@ -102,7 +100,6 @@ namespace DoAnSE104.Controllers
             return Ok(loaiPhong);
         }
 
-        // POST: api/LoaiPhong
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<ActionResult<LoaiPhong>> PostLoaiPhong(LoaiPhong loaiPhong)
@@ -131,7 +128,6 @@ namespace DoAnSE104.Controllers
             return CreatedAtAction(nameof(GetLoaiPhong), new { id = loaiPhong.MaLoaiPhong }, loaiPhong);
         }
 
-        // PUT: api/LoaiPhong/5
         [HttpPut("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PutLoaiPhong(int id, LoaiPhong loaiPhong)
@@ -173,10 +169,7 @@ namespace DoAnSE104.Controllers
             return NoContent();
         }
 
-        // DELETE: api/LoaiPhong/5
-        // Logic:
-        //   Chưa có phòng nào dùng → Xóa cứng
-        //   Đã có phòng dùng → Chuyển TrangThai = NgungSuDung
+        // Chưa có phòng dùng thì xóa hẳn, đã có thì chuyển sang ngừng sử dụng.
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeleteLoaiPhong(int id)
@@ -202,14 +195,14 @@ namespace DoAnSE104.Controllers
 
             if (!coPhong)
             {
-                // Chưa phát sinh dữ liệu → Xóa cứng
+                // Chưa phát sinh dữ liệu thì xóa hẳn.
                 _context.LoaiPhong.Remove(loaiPhong);
                 await _context.SaveChangesAsync();
                 return Ok(ApiResponse<object>.Ok(null!, "Đã xóa loại phòng thành công"));
             }
             else
             {
-                // Đã có phòng sử dụng → Chuyển trạng thái NgungSuDung
+                // Đã có phòng sử dụng thì chuyển sang trạng thái ngừng sử dụng.
                 loaiPhong.TrangThai = "NgungSuDung";
                 await _context.SaveChangesAsync();
                 return Ok(ApiResponse<object>.Ok(null!,

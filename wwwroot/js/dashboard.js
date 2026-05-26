@@ -1,5 +1,5 @@
 ﻿// ==========================================
-// DASHBOARD.JS – Quản Lý Phòng Trọ PRO
+// Dashboard quản lý phòng trọ.
 // ==========================================
 
 // --- AUTH CHECK ---
@@ -14,7 +14,7 @@ if (user.hoTen) {
 }
 
 // ==========================================
-// ROLE-BASED UI  – ẩn/hiện menu theo role
+// Ẩn/hiện menu theo vai trò.
 // ==========================================
 const CURRENT_ROLE = (user.vaiTro || '').trim(); // 'Admin' | 'ChuTro' | 'NguoiDung'
 window.CURRENT_ROLE = CURRENT_ROLE;
@@ -123,7 +123,7 @@ function escapeHtmlDashboard(v) {
 }
 
 // ==========================================
-// API WRAPPER
+// Gọi API.
 // ==========================================
 async function apiFetch(endpoint, method = 'GET', body = null) {
     const opts = {
@@ -154,7 +154,7 @@ async function apiFetch(endpoint, method = 'GET', body = null) {
             return json;
         }
         // Chuẩn hoá response kiểu ApiResponse<T>: { thanhCong, thongBao, duLieu }
-        // để frontend luôn nhận trực tiếp mảng/object dữ liệu.
+        // để các màn hình luôn nhận trực tiếp mảng/object dữ liệu.
         if (json && typeof json === 'object' && Object.prototype.hasOwnProperty.call(json, 'duLieu')) {
             return json.duLieu;
         }
@@ -243,7 +243,7 @@ function renderServiceBadges(item, loaiDichVu = null) {
 window.renderServiceBadges = renderServiceBadges;
 
 // ==========================================
-// TOAST NOTIFICATIONS
+// Thông báo nhanh.
 // ==========================================
 function showToast(msg, type = 'success') {
     const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
@@ -256,7 +256,7 @@ function showToast(msg, type = 'success') {
 }
 
 // ==========================================
-// LOOKUP DATA
+// Dữ liệu dùng cho combobox.
 // ==========================================
 async function loadLookups() {
     const results = await Promise.allSettled([
@@ -277,7 +277,7 @@ async function loadLookups() {
     lookups.nguoithue = normalizeArrayResponse(results[4].value);
     lookups.dichvu = normalizeArrayResponse(results[5].value);
 
-    // Bổ sung lookups cho Thanh toán
+    // Nạp thêm lookup dùng cho thanh toán.
     try {
         const hd = await apiFetch('/api/HoaDon');
         lookups.hoadon = normalizeArrayResponse(hd);
@@ -290,7 +290,7 @@ async function loadLookups() {
 }
 
 // ==========================================
-// MODULE CONFIGS
+// Cấu hình module.
 // ==========================================
 const modules = window.AppModules || {};
 
@@ -300,7 +300,7 @@ const dienModule = window.AppDienNuocModules?.dien || {};
 const nuocModule = window.AppDienNuocModules?.nuoc || {};
 
 // ==========================================
-// SECTION NAVIGATION
+// Chuyển mục trên dashboard.
 // ==========================================
 function normalizeSectionFromHash() {
     const raw = (window.location.hash || '').replace('#', '').trim();
@@ -412,7 +412,7 @@ function showSection(section, el, skipHashUpdate = false) {
     currentSection = section;
 
     // Quyền hiển thị nút "Thêm mới" theo từng nghiệp vụ.
-    // Báo cáo sự cố: chỉ Người dùng/khách thuê được tạo; Chủ trọ/Admin chỉ xem và xử lý.
+    // Báo cáo sự cố chỉ do người thuê gửi.
     const canCreate = userCanCreateSection(section);
     const canWrite = canCreate;
 
@@ -485,7 +485,7 @@ function showSection(section, el, skipHashUpdate = false) {
 }
 
 // ==========================================
-// OVERVIEW
+// Tổng quan.
 // ==========================================
 async function loadOverview() {
     try {
@@ -943,7 +943,7 @@ function renderDashboardQuickActionsCard() {
 }
 
 // ==========================================
-// OVERVIEW  –  Chủ trọ / Admin
+// Tổng quan cho chủ trọ và admin.
 // ==========================================
 function renderChuTroAdminOverview(data) {
     document.getElementById('sectionTitle').textContent =
@@ -1160,7 +1160,7 @@ function renderChuTroAdminOverview(data) {
 
 
 // ==========================================
-// OVERVIEW  –  Người dùng
+// Tổng quan cho người dùng.
 // ==========================================
 function renderNguoiDungOverview(data) {
     document.getElementById('sectionTitle').textContent = 'Tổng quan của tôi';
@@ -1381,7 +1381,7 @@ function renderNguoiDungOverview(data) {
 
 
 // ==========================================
-// ROOM GRID
+// Lưới phòng.
 // ==========================================
 async function renderRoomGrid() {
     const _addBtn = document.getElementById('addBtn');
@@ -1389,7 +1389,7 @@ async function renderRoomGrid() {
 
     const container = document.getElementById('genericSection');
 
-    // ── Admin / ChuTro → dùng PhongTable (bảng + filter + paging) ────
+    // ── Admin / ChuTro dùng PhongTable (bảng + filter + paging) ──────
     if (CURRENT_ROLE === 'Admin' || CURRENT_ROLE === 'ChuTro') {
         if (typeof window.PhongTable === 'undefined' || typeof window.PhongTable.init !== 'function') {
             container.innerHTML = `<div class="data-card" style="padding:2rem;text-align:center;color:var(--error);">
@@ -1408,7 +1408,7 @@ async function renderRoomGrid() {
         return;
     }
 
-    // ── NguoiDung → giữ dạng card + bộ lọc đơn giản có paging ───────
+    // ── NguoiDung dùng dạng card và bộ lọc đơn giản có paging ───────
     selectedRoomHouseId = null;
 
     container.innerHTML = `
@@ -1532,7 +1532,7 @@ function filterRooms() {
             || (r.moTa          || '').toLowerCase().includes(q);
     });
 
-    // Filter loại phòng (so sánh theo tên vì mỗi nhà trọ có maLoaiPhong riêng)
+    // Lọc loại phòng theo tên để dùng được với nhiều nhà trọ.
     if (lf) data = data.filter(r => {
         const loai = lookups.loaiphong.find(l => l.maLoaiPhong === r.maLoaiPhong);
         return loai && loai.tenLoaiPhong.trim().toLowerCase() === lf;
@@ -1779,7 +1779,7 @@ function setGalleryImage(url, button) {
 window.setGalleryImage = setGalleryImage;
 
 // ==========================================
-// GENERIC TABLE
+// Bảng dùng chung.
 // ==========================================
 const genericTableState = {};
 
@@ -2085,7 +2085,7 @@ function filterSortGenericData(cfg, data, section) {
 function renderGenericToolbar(cfg, data, section, filteredCount) {
     const slot = document.getElementById('genericToolbarSlot');
     if (!slot) return;
-    // ── Nếu input đang được focus → KHÔNG rebuild innerHTML, chỉ sync state ──
+    // ── Khi input đang focus, chỉ đồng bộ state để tránh mất vị trí nhập ──
     const activeEl = document.activeElement;
     const inputBelongsHere = slot.contains(activeEl) && activeEl.tagName === 'INPUT' && activeEl.type === 'text';
     if (inputBelongsHere) {
@@ -2410,7 +2410,7 @@ async function loadGenericSection(section) {
 
     let extraToolbarHtml = '';
     if (section === 'thongbao') {
-        // Mount container & gọi onLoad của module thongbao
+        // Nạp giao diện riêng của mục thông báo.
         document.getElementById('genericSection').innerHTML = `
             <div id="thongBaoContainer" style="padding:.25rem 0;"></div>`;
         const container = document.getElementById('thongBaoContainer');
@@ -2684,8 +2684,8 @@ async function searchNguoiThue(q) {
 }
 
 
-// Gộp danh sách khách thuê theo cùng tài khoản/người thật để chủ trọ không thấy lặp
-// khi một người thuê nhiều phòng. Dữ liệu gốc vẫn giữ nguyên trong currentData/lookups để các form nghiệp vụ dùng đúng hồ sơ phòng.
+// Gom các hồ sơ thuê thuộc cùng một tài khoản để danh sách dễ đọc hơn.
+// Dữ liệu gốc vẫn giữ nguyên cho các form nghiệp vụ.
 let nguoiThueGroupMap = {};
 window.nguoiThueGroupMap = nguoiThueGroupMap;
 
@@ -3172,7 +3172,7 @@ async function deleteDienNuoc(tab, id) {
 }
 
 // ==========================================
-// MODAL FOOTER HELPER
+// Footer dùng chung cho modal.
 // ==========================================
 function resetModalFooter() {
     const footer = document.querySelector('#universalModal .modal-footer');
@@ -3185,7 +3185,7 @@ function resetModalFooter() {
 }
 
 // ==========================================
-// GENERIC MODAL BUILDER
+// Tạo modal dùng chung.
 // ==========================================
 function normalizeLookupTextKey(value) {
     return String(value ?? '')
@@ -3493,7 +3493,7 @@ function buildModal(title, fields, item, onSubmit) {
 }
 
 // ==========================================
-// OPEN MODAL (dispatch by section)
+// Mở modal theo mục hiện tại.
 // ==========================================
 function openModal(id = null) {
     resetModalFooter();
@@ -4375,7 +4375,7 @@ async function huyDangKyDichVu(id) {
 }
 
 // ==========================================
-// THANH TOÁN HÓA ĐƠN
+// Thanh toán hóa đơn.
 // ==========================================
 function copyPaymentText(text, label = 'Nội dung') {
     const value = String(text || '').trim();
@@ -4547,7 +4547,7 @@ async function openHoaDonThanhToanModal(maHoaDon) {
 }
 
 // ==========================================
-// USER CUSTOM MODAL
+// Modal riêng cho người dùng.
 // ==========================================
 async function openUserModal(id = null) {
     resetModalFooter();
@@ -4754,7 +4754,7 @@ async function deleteNguoiThueDisplayGroup(id) {
 }
 
 // ==========================================
-// CRUD HELPERS
+// Các hàm CRUD dùng chung.
 // ==========================================
 function editItem(section, id) {
     currentSection = section;
@@ -4779,7 +4779,7 @@ async function deleteItem(section, id) {
             throw new Error(extractApiErrorMessage(json) || `Lỗi HTTP ${res.status}`);
         }
 
-        // Lấy thông báo trực tiếp từ ApiResponse (không qua apiFetch vì apiFetch trả về duLieu)
+        // API xóa trả về thông báo ở wrapper gốc.
         const msg = json.thongBao || 'Đã xử lý yêu cầu xóa!';
         showToast(msg);
         refreshData();
@@ -4915,7 +4915,7 @@ function setupFloatingActionMenus() {
 }
 
 // ==========================================
-// STARTUP
+// Khởi tạo dashboard.
 // ==========================================
 
 

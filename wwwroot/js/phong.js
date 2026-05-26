@@ -1,4 +1,4 @@
-﻿// Module cấu hình: phong
+// Cấu hình module phòng.
 window.AppModules = window.AppModules || {};
 const _pLookups = () => window.lookups || { nhatro: [], loaiphong: [], trangthai: [] };
 const renderPhongImage = item => {

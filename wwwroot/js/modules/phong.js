@@ -1,6 +1,4 @@
-﻿// Module cấu hình: phong
-// =====================================================================
-// PHIÊN BẢN NÂNG CẤP: Search / Filter / Sort / Paging
+// Cấu hình module phòng.
 // =====================================================================
 window.AppModules = window.AppModules || {};
 
@@ -68,8 +66,7 @@ window.AppModules.phong = {
 };
 
 // =====================================================================
-// PHONG TABLE MODULE – Search / Filter / Sort / Paging (Admin & ChuTro)
-// Gọi window.PhongTable.init() để khởi động màn hình bảng danh sách
+// Bảng phòng: tìm kiếm, lọc, sắp xếp và phân trang cho admin/chủ trọ.
 // =====================================================================
 window.PhongTable = (function () {
 

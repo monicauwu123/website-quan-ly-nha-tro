@@ -1,6 +1,6 @@
-﻿// Module cấu hình: hoadon
-// Đặt tại: wwwroot/js/modules/hoa-don.js
-// Chức năng bổ sung: In hóa đơn (window.print) + Xuất Excel (SheetJS / CSV fallback)
+// Cấu hình module hóa đơn.
+// Các phần bổ sung cho module hóa đơn.
+// In hóa đơn bằng window.print và xuất Excel/CSV.
 
 window.AppModules = window.AppModules || {};
 window.AppModules.hoadon = {
@@ -26,7 +26,7 @@ window.AppModules.hoadon = {
 };
 
 // ============================================================
-// HOA DON PRINT — In hóa đơn bằng window.print()
+// In hóa đơn bằng window.print().
 // ============================================================
 window.HoaDonPrint = (function () {
 
@@ -292,7 +292,7 @@ ${(hd.ghiChu || hd.tienPhatSinhKhac > 0) ? `
 
 
 // ============================================================
-// HOA DON EXCEL — Xuất Excel / CSV danh sách hóa đơn
+// Xuất danh sách hóa đơn ra Excel hoặc CSV.
 // ============================================================
 window.HoaDonExcel = (function () {
 
@@ -431,7 +431,7 @@ window.HoaDonExcel = (function () {
         };
 
         const lines = [
-            '\uFEFF' + headers.map(escape).join(','), // BOM for Excel UTF-8
+            '\uFEFF' + headers.map(escape).join(','), // Giúp Excel nhận đúng UTF-8.
             ...rows.map(r => [
                 r.maHoaDon, r.tenPhong, r.tenNguoiThue, r.kyHoaDon, r.tenLoaiHoaDon,
                 fmt(r.tienPhong), fmt(r.tienDien), fmt(r.tienNuoc), fmt(r.tienDichVu), fmt(r.tienPhatSinhKhac),
@@ -463,7 +463,7 @@ window.HoaDonExcel = (function () {
             return;
         }
 
-        // Thử dùng SheetJS nếu có (XLSX global)
+        // Ưu tiên SheetJS nếu trang đã nạp thư viện XLSX.
         if (window.XLSX) {
             const wsData = [
                 ['Mã HĐ','Phòng','Người thuê','Kỳ hóa đơn','Loại hóa đơn',

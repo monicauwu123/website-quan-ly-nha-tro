@@ -52,7 +52,6 @@ namespace DoAnSE104.Controllers
             return null;
         }
 
-        // GET: api/NhaTro
         [HttpGet]
         public async Task<IActionResult> GetNhaTro()
         {
@@ -77,7 +76,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/NhaTro/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetNhaTro(int id)
         {
@@ -101,7 +99,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/NhaTro
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PostNhaTro([FromBody] NhaTro nhaTro)
@@ -128,7 +125,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // PUT: api/NhaTro/5
         [HttpPut("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PutNhaTro(int id, [FromBody] NhaTro nhaTro)
@@ -163,7 +159,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/NhaTro/upload-image
         [HttpPost("UploadImage")]
         [HttpPost("upload-image")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
@@ -204,10 +199,7 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // DELETE: api/NhaTro/5
-        // Logic:
-        //   Chưa có dữ liệu liên quan → Xóa cứng, báo "Đã xóa thành công"
-        //   Đã có dữ liệu liên quan   → Chuyển TrangThai = NgungHoatDong, báo rõ lý do
+        // Chưa phát sinh dữ liệu thì xóa hẳn, đã có lịch sử thì chuyển sang ngừng hoạt động.
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeleteNhaTro(int id)
@@ -225,21 +217,21 @@ namespace DoAnSE104.Controllers
                 var result = await _deleteValidationService.DeleteNhaTroAsync(id);
                 return this.ToActionResult(result);
 
-                // Kiểm tra dữ liệu liên quan
+                // Kiểm tra các dữ liệu đang gắn với nhà trọ.
                 var coPhong      = await _context.Phong.AnyAsync(p => p.MaNhaTro == id);
                 var coLoaiPhong  = await _context.LoaiPhong.AnyAsync(lp => lp.MaNhaTro == id);
                 var coDichVu     = await _context.DichVu.AnyAsync(dv => dv.MaNhaTro == id);
 
                 if (!coPhong && !coLoaiPhong && !coDichVu)
                 {
-                    // Chưa phát sinh dữ liệu → Xóa cứng
+                    // Chưa phát sinh dữ liệu thì xóa hẳn.
                     _context.NhaTro.Remove(nhaTro);
                     await _context.SaveChangesAsync();
                     return Ok(ApiResponse<object>.Ok(null!, "Đã xóa nhà trọ thành công"));
                 }
                 else
                 {
-                    // Đã có dữ liệu liên quan → Chuyển trạng thái Ngưng hoạt động
+                    // Đã có dữ liệu liên quan thì chuyển sang trạng thái ngừng hoạt động.
                     nhaTro.TrangThai = "NgungHoatDong";
                     await _context.SaveChangesAsync();
 

@@ -129,14 +129,14 @@ namespace DoAnSE104.Controllers
             NgayXacNhan        = t.NgayXacNhan
         };
 
-        // ── Helper cập nhật TrangThai HoaDon sau xác nhận ────────────────────
+        // ── Cập nhật trạng thái hóa đơn sau xác nhận ────────────────────────
 
         private async Task CapNhatTrangThaiHoaDon(int maHoaDon)
         {
             var hoaDon = await _context.HoaDon.FindAsync(maHoaDon);
             if (hoaDon == null) return;
 
-            // Chỉ tính các thanh toán đã được xác nhận
+            // Chỉ tính các thanh toán đã được xác nhận.
             var tongDaXacNhan = await _context.ThanhToan
                 .Where(t => t.MaHoaDon == maHoaDon && t.TrangThaiXacNhan == "DaXacNhan")
                 .SumAsync(t => t.TongTien);
@@ -144,7 +144,7 @@ namespace DoAnSE104.Controllers
             if (tongDaXacNhan >= hoaDon.TongTien)
                 hoaDon.TrangThai = "DaThanhToan";
             else if (tongDaXacNhan > 0)
-                hoaDon.TrangThai = "ThanhToanMotPhan"; // Ghi chú: thêm trạng thái này nếu cần
+                hoaDon.TrangThai = "ThanhToanMotPhan";
             else
                 hoaDon.TrangThai = "ChuaThanhToan";
 
@@ -175,10 +175,9 @@ namespace DoAnSE104.Controllers
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // ENDPOINTS CŨ (GIỮ NGUYÊN, không phá chức năng cũ)
+        // Thanh toán do chủ trọ hoặc admin nhập trực tiếp.
         // ════════════════════════════════════════════════════════════════════
 
-        // GET: api/ThanhToan
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ThanhToanDto>>> GetThanhToan()
         {
@@ -204,7 +203,6 @@ namespace DoAnSE104.Controllers
             return Ok(list.Select(ToDto));
         }
 
-        // GET: api/ThanhToan/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ThanhToanDto>> GetThanhToan(int id)
         {
@@ -223,7 +221,6 @@ namespace DoAnSE104.Controllers
             return Ok(ToDto(thanhToan));
         }
 
-        // GET: api/ThanhToan/HoaDon/5
         [HttpGet("HoaDon/{hoaDonId}")]
         public async Task<ActionResult<IEnumerable<ThanhToanDto>>> GetThanhToanByHoaDon(int hoaDonId)
         {
@@ -256,7 +253,7 @@ namespace DoAnSE104.Controllers
             return Ok(list.Select(ToDto));
         }
 
-        // POST: api/ThanhToan  (chủ trọ / admin tạo thanh toán trực tiếp - giữ nguyên)
+        // Chủ trọ và admin có thể ghi nhận thanh toán trực tiếp.
         [HttpPost]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<ActionResult<ThanhToanDto>> PostThanhToan(ThanhToan thanhToan)
@@ -266,7 +263,7 @@ namespace DoAnSE104.Controllers
                 return BadRequest(ApiResponse<object>.Loi(loiValidation));
 
             thanhToan.NgayThanhToan = DateTime.Now;
-            // Thanh toán do chủ trọ nhập = tự động xác nhận
+            // Thanh toán do chủ trọ nhập được tự động xác nhận.
             thanhToan.TrangThaiXacNhan = "DaXacNhan";
             thanhToan.NguoiXacNhanId = GetCurrentUserId();
             thanhToan.NgayXacNhan = DateTime.Now;
@@ -285,7 +282,7 @@ namespace DoAnSE104.Controllers
                 ApiResponse<ThanhToanDto>.Ok(ToDto(saved), "Thêm thanh toán thành công"));
         }
 
-        // PUT: api/ThanhToan/5 (chủ trọ / admin sửa - giữ nguyên)
+        // Chủ trọ và admin có thể cập nhật thanh toán trực tiếp.
         [HttpPut("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> PutThanhToan(int id, ThanhToan thanhToan)
@@ -317,7 +314,6 @@ namespace DoAnSE104.Controllers
             return Ok(ApiResponse<ThanhToan>.Ok(thanhToan, "Cập nhật thanh toán thành công"));
         }
 
-        // DELETE: api/ThanhToan/5 (giữ nguyên)
         [HttpDelete("{id}")]
         [Authorize(Roles = $"{VaiTroConst.Admin},{VaiTroConst.ChuTro}")]
         public async Task<IActionResult> DeleteThanhToan(int id)
@@ -348,7 +344,7 @@ namespace DoAnSE104.Controllers
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // ENDPOINTS MỚI: Gửi biên lai (NguoiDung)
+        // Gửi biên lai thanh toán.
         // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
@@ -365,23 +361,23 @@ namespace DoAnSE104.Controllers
             var userId = GetCurrentUserId();
             var anhBienLai = dto.AnhBienLai;
 
-            // 1. Kiểm tra hóa đơn tồn tại
+            // Kiểm tra hóa đơn.
             var hoaDon = await _context.HoaDon.FindAsync(dto.MaHoaDon);
             if (hoaDon == null)
                 return NotFound(ApiResponse<object>.Loi("Không tìm thấy hóa đơn"));
 
-            // 2. Kiểm tra người dùng có phải người thuê của hóa đơn đó không
+            // Người gửi biên lai phải là người thuê của hóa đơn.
             var nguoiThue = await _context.NguoiThue
                 .FirstOrDefaultAsync(nt => nt.MaNguoiThue == hoaDon.MaNguoiThue && nt.MaNguoiDung == userId);
             if (nguoiThue == null)
-                return Forbid(); // Không phải hóa đơn của mình
+                return Forbid();
 
-            // 3. Hóa đơn phải đang ở trạng thái chưa thanh toán hoặc thiếu
+            // Chỉ nhận biên lai cho hóa đơn còn cần thanh toán.
             if (hoaDon.TrangThai == "DaThanhToan" || hoaDon.TrangThai == "Huy")
                 return BadRequest(ApiResponse<object>.Loi(
                     "Hóa đơn này đã thanh toán hoặc đã hủy, không thể gửi biên lai"));
 
-            // 4. Kiểm tra xem đã có biên lai chờ xác nhận chưa
+            // Mỗi hóa đơn chỉ có một biên lai chờ xác nhận tại một thời điểm.
             var daCoBienLai = await _context.ThanhToan
                 .AnyAsync(t => t.MaHoaDon == dto.MaHoaDon && t.TrangThaiXacNhan == "ChoXacNhan");
             if (daCoBienLai)
@@ -389,11 +385,11 @@ namespace DoAnSE104.Controllers
                     "Đã có biên lai đang chờ xác nhận cho hóa đơn này. " +
                     "Vui lòng đợi chủ trọ xác nhận trước khi gửi thêm."));
 
-            // 5. Validate số tiền
+            // Kiểm tra số tiền gửi lên.
             if (dto.TongTien <= 0)
                 return BadRequest(ApiResponse<object>.Loi("Số tiền phải lớn hơn 0"));
 
-            // 6. Upload ảnh biên lai (nếu có)
+            // Upload ảnh biên lai nếu người dùng có gửi file.
             var tongDaXacNhan = await _context.ThanhToan
                 .Where(t => t.MaHoaDon == dto.MaHoaDon && t.TrangThaiXacNhan == "DaXacNhan")
                 .SumAsync(t => t.TongTien);
@@ -430,7 +426,7 @@ namespace DoAnSE104.Controllers
                         "Upload ảnh biên lai thất bại. Chỉ chấp nhận jpg/jpeg/png/gif/webp, tối đa 10MB"));
             }
 
-            // 7. Tạo bản ghi ThanhToan với trạng thái "ChoXacNhan"
+            // Lưu biên lai ở trạng thái chờ xác nhận.
             var thanhToan = new ThanhToan
             {
                 MaHoaDon           = dto.MaHoaDon,
@@ -457,7 +453,7 @@ namespace DoAnSE104.Controllers
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // ENDPOINTS MỚI: Danh sách biên lai chờ xác nhận (ChuTro/Admin)
+        // Danh sách biên lai chờ xác nhận.
         // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
@@ -488,7 +484,7 @@ namespace DoAnSE104.Controllers
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // ENDPOINTS MỚI: Xác nhận / Từ chối biên lai (ChuTro/Admin)
+        // Xác nhận hoặc từ chối biên lai.
         // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
@@ -511,7 +507,7 @@ namespace DoAnSE104.Controllers
             if (thanhToan.TrangThaiXacNhan != "ChoXacNhan")
                 return BadRequest(ApiResponse<object>.Loi("Biên lai này không ở trạng thái chờ xác nhận"));
 
-            // Kiểm tra quyền chủ trọ
+            // Chủ trọ chỉ được xác nhận biên lai thuộc phòng của mình.
             if (GetCurrentRole() == VaiTroConst.ChuTro)
             {
                 var maPhongList = await GetMaPhongCuaChuTro(GetCurrentUserId());
@@ -523,7 +519,7 @@ namespace DoAnSE104.Controllers
 
             if (dto.ChapNhan)
             {
-                // Xác nhận: kiểm tra số tiền có vượt hóa đơn không
+                // Tính tổng đã xác nhận trước đó.
                 var tongDaXacNhan = await _context.ThanhToan
                     .Where(t => t.MaHoaDon == thanhToan.MaHoaDon
                                 && t.MaThanhToan != id
@@ -532,7 +528,6 @@ namespace DoAnSE104.Controllers
 
                 var hoaDon = thanhToan.HoaDon;
 
-                // Nếu vượt quá tổng hóa đơn thì vẫn cho phép nhưng trả về cảnh báo
                 thanhToan.TrangThaiXacNhan = "DaXacNhan";
                 thanhToan.NguoiXacNhanId  = userId;
                 thanhToan.NgayXacNhan     = DateTime.Now;
@@ -550,7 +545,6 @@ namespace DoAnSE104.Controllers
             }
             else
             {
-                // Từ chối
                 if (string.IsNullOrWhiteSpace(dto.LyDoTuChoi))
                     return BadRequest(ApiResponse<object>.Loi("Vui lòng nhập lý do từ chối"));
 
@@ -560,7 +554,7 @@ namespace DoAnSE104.Controllers
                 thanhToan.NgayXacNhan      = DateTime.Now;
 
                 await _context.SaveChangesAsync();
-                // Không đổi TrangThai HoaDon khi từ chối
+                // Từ chối biên lai không làm đổi trạng thái hóa đơn.
 
                 return Ok(ApiResponse<object>.Ok(null!, "Đã từ chối biên lai. Người thuê sẽ được thông báo."));
             }

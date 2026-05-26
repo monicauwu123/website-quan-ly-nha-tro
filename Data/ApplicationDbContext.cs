@@ -35,7 +35,7 @@ namespace DoAnSE104.Data
         public DbSet<EmailLog> EmailLog { get; set; }
 
         /// <summary>
-        /// Bổ sung các cột còn thiếu khi chạy trực tiếp bằng EnsureCreated().
+        /// Đảm bảo các cột cần thiết tồn tại khi chạy bằng EnsureCreated().
         /// </summary>
         public void EnsureCustomSchema()
         {
@@ -242,8 +242,8 @@ BEGIN
 END
 
 -- Đồng bộ trạng thái phòng theo hợp đồng hiệu lực
--- Phòng đang có HĐ hiệu lực → Đã thuê (MaTrangThai = 2)
--- Phòng không có HĐ hiệu lực → Còn trống (MaTrangThai = 1)
+-- Phòng đang có hợp đồng hiệu lực được đánh dấu đã thuê.
+-- Phòng không có hợp đồng hiệu lực được đánh dấu còn trống.
 -- Phòng đang sửa chữa (MaTrangThai = 3) giữ nguyên
 IF OBJECT_ID('Phong', 'U') IS NOT NULL AND OBJECT_ID('HopDong', 'U') IS NOT NULL
 BEGIN

@@ -1,4 +1,4 @@
-﻿// Module cấu hình: phòng đang thuê của người dùng
+// Cấu hình module phòng đang thuê.
 window.AppModules = window.AppModules || {};
 window.AppModules.phongdangthue = {
     title: 'Phòng của tôi',

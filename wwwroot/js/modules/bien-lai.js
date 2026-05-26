@@ -200,7 +200,7 @@ async function guiBienLai(maHoaDon) {
         );
         document.getElementById('modalGuiBienLai').remove();
         showToast(res.thongBao || 'Đã gửi biên lai thành công! Vui lòng đợi chủ trọ xác nhận.', 'success');
-        // Reload lại danh sách hóa đơn nếu đang ở màn hình hóa đơn
+        // Cập nhật lại danh sách nếu người dùng đang mở màn hình hóa đơn.
         if (typeof loadGenericSection === 'function') loadGenericSection('hoadon');
     } catch (err) {
         errorEl.textContent = err.message || 'Gửi biên lai thất bại';
@@ -278,7 +278,7 @@ async function thucHienXacNhan(maThanhToan, chapNhan) {
         // Hiển thị ô nhập lý do nếu chưa hiển thị
         if (tuChoiGroup.style.display === 'none') {
             tuChoiGroup.style.display = 'block';
-            return; // Đợi user nhập rồi bấm lại
+            return; // Chờ nhập lý do rồi xác nhận lại.
         }
         const lyDo = document.getElementById('xnLyDoTuChoi').value.trim();
         if (!lyDo) {
@@ -398,7 +398,7 @@ async function capNhatBadgeBienLai() {
     }
 }
 
-// Export để dùng global
+// Gắn các hàm cần gọi từ HTML vào window.
 window.moModalGuiBienLai = moModalGuiBienLai;
 window.guiBienLai = guiBienLai;
 window.moModalXacNhanBienLai = moModalXacNhanBienLai;

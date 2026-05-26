@@ -1,4 +1,4 @@
-﻿// Module cấu hình: nhatro
+// Cấu hình module nhà trọ.
 window.AppModules = window.AppModules || {};
 const renderNhaTroImage = item => {
     const url = item?.hinhAnh || parseJsonArraySafe(item?.danhSachHinhAnh)[0];

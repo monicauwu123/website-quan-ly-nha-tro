@@ -1,6 +1,5 @@
 ﻿// ==========================================
-// MODULE: thongbao
-// Quản lý thông báo - Admin/ChuTro tạo, NguoiDung xem
+// Module thông báo.
 // ==========================================
 
 window.AppModules = window.AppModules || {};
@@ -44,10 +43,9 @@ window.AppModules = window.AppModules || {};
     let _initData = null;
     let _badgeInterval = null;
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+    // ── Hàm dùng chung ───────────────────────────────────────────────────────
     function unwrapApiResponse(res) {
-        // api.js trả nguyên wrapper { thanhCong, duLieu }, còn dashboard.js lại trả thẳng duLieu.
-        // Module này có thể chạy trước hoặc sau dashboard.js nên cần nhận cả hai dạng.
+        // Chuẩn hóa dữ liệu trả về từ các đường gọi API khác nhau.
         return res && Object.prototype.hasOwnProperty.call(res, 'duLieu') ? res.duLieu : res;
     }
 
@@ -59,9 +57,7 @@ window.AppModules = window.AppModules || {};
     }
 
     function getRole() {
-        // Dự án hiện lưu role chủ yếu trong localStorage.user.vaiTro,
-        // không phải localStorage.vaiTro. Nếu chỉ đọc localStorage.vaiTro
-        // thì tài khoản ChuTro/Admin sẽ bị hiểu là không có quyền tạo thông báo.
+        // Đọc vai trò từ thông tin đăng nhập đã lưu.
         const directRole = (localStorage.getItem('vaiTro') || '').trim();
         if (directRole) return directRole;
 
@@ -103,7 +99,7 @@ window.AppModules = window.AppModules || {};
             const badge = document.getElementById('thongBaoBadge');
             if (!badge) return;
 
-            // Chủ trọ/Admin là người gửi/quản lý thông báo nên không cần chấm đỏ "chưa đọc".
+            // Badge chưa đọc chỉ áp dụng cho người nhận thông báo.
             if (isAdminOrChuTro()) {
                 badge.textContent = '';
                 badge.style.display = 'none';
@@ -123,7 +119,7 @@ window.AppModules = window.AppModules || {};
         _badgeInterval = setInterval(capNhatBadge, 60000); // mỗi 1 phút
     }
 
-    // ── Load init data (danh sách phòng & người dùng để chọn) ─────────────────
+    // ── Dữ liệu chọn người nhận ──────────────────────────────────────────────
     async function loadInitData() {
         if (!isAdminOrChuTro()) return;
         try {
@@ -132,7 +128,7 @@ window.AppModules = window.AppModules || {};
         } catch (_) { _initData = null; }
     }
 
-    // ── Render danh sách dạng card (không dùng generic table vì UX đặc thù) ──
+    // ── Render danh sách thông báo ───────────────────────────────────────────
     function renderThongBaoList(list, container) {
         if (!list || list.length === 0) {
             container.innerHTML = `
@@ -210,7 +206,7 @@ window.AppModules = window.AppModules || {};
         container.innerHTML = html;
     }
 
-    // ── Load & render section ──────────────────────────────────────────────────
+    // ── Nạp màn hình thông báo ───────────────────────────────────────────────
     async function loadThongBaoSection(contentSlot) {
         contentSlot.innerHTML = '<div style="padding:2rem;color:#6b7280;text-align:center;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
         try {
@@ -297,7 +293,7 @@ window.AppModules = window.AppModules || {};
         try {
             const res = await apiFetch('/api/ThongBao/doc-tat-ca', 'PUT');
             showToast(res?.thongBao || 'Đã đánh dấu tất cả đã đọc', 'success');
-            // Reload section
+            // Tải lại mục thông báo.
             const contentSlot = getThongBaoContentSlot();
             if (contentSlot) await loadThongBaoSection(contentSlot);
             await capNhatBadge();
@@ -466,7 +462,7 @@ window.AppModules = window.AppModules || {};
             showToast('Thông báo đã được gửi thành công!', 'success');
             if (typeof closeModal === 'function') closeModal();
 
-            // Reload section nếu đang ở mục thông báo
+            // Tải lại nếu người dùng đang ở mục thông báo.
             const contentSlot = getThongBaoContentSlot();
             if (contentSlot) await loadThongBaoSection(contentSlot);
             if (typeof window.refreshSidebarBadges === 'function') await window.refreshSidebarBadges();
@@ -477,14 +473,14 @@ window.AppModules = window.AppModules || {};
         }
     }
 
-    // ── Đăng ký module (tích hợp với generic loader) ──────────────────────────
+    // ── Cấu hình module thông báo ────────────────────────────────────────────
     window.AppModules.thongbao = {
         title: 'Thông Báo',
         endpoint: '/api/ThongBao',
         pk: 'thongBaoId',
         customModal: true,
 
-        // Chỉ dùng khi bảng mặc định được gọi.
+        // Cấu hình dự phòng cho bảng mặc định.
         headers: [
             { label: 'Tiêu đề', key: 'tieuDe' },
             { label: 'Nội dung', key: 'noiDung' },
@@ -498,13 +494,13 @@ window.AppModules = window.AppModules || {};
             }
         ],
 
-        // Hook: override phần render content nếu dashboard gọi loadGenericSection
+        // Nạp giao diện riêng của mục thông báo.
         onLoad: async function (contentSlot) {
             await loadThongBaoSection(contentSlot);
         }
     };
 
-    // ── Public API ─────────────────────────────────────────────────────────────
+    // ── Hàm dùng bên ngoài module ────────────────────────────────────────────
     window.AppThongBao = {
         init: async function () {
             await startBadgePoller();

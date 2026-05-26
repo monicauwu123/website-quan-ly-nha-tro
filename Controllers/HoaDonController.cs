@@ -274,7 +274,6 @@ namespace DoAnSE104.Controllers
             return $"https://img.vietqr.io/image/{bank}-{account}-compact2.png?amount={amount}&addInfo={addInfo}&accountName={accountName}";
         }
 
-        // GET: api/HoaDon
         [HttpGet]
         public async Task<ActionResult<IEnumerable<HoaDonDto>>> GetAllHoaDon()
         {
@@ -311,7 +310,7 @@ namespace DoAnSE104.Controllers
                 .Select(g => new { MaHoaDon = g.Key, DaThanhToan = g.Sum(x => x.TongTien) })
                 .ToDictionaryAsync(x => x.MaHoaDon, x => x.DaThanhToan);
 
-            // Tập hóa đơn đang có biên lai chờ xác nhận → dùng để ẩn nút Gửi biên lai
+            // Tập hóa đơn đang có biên lai chờ xác nhận dùng để ẩn nút gửi biên lai.
             var hoaDonCoChoXacNhan = await _context.ThanhToan
                 .Where(t => maHoaDons.Contains(t.MaHoaDon) && t.TrangThaiXacNhan == "ChoXacNhan")
                 .Select(t => t.MaHoaDon)
@@ -374,7 +373,6 @@ namespace DoAnSE104.Controllers
             return Ok(hoaDons);
         }
 
-        // GET: api/HoaDon/GetThongTinPhong/5
         [HttpGet("GetThongTinPhong/{phongId}")]
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> GetThongTinPhong(int phongId, [FromQuery] string? kyHoaDon = null)
@@ -449,7 +447,6 @@ namespace DoAnSE104.Controllers
             });
         }
 
-        // GET: api/HoaDon/GetPhongChuaCoHoaDonTrongThang
         [HttpGet("GetPhongChuaCoHoaDonTrongThang")]
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> GetPhongChuaCoHoaDonTrongThang([FromQuery] int thang, [FromQuery] int nam, [FromQuery] string? loaiHoaDon = null)
@@ -509,7 +506,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // POST: api/HoaDon
         [HttpPost]
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> CreateHoaDon([FromBody] HoaDonCreateDto request)
@@ -614,7 +610,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // PUT: api/HoaDon/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> UpdateHoaDon(int id, [FromBody] HoaDonUpdateDto dto)
@@ -714,7 +709,6 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // DELETE: api/HoaDon/5
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin,ChuTro")]
         public async Task<IActionResult> DeleteHoaDon(int id)
@@ -730,7 +724,7 @@ namespace DoAnSE104.Controllers
                 if (GetCurrentRole() == VaiTroConst.ChuTro && !await ChuTroCoQuyenHoaDon(id))
                     return Forbid();
 
-                // Kiểm tra đã thanh toán chưa
+                // Service xử lý theo trạng thái thanh toán hiện tại.
                 var result = await _deleteValidationService.DeleteHoaDonAsync(id);
                 return this.ToActionResult(result);
 
@@ -738,7 +732,7 @@ namespace DoAnSE104.Controllers
 
                 if (!coThanhToan)
                 {
-                    // Chưa thanh toán → Xóa cứng (kèm chi tiết hóa đơn)
+                    // Hóa đơn chưa thanh toán được xóa kèm chi tiết.
                     var chiTietList = await _context.ChiTietHoaDon
                         .Where(ct => ct.MaHoaDon == id).ToListAsync();
                     if (chiTietList.Count > 0)
@@ -750,7 +744,7 @@ namespace DoAnSE104.Controllers
                 }
                 else
                 {
-                    // Đã thanh toán → Không xóa cứng, chỉ chuyển trạng thái Huy
+                    // Hóa đơn đã thanh toán chỉ được chuyển sang trạng thái hủy.
                     hoaDon.TrangThai = "Huy";
                     await _context.SaveChangesAsync();
                     return Ok(ApiResponse<object>.Ok(null!,
@@ -768,8 +762,7 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // Trả về trang HTML chứa hóa đơn, dùng window.print() ở frontend
-        // Endpoint này trả về JSON data để frontend tự render & print
+        // Trả dữ liệu hóa đơn để giao diện tự dựng bản in.
         [HttpGet("ExportPdf/{id}")]
         public async Task<IActionResult> ExportPdf(int id)
         {
@@ -791,7 +784,7 @@ namespace DoAnSE104.Controllers
                 if (hoaDon == null)
                     return NotFound(ApiResponse<object>.Loi("Không tìm thấy hóa đơn"));
 
-                // Kiểm tra quyền
+                // Chỉ cho xem hóa đơn thuộc phạm vi của tài khoản hiện tại.
                 if (role == VaiTroConst.ChuTro && !await ChuTroCoQuyenHoaDon(id))
                     return Forbid();
 
@@ -843,7 +836,7 @@ namespace DoAnSE104.Controllers
                     tenNhaTro         = hoaDon.Phong?.NhaTro?.TenNhaTro,
                     diaChi            = hoaDon.Phong?.NhaTro?.DiaChi,
                     dichVuSuDung      = chiTietDichVu.Select(ct => LayTenDichVuTuLoaiKhoan(ct.LoaiKhoan)).ToList(),
-                    ghiChu            = (string?)null   // Mô hình hiện tại chưa có GhiChu — để null
+                    ghiChu            = (string?)null   // Chưa lưu ghi chú riêng cho bản in.
                 };
 
                 return Ok(result);
@@ -854,8 +847,7 @@ namespace DoAnSE104.Controllers
             }
         }
 
-        // GET: api/HoaDon/ExportExcel?kyHoaDon=2026-05&trangThai=...&maPhong=...
-        // Trả về file CSV (UTF-8 BOM) để Excel mở đúng tiếng Việt
+        // Xuất CSV kèm UTF-8 BOM để Excel đọc đúng tiếng Việt.
         [HttpGet("ExportExcel")]
         public async Task<IActionResult> ExportExcel(
             [FromQuery] string? kyHoaDon   = null,
@@ -887,7 +879,7 @@ namespace DoAnSE104.Controllers
 
                 var list = await query.OrderByDescending(h => h.NgayLap).ToListAsync();
 
-                // Tính tiền đã thanh toán
+                // Gom số tiền đã thanh toán theo từng hóa đơn.
                 var maHoaDons = list.Select(h => h.MaHoaDon).ToList();
                 var thanhToanDict = await _context.ThanhToan
                     .Where(t => maHoaDons.Contains(t.MaHoaDon))
@@ -895,7 +887,7 @@ namespace DoAnSE104.Controllers
                     .Select(g => new { g.Key, Sum = g.Sum(x => x.TongTien) })
                     .ToDictionaryAsync(x => x.Key, x => x.Sum);
 
-                // Lọc theo trạng thái (sau khi tính toán)
+                // Lọc trạng thái sau khi đã tính số tiền còn lại.
                 var rows = list.Select(h =>
                 {
                     var da = thanhToanDict.TryGetValue(h.MaHoaDon, out var p) ? p : 0m;
@@ -933,9 +925,9 @@ namespace DoAnSE104.Controllers
 
                 var dataRows = rows.ToList();
 
-                // Build CSV
+                // Tạo nội dung CSV.
                 var sb = new System.Text.StringBuilder();
-                // BOM UTF-8 cho Excel
+                // BOM giúp Excel nhận đúng mã UTF-8.
                 sb.Append('\uFEFF');
                 sb.AppendLine("Mã HĐ,Phòng,Người thuê,Kỳ hóa đơn,Loại hóa đơn,Tiền phòng,Tiền điện,Tiền nước,Tiền dịch vụ,Phát sinh khác,Tổng tiền,Đã thanh toán,Còn lại,Trạng thái,Ngày lập");
 

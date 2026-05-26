@@ -94,7 +94,7 @@ body { background-color: var(--background); color: var(--text); line-height: 1.5
     overflow-y: auto;
 }
 
-/* decorative circles */
+/* Vòng tròn nền trang đăng nhập */
 .auth-container::before,
 .auth-container::after {
     content: '';
@@ -401,7 +401,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .btn-warning { background: #fef3c7; color: #92400e; }
 .btn-warning:hover { background: #fde68a; }
 
-/* Action buttons in tables */
+/* Nút thao tác trong bảng */
 .btn-action {
     display: inline-flex;
     align-items: center;
@@ -2548,7 +2548,7 @@ tr:last-child td { border-bottom: none; }
 .profile-row .pr-label { font-size: 0.75rem; color: var(--text-light); font-weight: 500; }
 .profile-row .pr-value { font-size: 0.9rem; font-weight: 600; color: var(--text); }
 
-/* Avatar big */
+/* Ảnh đại diện lớn */
 .profile-avatar-big {
     width: 72px; height: 72px;
     border-radius: 20px;
@@ -2560,14 +2560,14 @@ tr:last-child td { border-bottom: none; }
     animation: pulseRing 2.5s infinite;
 }
 
-/* Full-width card */
+/* Khối nội dung toàn chiều ngang */
 .account-card-full { grid-column: 1 / -1; }
 
-/* Password strength bar */
+/* Thanh độ mạnh mật khẩu */
 .strength-bar { height: 4px; border-radius: 2px; transition: all .3s; margin-top: 6px; background: #e5e7eb; }
 .strength-bar .bar-fill { height: 100%; border-radius: 2px; transition: width .3s, background .3s; }
 
-/* Forgot password form stages */
+/* Các bước quên mật khẩu */
 .forgot-stage { display: none; }
 .forgot-stage.active { display: block; animation: fadeIn .3s ease-out; }
 

@@ -119,7 +119,7 @@ namespace DoAnSE104.Services
 
         public async Task<NguoiDungResponseDto> DangNhap(DangNhapDto dangNhapDto)
         {
-            // Nếu client gửi vai trò thì kiểm tra giá trị hợp lệ.
+            // Nếu request có vai trò thì kiểm tra giá trị hợp lệ.
             if (!string.IsNullOrWhiteSpace(dangNhapDto.VaiTro) && !_vaiTroHopLe.Contains(dangNhapDto.VaiTro))
                 throw new Exception($"Vai trò không hợp lệ. Chỉ chấp nhận: {string.Join(", ", _vaiTroHopLe)}");
 

@@ -1,5 +1,5 @@
 ﻿// ==========================================
-// ACCOUNT.JS — Tài khoản của tôi
+// Màn hình tài khoản của tôi.
 // ==========================================
 
 let currentProfileData = null;

@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// HOP DONG PRINT — Xem trước & In hợp đồng (window.print)
+// Xem trước và in hợp đồng bằng window.print().
 // ============================================================
 window.HopDongPrint = (function () {
 

@@ -1,5 +1,5 @@
-﻿// Bổ sung luồng yêu cầu gia hạn hợp đồng mà không phải sửa trực tiếp dashboard.js dài.
-// File này được load sau dashboard.js để vá các hành động của bảng Yêu cầu thuê/gia hạn.
+﻿// Luồng yêu cầu gia hạn hợp đồng được tách khỏi dashboard chính.
+// Module này load sau dashboard để gắn hành động cho bảng yêu cầu thuê/gia hạn.
 (function () {
     function getRowByRequestId(id) {
         const list = Array.isArray(currentData) ? currentData : [];

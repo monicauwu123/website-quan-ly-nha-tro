@@ -1,12 +1,16 @@
-.vs/
+# Build output
 bin/
 obj/
-*.user
-*.suo
-appsettings.Development.json
+
+# Local machine configuration
+appsettings.Local.json
+
+# IDE/editor files
 .vs/
-bin/
-obj/
+.vscode/
 *.user
 *.suo
-appsettings.Development.json
+
+# OS files
+Thumbs.db
+Desktop.ini
